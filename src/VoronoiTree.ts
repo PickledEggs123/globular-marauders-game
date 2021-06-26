@@ -1,9 +1,10 @@
 import {ICameraState} from "./Interface";
-import {DelaunayGraph, VoronoiCell, VoronoiGraph} from "./Graph";
+import {DelaunayGraph, ISerializedPathingNode, VoronoiCell, VoronoiGraph} from "./Graph";
 import Quaternion from "quaternion";
-import {Planet, Star} from "./Planet";
-import {Faction} from "./Faction";
+import {ISerializedPlanet, ISerializedStar, Planet, Star} from "./Planet";
+import {Faction, ISerializedFaction} from "./Faction";
 import {Game} from "./Game";
+import {EFaction} from "./Ship";
 
 interface IVoronoiTreeNodeParent<T extends ICameraState> {
     nodes: Array<VoronoiTreeNode<T>>;
@@ -370,63 +371,69 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
      * a voronoi cells, on a sphere.
      * @param originalNodes
      * @param forNode
+     * @param voronoiCells
      */
-    public static createTreeNodes<T extends ICameraState>(originalNodes: Array<VoronoiTreeNode<T>>, forNode: VoronoiTreeNode<T>) {
+    public static createTreeNodes<T extends ICameraState>(originalNodes: Array<VoronoiTreeNode<T>>, forNode: VoronoiTreeNode<T>, voronoiCells?: VoronoiCell[]) {
         const nodes: Array<VoronoiTreeNode<T>> = [];
 
-        // generate random points within a voronoi cell.
-        let randomPointsWithinVoronoiCell: Array<[number, number, number]> = [];
-        const numRandomPoints = forNode.recursionNodeLevels()[forNode.level];
-        for (let i = 0; i < numRandomPoints; i++) {
-            randomPointsWithinVoronoiCell.push(VoronoiTreeNode.createRandomPoint(forNode));
-        }
-
-        // compute random nodes within voronoi cell, hierarchical voronoi tree.
         let goodPoints: VoronoiCell[] = [];
-        let numSteps: number = 10;
-        // if (forNode.level === 1) {
-        //     goodPoints.push(forNode.voronoiCell);
-        //     numSteps = 0;
-        // }
-        for (let step = 0; step < numSteps || (goodPoints.length !== numRandomPoints && step < numSteps * 2); step++) {
-            const delaunay = new DelaunayGraph<T>(forNode.app);
-            // this line is needed because inserting vertices could remove old vertices.
-            while (randomPointsWithinVoronoiCell.length < numRandomPoints) {
+        if (voronoiCells) {
+            // pre-initialized points
+            goodPoints.push(...voronoiCells);
+        } else {
+            // generate random points within a voronoi cell.
+            let randomPointsWithinVoronoiCell: Array<[number, number, number]> = [];
+            const numRandomPoints = forNode.recursionNodeLevels()[forNode.level];
+            for (let i = 0; i < numRandomPoints; i++) {
                 randomPointsWithinVoronoiCell.push(VoronoiTreeNode.createRandomPoint(forNode));
             }
 
-            // rotate random points to the bottom of the tetrahedron
-            const rotationToBottomOfTetrahedron = Quaternion.fromBetweenVectors(forNode.voronoiCell.centroid, [0, 0, -1]);
-            delaunay.initializeWithPoints([
-                ...delaunay.getTetrahedronPoints(),
-                ...randomPointsWithinVoronoiCell.map(p => {
-                    return rotationToBottomOfTetrahedron.mul(Quaternion.fromBetweenVectors([0, 0, 1], p)).rotateVector([0, 0, 1]);
-                })
-            ]);
-
-            // this line is needed because inserting vertices could remove old vertices.
-            while (delaunay.numRealVertices() < numRandomPoints) {
-                delaunay.incrementalInsert(VoronoiTreeNode.createRandomPoint(forNode));
-            }
-            const outOfBoundsVoronoiCells = delaunay.getVoronoiGraph().cells;
-
-            // perform sutherland-hodgman polygon clipping
-            const points1 = outOfBoundsVoronoiCells.map((polygon) => {
-                return VoronoiTreeNode.rotateVoronoiCell(rotationToBottomOfTetrahedron.clone().inverse(), polygon);
-            });
-            const points2 = points1.map((polygon) => VoronoiTreeNode.polygonClip<T>(forNode, polygon));
-            goodPoints = points2.filter((polygon) => forNode.containsPoint(polygon.vertex));
-            randomPointsWithinVoronoiCell = goodPoints.reduce((acc, v) => {
-                if (acc.every(p => VoronoiGraph.angularDistance(p, v.centroid, 1) > 0.001)) {
-                    acc.push(v.centroid);
+            // compute random nodes within voronoi cell, hierarchical voronoi tree.
+            let numSteps: number = 10;
+            // if (forNode.level === 1) {
+            //     goodPoints.push(forNode.voronoiCell);
+            //     numSteps = 0;
+            // }
+            for (let step = 0; step < numSteps || (goodPoints.length !== numRandomPoints && step < numSteps * 2); step++) {
+                const delaunay = new DelaunayGraph<T>(forNode.app);
+                // this line is needed because inserting vertices could remove old vertices.
+                while (randomPointsWithinVoronoiCell.length < numRandomPoints) {
+                    randomPointsWithinVoronoiCell.push(VoronoiTreeNode.createRandomPoint(forNode));
                 }
-                return acc;
-            }, [] as Array<[number, number, number]>);
-        }
 
-        // check number of points
-        if (goodPoints.length !== numRandomPoints) {
-            throw new Error("Incorrect number of points");
+                // rotate random points to the bottom of the tetrahedron
+                const rotationToBottomOfTetrahedron = Quaternion.fromBetweenVectors(forNode.voronoiCell.centroid, [0, 0, -1]);
+                delaunay.initializeWithPoints([
+                    ...delaunay.getTetrahedronPoints(),
+                    ...randomPointsWithinVoronoiCell.map(p => {
+                        return rotationToBottomOfTetrahedron.mul(Quaternion.fromBetweenVectors([0, 0, 1], p)).rotateVector([0, 0, 1]);
+                    })
+                ]);
+
+                // this line is needed because inserting vertices could remove old vertices.
+                while (delaunay.numRealVertices() < numRandomPoints) {
+                    delaunay.incrementalInsert(VoronoiTreeNode.createRandomPoint(forNode));
+                }
+                const outOfBoundsVoronoiCells = delaunay.getVoronoiGraph().cells;
+
+                // perform sutherland-hodgman polygon clipping
+                const points1 = outOfBoundsVoronoiCells.map((polygon) => {
+                    return VoronoiTreeNode.rotateVoronoiCell(rotationToBottomOfTetrahedron.clone().inverse(), polygon);
+                });
+                const points2 = points1.map((polygon) => VoronoiTreeNode.polygonClip<T>(forNode, polygon));
+                goodPoints = points2.filter((polygon) => forNode.containsPoint(polygon.vertex));
+                randomPointsWithinVoronoiCell = goodPoints.reduce((acc, v) => {
+                    if (acc.every(p => VoronoiGraph.angularDistance(p, v.centroid, 1) > 0.001)) {
+                        acc.push(v.centroid);
+                    }
+                    return acc;
+                }, [] as Array<[number, number, number]>);
+            }
+
+            // check number of points
+            if (goodPoints.length !== numRandomPoints) {
+                throw new Error("Incorrect number of points");
+            }
         }
 
         // create tree nodes
@@ -467,13 +474,13 @@ export class VoronoiTree<T extends ICameraState> implements IVoronoiTreeNodePare
     /**
      * Create initial level 1 nodes for a tree. These are top level nodes.
      * @param parent The parent containing top level nodes, most likely VoronoiTree.
+     * @param voronoiCells Optional data to initialize the nodes.
      */
-    public createRootNodes<T extends ICameraState>(parent: IVoronoiTreeNodeParent<T>) {
+    public createRootNodes<T extends ICameraState>(parent: IVoronoiTreeNodeParent<T>, voronoiCells?: VoronoiCell[]) {
         const nodes: Array<VoronoiTreeNode<T>> = [];
 
         // compute points
-        // const goodPoints = this.app.generateGoodPoints(this.recursionNodeLevels()[0], 3);
-        const goodPoints = this.app.generateTessellatedPoints(2, 0);
+        const goodPoints: VoronoiCell[] = voronoiCells || this.app.generateTessellatedPoints(2, 0);
         for (const point of goodPoints) {
             const node = new VoronoiTreeNode<T>(parent.app, point, 1, parent);
             node.radius = point.vertices.reduce((acc, v) => Math.max(
@@ -579,6 +586,10 @@ export class VoronoiTree<T extends ICameraState> implements IVoronoiTreeNodePare
     }
 }
 
+export interface ISerializedFeudalGovernment {
+    feudalObligationRatio: number;
+}
+
 /**
  * A class which manages feudal governments.
  */
@@ -609,6 +620,22 @@ export class FeudalGovernment {
         this.getLordFeudalGovernment = getLordFeudalGovernment;
     }
 
+    public serialize(): ISerializedFeudalGovernment {
+        return {
+            feudalObligationRatio: this.feudalObligationRatio
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedFeudalGovernment) {
+        this.feudalObligationRatio = data.feudalObligationRatio;
+    }
+
+    public static deserialize(planet: Planet, data: ISerializedFeudalGovernment): FeudalGovernment {
+        const item = new FeudalGovernment(planet.findFeudalLord.bind(planet));
+        item.deserializeUpdate(data);
+        return item;
+    }
+
     /**
      * The amount of feudal obligation to the lord, the tier above this government. The tax rate of the lord, which
      * this government will pay.
@@ -626,6 +653,12 @@ export class FeudalGovernment {
     }
 }
 
+export interface ISerializedVoronoiCounty {
+    faction: EFaction | null;
+    planet: ISerializedPlanet | null;
+    capital: number | null;
+}
+
 /**
  * A voronoi tree node used to generate the terrain of a kingdom. There are 5 duchies in a kingdom.
  */
@@ -635,6 +668,29 @@ export class VoronoiCounty extends VoronoiTreeNode<ICameraState> {
     planet: Planet | null = null;
     getPlanetId: () => number;
     capital: Planet | null = null;
+
+    public serialize(): ISerializedVoronoiCounty {
+        return {
+            faction: this.faction ? this.faction.id : null,
+            planet: this.planet ? this.planet.serialize() : null,
+            capital: this.planet ? 0 : null
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedVoronoiCounty) {
+        this.faction = this.app.factions[data.faction];
+
+        // update planet;
+        if (this.planet === null && data.planet) {
+            this.planet = Planet.deserialize(this.app, this, data.planet);
+        } else if (this.planet && data.planet) {
+            this.planet.deserializeUpdate(data.planet);
+        } else if (this.planet && data.planet === null) {
+            this.planet = null;
+        }
+
+        this.capital = this.planet || null;
+    }
 
     constructor(
         app: Game,
@@ -649,8 +705,16 @@ export class VoronoiCounty extends VoronoiTreeNode<ICameraState> {
         this.getPlanetId = getPlanetId;
     }
 
-    public generateTerrain() {
-        this.planet = this.app.createPlanet(this.voronoiCell.centroid, this, this.getPlanetId());
+    public generateTerrain(data?: ISerializedVoronoiCounty) {
+        if (data) {
+            if (data.planet) {
+                this.planet = Planet.deserialize(this.app, this, data.planet);
+            } else {
+                this.planet = null;
+            }
+        } else {
+            this.planet = this.app.createPlanet(this.voronoiCell.centroid, this, this.getPlanetId());
+        }
     }
 
     public getNearestPlanet(position: [number, number, number]): Planet {
@@ -695,6 +759,15 @@ export class VoronoiCounty extends VoronoiTreeNode<ICameraState> {
     }
 }
 
+export interface ISerializedVoronoiDuchy {
+    voronoiCells: VoronoiCell[];
+    faction: EFaction;
+    capital: number | null;
+    counties: ISerializedVoronoiCounty[];
+    stars: ISerializedStar[];
+    color: string;
+}
+
 /**
  * A voronoi tree node used to generate the terrain of a kingdom. There are 5 duchies in a kingdom.
  */
@@ -707,6 +780,29 @@ export class VoronoiDuchy extends VoronoiTreeNode<ICameraState> {
     getPlanetId: () => number;
     getStarId: () => number;
     color: string = "red";
+
+    public serialize(): ISerializedVoronoiDuchy {
+        return {
+            voronoiCells: this.nodes.map(n => n.voronoiCell),
+            faction: this.faction !== null ? this.faction.id : null,
+            capital: this.capital !== null ? this.counties.indexOf(this.capital) : null,
+            counties: this.counties.map(k => k.serialize()),
+            stars: this.stars.map(s => s.serialize()),
+            color: this.color
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedVoronoiDuchy) {
+        this.faction = this.app.factions[data.faction] || null;
+        this.capital = this.counties[data.capital] || null;
+        for (let i = 0; i < data.counties.length && i < this.counties.length; i++) {
+            this.counties[i].deserializeUpdate(data.counties[i]);
+        }
+        for (let i = 0; i < data.stars.length && i < this.stars.length; i++) {
+            this.stars[i].deserializeUpdate(data.stars[i]);
+        }
+        this.color = data.color;
+    }
 
     constructor(
         app: Game,
@@ -725,16 +821,24 @@ export class VoronoiDuchy extends VoronoiTreeNode<ICameraState> {
         this.color = color;
     }
 
-    public generateTerrain() {
-        this.nodes = VoronoiTreeNode.createTreeNodes(this.parent.nodes, this);
+    public generateTerrain(data?: ISerializedVoronoiDuchy) {
+        this.nodes = VoronoiTreeNode.createTreeNodes(this.parent.nodes, this, data ? data.voronoiCells : null);
         this.counties = this.nodes.map(n => new VoronoiCounty(n.app, n.voronoiCell, n.level, n.parent, this, this.getPlanetId));
 
-        const tempStars = VoronoiTreeNode.createTreeNodes(this.parent.nodes, this);
-        this.stars = tempStars.map(s => s.voronoiCell.centroid).map((starPosition) => {
-            return this.app.buildStar.call(this.app, starPosition, this.getStarId());
-        });
-        for (const county of this.counties) {
-            county.generateTerrain();
+        if (data) {
+            // create stars from data
+            this.stars = data.stars.map(s => Star.deserialize(this.app, s));
+        } else {
+            // create stars from scratch
+            const tempStars = VoronoiTreeNode.createTreeNodes(this.parent.nodes, this);
+            this.stars = tempStars.map(s => s.voronoiCell.centroid).map((starPosition) => {
+                return this.app.buildStar.call(this.app, starPosition, this.getStarId());
+            });
+        }
+
+        for (let i = 0; i < this.counties.length; i++) {
+            const county = this.counties[i];
+            county.generateTerrain(data ? data.counties[i] : undefined);
         }
     }
 
@@ -777,6 +881,14 @@ export class VoronoiDuchy extends VoronoiTreeNode<ICameraState> {
     }
 }
 
+export interface ISerializedVoronoiKingdom {
+    voronoiCells: VoronoiCell[];
+    neighborKingdoms: number[];
+    faction: EFaction | null;
+    capital: number | null;
+    duchies: ISerializedVoronoiDuchy[];
+}
+
 /**
  * A voronoi tree node used to generate the terrain of a kingdom. There are 5 duchies in a kingdom.
  */
@@ -788,6 +900,25 @@ export class VoronoiKingdom extends VoronoiTreeNode<ICameraState> {
     duchies: VoronoiDuchy[] = [];
     getPlanetId: () => number;
     getStarId: () => number;
+
+    public serialize(): ISerializedVoronoiKingdom {
+        return {
+            voronoiCells: this.nodes.map(n => n.voronoiCell),
+            neighborKingdoms: this.neighborKingdoms.map(k => this.terrain.kingdoms.indexOf(k)),
+            faction: this.faction !== null ? this.faction.id : null,
+            capital: this.capital !== null ? this.duchies.indexOf(this.capital) : null,
+            duchies: this.duchies.map(k => k.serialize())
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedVoronoiKingdom) {
+        this.neighborKingdoms = data.neighborKingdoms.map(index => this.terrain.kingdoms[index]);
+        this.faction = this.app.factions[data.faction] || null;
+        this.capital = this.duchies[data.capital] || null;
+        for (let i = 0; i < data.duchies.length && this.duchies.length; i++) {
+            this.duchies[i].deserializeUpdate(data.duchies[i]);
+        }
+    }
 
     constructor(
         app: Game,
@@ -804,8 +935,8 @@ export class VoronoiKingdom extends VoronoiTreeNode<ICameraState> {
         this.getStarId = getStarId;
     }
 
-    public generateTerrain() {
-        this.nodes = VoronoiTreeNode.createTreeNodes(this.parent.nodes, this);
+    public generateTerrain(data?: ISerializedVoronoiKingdom) {
+        this.nodes = VoronoiTreeNode.createTreeNodes(this.parent.nodes, this, data ? data.voronoiCells : undefined);
         this.duchies = this.nodes.map((n, index) => {
             let color: string;
             if (index % 3 === 0)
@@ -816,8 +947,9 @@ export class VoronoiKingdom extends VoronoiTreeNode<ICameraState> {
                 color = "#4444ff";
             return new VoronoiDuchy(n.app, n.voronoiCell, n.level, n.parent, this, this.getPlanetId ,this.getStarId, color)
         });
-        for (const duchy of this.duchies) {
-            duchy.generateTerrain();
+        for (let i = 0; i < this.duchies.length; i++) {
+            const duchy = this.duchies[i];
+            duchy.generateTerrain(data ? data.duchies[i] : undefined);
         }
     }
 
@@ -861,6 +993,11 @@ export class VoronoiKingdom extends VoronoiTreeNode<ICameraState> {
     }
 }
 
+export interface ISerializedVoronoiTerrain {
+    voronoiCells: VoronoiCell[];
+    kingdoms: ISerializedVoronoiKingdom[];
+}
+
 /**
  * A voronoi tree used to generate terrain. There are 20 kingdoms.
  */
@@ -884,14 +1021,35 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
         return id;
     }
 
-    public generateTerrain() {
-        this.nodes = this.createRootNodes(this);
+    public serialize(): ISerializedVoronoiTerrain {
+        return {
+            voronoiCells: this.nodes.map(n => n.voronoiCell),
+            kingdoms: this.kingdoms.map(k => k.serialize())
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedVoronoiTerrain) {
+        for (let i = 0; i < data.kingdoms.length && i < this.kingdoms.length; i++) {
+            this.kingdoms[i].deserializeUpdate(data.kingdoms[i]);
+        }
+    }
+
+    public static deserialize(game: Game, data: ISerializedVoronoiTerrain): VoronoiTerrain {
+        const item = new VoronoiTerrain(game);
+        item.generateTerrain(data);
+        item.deserializeUpdate(data);
+        return item;
+    }
+
+    public generateTerrain(data?: ISerializedVoronoiTerrain) {
+        this.nodes = this.createRootNodes(this, data ? data.voronoiCells : undefined);
         this.kingdoms = this.nodes.map(n => new VoronoiKingdom(n.app, n.voronoiCell, n.level, n.parent, this, this.getPlanetId, this.getStarId));
         for (const kingdom of this.kingdoms) {
             kingdom.neighborKingdoms = kingdom.neighbors.map(n => n as VoronoiKingdom);
         }
-        for (const kingdom of this.kingdoms) {
-            kingdom.generateTerrain();
+        for (let i = 0; i < this.kingdoms.length; i++) {
+            const kingdom = this.kingdoms[i];
+            kingdom.generateTerrain(data ? data.kingdoms[i] : undefined);
         }
     }
 

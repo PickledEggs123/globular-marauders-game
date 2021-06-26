@@ -4,12 +4,12 @@ import {
     ICameraState,
     ICurrency,
     IDirectedMarketTrade,
-    IExplorationGraphData,
+    IExplorationGraphData, ISerializedMoneyAccount,
     ITradeDeal,
     MoneyAccount
 } from "./Interface";
 import Quaternion from "quaternion";
-import {DelaunayGraph, PathingNode, VoronoiGraph} from "./Graph";
+import {DelaunayGraph, ISerializedPathingNode, PathingNode, VoronoiGraph} from "./Graph";
 import {
     CAPITAL_GOODS,
     CONSUMABLE_RESOURCES,
@@ -22,8 +22,14 @@ import {
     OUTPOST_GOODS
 } from "./Resource";
 import {EShipType, Ship, SHIP_DATA} from "./Ship";
-import {FeudalGovernment, VoronoiCounty} from "./VoronoiTree";
-import {ERoyalRank, Faction, LuxuryBuff} from "./Faction";
+import {
+    FeudalGovernment,
+    ISerializedFeudalGovernment,
+    ISerializedVoronoiCounty,
+    ISerializedVoronoiDuchy,
+    VoronoiCounty
+} from "./VoronoiTree";
+import {ERoyalRank, Faction, ISerializedFaction, LuxuryBuff} from "./Faction";
 import {EOrderType, Order} from "./Order";
 import {Game} from "./Game";
 
@@ -516,6 +522,16 @@ export class Blacksmith extends Building {
     }
 }
 
+export interface ISerializedStar {
+    id: string;
+    position: Quaternion;
+    positionVelocity: Quaternion;
+    orientation: Quaternion;
+    orientationVelocity: Quaternion;
+    color: string;
+    size: number;
+}
+
 export class Star implements ICameraState {
     public instance: Game;
     public id: string = "";
@@ -526,9 +542,42 @@ export class Star implements ICameraState {
     public color: string = "blue";
     public size: number = 3;
 
+    public serialize(): ISerializedStar {
+        return {
+            id: this.id,
+            position: this.position,
+            positionVelocity: this.positionVelocity,
+            orientation: this.orientation,
+            orientationVelocity: this.orientationVelocity,
+            color: this.color,
+            size: this.size
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedStar) {
+        this.id = data.id;
+        this.position = data.position;
+        this.positionVelocity = data.positionVelocity;
+        this.orientation = data.orientation;
+        this.orientationVelocity = data.orientationVelocity;
+        this.color = data.color;
+        this.size = data.size;
+    }
+
+    static deserialize(instance: Game, data: ISerializedStar): Star {
+        const item = new Star(instance);
+        item.deserializeUpdate(data);
+        return item;
+    }
+
     constructor(instance: Game) {
         this.instance = instance;
     }
+}
+
+export interface ISerializedPlanetaryCurrencySystem {
+    name: string;
+    globalAmount: number;
 }
 
 /**
@@ -547,6 +596,24 @@ export class PlanetaryCurrencySystem {
      * The global amount of a currency.
      */
     public globalAmount: number = 0;
+
+    public serialize(): ISerializedPlanetaryCurrencySystem {
+        return {
+            name: this.name,
+            globalAmount: this.globalAmount,
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedPlanetaryCurrencySystem) {
+        this.name = data.name;
+        this.globalAmount = data.globalAmount;
+    }
+
+    public static deserialize(data: ISerializedPlanetaryCurrencySystem): PlanetaryCurrencySystem {
+        const item = new PlanetaryCurrencySystem(data.name);
+        item.deserializeUpdate(data);
+        return item;
+    }
 
     /**
      * Create a currency system.
@@ -580,6 +647,12 @@ export interface IEconomyDemand {
     amount: number;
 }
 
+export interface ISerializedPlanetaryEconomyDemand {
+    planetId: string;
+    demands: IEconomyDemand[];
+    demandTick: number;
+}
+
 /**
  * Compute the demand of a planet over time.
  */
@@ -591,6 +664,32 @@ export class PlanetaryEconomyDemand {
     demandTick: number = 0;
 
     public static DEMAND_TICK_COOL_DOWN: number = 60 * 10;
+
+    public serialize(): ISerializedPlanetaryEconomyDemand {
+        return {
+            planetId: this.planet.id,
+            demands: this.demands,
+            demandTick: this.demandTick,
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedPlanetaryEconomyDemand) {
+        this.demands.splice(0, this.demands.length);
+        this.demands.push.apply(this.demands, data.demands);
+
+        this.demandTick = data.demandTick;
+    }
+
+    public static deserialize(instance: Game, data: ISerializedPlanetaryEconomyDemand): PlanetaryEconomyDemand {
+        const planet = instance.planets.find(p => p.id === data.planetId);
+        if (!planet) {
+            throw new Error("Could not find planet");
+        }
+
+        const item = new PlanetaryEconomyDemand(planet);
+        item.deserializeUpdate(data);
+        return item;
+    }
 
     constructor(planet: Planet) {
         this.planet = planet;
@@ -649,10 +748,17 @@ export class PlanetaryEconomyDemand {
     }
 }
 
+export interface ISerializedPlanetaryEconomySystem {
+    resources: Array<IResourceExported>;
+    resourceUnitSum: number;
+    planetIds: string[];
+}
+
 /**
  * A class which stores how many goods are in the economy of a planet, duchy, kingdom, or empire.
  */
 export class PlanetaryEconomySystem {
+    instance: Game;
     /**
      * The resources of an economy.
      */
@@ -665,6 +771,40 @@ export class PlanetaryEconomySystem {
      * The planets of an economy.
      */
     planets: Planet[] = [];
+
+    public serialize(): ISerializedPlanetaryEconomySystem {
+        return {
+            resources: this.resources,
+            resourceUnitSum: this.resourceUnitSum,
+            planetIds: this.planets.map(p => p.id)
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedPlanetaryEconomySystem) {
+        this.resources.splice(0, this.resources.length);
+        this.resources.push.apply(this.resources, data.resources);
+
+        this.resourceUnitSum = data.resourceUnitSum;
+
+        this.planets.splice(0, this.planets.length);
+        this.planets.push.apply(this.planets, data.planetIds.map(planetId => {
+            const planet = this.instance.planets.find(p => p.id === planetId);
+            if (!planet) {
+                throw new Error("Could not find planet id in game instance");
+            }
+            return planet;
+        }));
+    }
+
+    public static deserialize(instance: Game, data: ISerializedPlanetaryEconomySystem): PlanetaryEconomySystem {
+        const item = new PlanetaryEconomySystem(instance);
+        item.deserializeUpdate(data);
+        return item;
+    }
+
+    constructor(instance: Game) {
+        this.instance = instance;
+    }
 
     /**
      * Add a resource to the economy.
@@ -770,6 +910,16 @@ export interface IMarketPrice {
     price: number;
 }
 
+export interface ISerializedPlanetaryMoneyAccount {
+    planetId: string;
+    cash: ISerializedMoneyAccount;
+    taxes: ISerializedMoneyAccount;
+    reserve: ISerializedMoneyAccount;
+    citizenCash: ISerializedMoneyAccount;
+    citizenDemand: ISerializedPlanetaryEconomyDemand;
+    resourcePrices: IMarketPrice[];
+}
+
 /**
  * A class which simulates the economy of an island.
  */
@@ -827,6 +977,39 @@ export class PlanetaryMoneyAccount {
      * The multiple per planet empty planet.
      */
     public static BASE_VALUE_PER_PLANET: number = 1000;
+
+    public serialize(): ISerializedPlanetaryMoneyAccount {
+        return {
+            planetId: this.planet.id,
+            cash: this.cash.serialize(),
+            taxes: this.taxes.serialize(),
+            reserve: this.reserve.serialize(),
+            citizenCash: this.citizenCash.serialize(),
+            citizenDemand: this.citizenDemand.serialize(),
+            resourcePrices: this.resourcePrices
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedPlanetaryMoneyAccount) {
+        this.cash.deserializeUpdate(data.cash);
+        this.taxes.deserializeUpdate(data.taxes);
+        this.reserve.deserializeUpdate(data.reserve);
+        this.citizenCash.deserializeUpdate(data.citizenCash);
+        this.citizenDemand.deserializeUpdate(data.citizenDemand);
+        this.resourcePrices.splice(0, this.resourcePrices.length);
+        this.resourcePrices.push.apply(this.resourcePrices, data.resourcePrices);
+    }
+
+    public static deserialize(instance: Game, data: ISerializedPlanetaryMoneyAccount): PlanetaryMoneyAccount {
+        const planet = instance.planets.find(p => p.id === data.planetId);
+        if (!planet) {
+            throw new Error("Could not find planet");
+        }
+
+        const item = new PlanetaryMoneyAccount(planet, planet.currencySystem, planet.economySystem);
+        item.deserializeUpdate(data);
+        return item;
+    }
 
     /**
      * Create a new planetary economy account;
@@ -1359,6 +1542,48 @@ export class Market {
     }
 }
 
+export interface ISerializedPlanet {
+    id: string;
+    position: Quaternion;
+    positionVelocity: Quaternion;
+    orientation: Quaternion;
+    orientationVelocity: Quaternion;
+    color: string;
+    size: number;
+    
+    settlementProgress: number;
+    settlementLevel: ESettlementLevel;
+    
+    pathingNode: ISerializedPathingNode<DelaunayGraph<Planet>> | null;
+    
+    naturalResources: EResourceType[];
+    producedResources: IResourceExported[];
+    importedResources: ICargoItem[];
+    manufacturedResources: IResourceProduced[];
+    resources: Array<IResourceExported>;
+    marketResources: Array<IResourceExported>;
+    feudalObligationResources: Array<IResourceExported>;
+    feudalObligationResourceCycle: number;
+    bestProfitableTrades: Array<[EResourceType, number, Planet]>;
+    possibleTradeDeals: Array<ITradeDeal>;
+    registeredTradeDeals: Array<ITradeDeal>;
+    registeredMarketResources: Array<[Ship, IResourceExported]>;
+    availableMarketResources: Array<IResourceExported>;
+
+    wood: number;
+    woodConstruction: number;
+    iron: number;
+    ironConstruction: number;
+    coal: number;
+    coalConstruction: number;
+    cannons: number;
+    cannonades: number;
+
+    feudalGovernment: ISerializedFeudalGovernment;
+    economySystem: ISerializedPlanetaryEconomySystem;
+    currencySystem: ISerializedPlanetaryCurrencySystem;
+    moneyAccount: ISerializedPlanetaryMoneyAccount;
+}
 export class Planet implements ICameraState {
     public instance: Game;
 
@@ -1454,11 +1679,6 @@ export class Planet implements ICameraState {
     private numTicks: number = 0;
 
     /**
-     * Number of settlements to colonize a planet.
-     */
-    public static NUM_SETTLEMENT_PROGRESS_STEPS = 4;
-
-    /**
      * The list of planet priorities for exploration.
      * @private
      */
@@ -1482,8 +1702,6 @@ export class Planet implements ICameraState {
     };
     public numPirateSlots: number = 0;
     public pirateSlots: string[] = [];
-    public static ENEMY_PRESENCE_TICK_COOL_DOWN: number = 10 * 30;
-    public static SHIP_DEMAND_TICK_COOL_DOWN: number = 30 * 10;
     public shipDemandTickCoolDown: number = 0;
     public shipsDemand: Record<EShipType, number> = {
         [EShipType.CUTTER]: 0,
@@ -1495,10 +1713,141 @@ export class Planet implements ICameraState {
     };
 
     /**
+     * Number of settlements to colonize a planet.
+     */
+    public static NUM_SETTLEMENT_PROGRESS_STEPS = 4;
+    public static ENEMY_PRESENCE_TICK_COOL_DOWN: number = 10 * 30;
+    public static SHIP_DEMAND_TICK_COOL_DOWN: number = 30 * 10;
+
+    /**
      * Get the number of ships available.
      */
     public getNumShipsAvailable(shipType: EShipType): number {
         return this.shipyard.shipsAvailable[shipType];
+    }
+
+    public serialize(): ISerializedPlanet {
+        return {
+            id: this.id,
+            position: this.position,
+            positionVelocity: this.positionVelocity,
+            orientation: this.orientation,
+            orientationVelocity: this.orientationVelocity,
+            color: this.color,
+            size: this.size,
+
+            settlementProgress: this.settlementProgress,
+            settlementLevel: this.settlementLevel,
+
+            pathingNode: this.pathingNode ? this.pathingNode.serialize() : null,
+
+            naturalResources: this.naturalResources,
+            producedResources: this.producedResources,
+            importedResources: this.importedResources,
+            manufacturedResources: this.manufacturedResources,
+            resources: this.resources,
+            marketResources: this.marketResources,
+            feudalObligationResources: this.feudalObligationResources,
+            feudalObligationResourceCycle: this.feudalObligationResourceCycle,
+            bestProfitableTrades: this.bestProfitableTrades,
+            possibleTradeDeals: this.possibleTradeDeals,
+            registeredTradeDeals: this.registeredTradeDeals,
+            registeredMarketResources: this.registeredMarketResources,
+            availableMarketResources: this.availableMarketResources,
+
+            wood: this.wood,
+            woodConstruction: this.woodConstruction,
+            iron: this.iron,
+            ironConstruction: this.ironConstruction,
+            coal: this.coal,
+            coalConstruction: this.coalConstruction,
+            cannons: this.cannons,
+            cannonades: this.cannonades,
+
+            feudalGovernment: this.feudalGovernment ? this.feudalGovernment.serialize() : null,
+            economySystem: this.economySystem ? this.economySystem.serialize() : null,
+            currencySystem: this.currencySystem ? this.currencySystem.serialize() : null,
+            moneyAccount: this.moneyAccount ? this.moneyAccount.serialize() : null,
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedPlanet) {
+        this.id = data.id;
+        this.position = data.position;
+        this.positionVelocity = data.positionVelocity;
+        this.orientation = data.orientation;
+        this.orientationVelocity = data.orientationVelocity;
+        this.color = data.color;
+        this.size = data.size;
+
+        this.settlementProgress = data.settlementProgress;
+        this.settlementLevel = data.settlementLevel;
+
+        if (this.pathingNode && !data.pathingNode) {
+            this.pathingNode = null;
+        } else if (this.pathingNode && data.pathingNode) {
+            this.pathingNode.deserializeUpdate(data.pathingNode);
+        } else if (!this.pathingNode && data.pathingNode) {
+            this.pathingNode = PathingNode.deserialize<any>(this.instance, data.pathingNode);
+        }
+
+        this.naturalResources = data.naturalResources;
+        this.producedResources = data.producedResources;
+        this.importedResources = data.importedResources;
+        this.manufacturedResources = data.manufacturedResources;
+        this.resources = data.resources;
+        this.marketResources = data.marketResources;
+        this.feudalObligationResources = data.feudalObligationResources;
+        this.feudalObligationResourceCycle = data.feudalObligationResourceCycle;
+        this.bestProfitableTrades = data.bestProfitableTrades;
+        this.possibleTradeDeals = data.possibleTradeDeals;
+        this.registeredTradeDeals = data.registeredTradeDeals;
+        this.registeredMarketResources = data.registeredMarketResources;
+        this.availableMarketResources = data.availableMarketResources;
+
+        this.wood = data.wood;
+        this.woodConstruction = data.woodConstruction;
+        this.iron = data.iron;
+        this.ironConstruction = data.ironConstruction;
+        this.coal = data.coal;
+        this.coalConstruction = data.coalConstruction;
+        this.cannons = data.cannons;
+        this.cannonades = data.cannonades;
+
+        if (this.feudalGovernment && !data.feudalGovernment) {
+            this.feudalGovernment = null;
+        } else if (this.feudalGovernment && data.feudalGovernment) {
+            this.feudalGovernment.deserializeUpdate(data.feudalGovernment);
+        } else if (!this.feudalGovernment && data.feudalGovernment) {
+            this.feudalGovernment = FeudalGovernment.deserialize(this, data.feudalGovernment);
+        }
+        if (this.economySystem && !data.economySystem) {
+            this.economySystem = null;
+        } else if (this.economySystem && data.economySystem) {
+            this.economySystem.deserializeUpdate(data.economySystem);
+        } else if (!this.economySystem && data.economySystem) {
+            this.economySystem = PlanetaryEconomySystem.deserialize(this.instance, data.economySystem);
+        }
+        if (this.currencySystem && !data.currencySystem) {
+            this.currencySystem = null;
+        } else if (this.currencySystem && data.currencySystem) {
+            this.currencySystem.deserializeUpdate(data.currencySystem);
+        } else if (!this.currencySystem && data.currencySystem) {
+            this.currencySystem = PlanetaryCurrencySystem.deserialize(data.currencySystem);
+        }
+        if (this.moneyAccount && !data.moneyAccount) {
+            this.moneyAccount = null;
+        } else if (this.moneyAccount && data.moneyAccount) {
+            this.moneyAccount.deserializeUpdate(data.moneyAccount);
+        } else if (!this.moneyAccount && data.moneyAccount) {
+            this.moneyAccount = PlanetaryMoneyAccount.deserialize(this.instance, data.moneyAccount);
+        }
+    }
+
+    public static deserialize(instance: Game, county: VoronoiCounty, data: ISerializedPlanet): Planet {
+        const item = new Planet(instance, county);
+        item.deserializeUpdate(data);
+        return item;
     }
 
     constructor(instance: Game, county: VoronoiCounty) {
@@ -1547,7 +1896,7 @@ export class Planet implements ICameraState {
             case ERoyalRank.EMPEROR: {
                 // emperors have more pirates and their own economy
                 this.numPirateSlots = 5;
-                this.economySystem = new PlanetaryEconomySystem();
+                this.economySystem = new PlanetaryEconomySystem(this.instance);
                 this.economySystem.addPlanet(this);
                 this.currencySystem = new PlanetaryCurrencySystem(`${faction.id} Bucks`);
                 break;
@@ -1555,7 +1904,7 @@ export class Planet implements ICameraState {
             case ERoyalRank.KING: {
                 // kings have some pirates and their own economy
                 this.numPirateSlots = 3;
-                this.economySystem = new PlanetaryEconomySystem();
+                this.economySystem = new PlanetaryEconomySystem(this.instance);
                 this.economySystem.addPlanet(this);
                 this.currencySystem = new PlanetaryCurrencySystem(`${faction.id} Bucks - ${Math.floor(Math.random() * 1000)}`);
                 break;
@@ -1568,7 +1917,7 @@ export class Planet implements ICameraState {
                 if (!lordPlanet.currencySystem) {
                     throw new Error("Couldn't find currency system to copy from king to duke");
                 }
-                this.economySystem = new PlanetaryEconomySystem();
+                this.economySystem = new PlanetaryEconomySystem(this.instance);
                 this.economySystem.addPlanet(this);
                 this.currencySystem = lordPlanet.currencySystem;
                 break;

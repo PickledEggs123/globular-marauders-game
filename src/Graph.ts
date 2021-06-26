@@ -1,6 +1,10 @@
 import Quaternion from "quaternion";
 import {IAutomatedShip, ICameraState} from "./Interface";
 import {Game} from "./Game";
+import {VoronoiCounty} from "./VoronoiTree";
+import {ISerializedPlanet} from "./Planet";
+import {Order} from "./Order";
+import {ISerializedShip} from "./Ship";
 
 export interface ITessellatedTriangle {
     vertices: Quaternion[];
@@ -286,6 +290,12 @@ interface IPathingNode<T extends IPathingGraph> {
     pathToObject(other: IPathingNode<T>): Array<[number, number, number]>;
 }
 
+export interface ISerializedPathingNode<T extends IPathingGraph> {
+    id: number;
+    closestVertex: number;
+    position: [number, number, number];
+}
+
 export class PathingNode<T extends IPathingGraph> implements IPathingNode<T> {
     public id: number = -1;
     public instance: T;
@@ -296,6 +306,25 @@ export class PathingNode<T extends IPathingGraph> implements IPathingNode<T> {
         this.instance = instance;
     }
 
+    public serialize(): ISerializedPathingNode<any> {
+        return {
+            id: this.id,
+            closestVertex: this.closestVertex,
+            position: this.position,
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedPathingNode<any>) {
+        this.id = data.id;
+        this.closestVertex = data.closestVertex;
+        this.position = data.position;
+    }
+
+    public static deserialize<T extends IPathingGraph>(instance: T, data: ISerializedPathingNode<T>): PathingNode<T> {
+        const item = new PathingNode<T>(instance);
+        item.deserializeUpdate(data);
+        return item;
+    }
 
     /**
      * Compute the path to another object on the sphere using the Delaunay graph as an AI pathing graph.
@@ -1027,6 +1056,11 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
     }
 }
 
+export interface ISerializedPathFinder {
+    points: Array<[number, number, number]>;
+    lastStepShouldRotate: boolean;
+}
+
 /**
  * Allows the AI ship to move through the world.
  */
@@ -1034,6 +1068,24 @@ export class PathFinder<T extends IAutomatedShip> {
     public owner: T;
     public points: Array<[number, number, number]> = [];
     public lastStepShouldRotate: boolean = false;
+
+    public serialize(): ISerializedPathFinder {
+        return {
+            points: this.points,
+            lastStepShouldRotate: this.lastStepShouldRotate
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedPathFinder) {
+        this.points = data.points;
+        this.lastStepShouldRotate = data.lastStepShouldRotate;
+    }
+
+    public static deserialize<T extends IAutomatedShip>(instance: T, data: ISerializedPathFinder): PathFinder<T> {
+        const item = new PathFinder<T>(instance);
+        item.deserializeUpdate(data);
+        return item;
+    }
 
     constructor(owner: T) {
         this.owner = owner;

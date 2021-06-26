@@ -1,12 +1,13 @@
 /**
  * A type of order for a ship to complete. Orders are actions the ship should take on behalf of the faction.
  */
-import {Ship, SHIP_DATA} from "./Ship";
+import {EFaction, ISerializedShip, Ship, SHIP_DATA} from "./Ship";
 import {DelaunayGraph, VoronoiGraph} from "./Graph";
 import {ESettlementLevel, ITradeDeal} from "./Interface";
 import {Faction} from "./Faction";
 import {Planet} from "./Planet";
 import {Game} from "./Game";
+import {inspect} from "util";
 
 /**
  * Different type of orders a faction can issue its ships.
@@ -52,6 +53,16 @@ export enum EOrderResult {
     RETREAT = "RETREAT",
 }
 
+export interface ISerializedOrder {
+    factionId: EFaction;
+    orderType: EOrderType;
+    orderResult: EOrderResult;
+    enemyStrength: number;
+    planetId: string | null;
+    expireTicks: number;
+    tradeDeal: ITradeDeal | null;
+}
+
 export class Order {
     public app: Game;
     public owner: Ship;
@@ -64,6 +75,42 @@ export class Order {
     public tradeDeal: ITradeDeal | null = null;
     private stage: number = 0;
     private runningTicks: number = 0;
+
+    public serialize(): ISerializedOrder {
+        return {
+            factionId: this.faction.id,
+            orderType: this.orderType,
+            orderResult: this.orderResult,
+            enemyStrength: this.enemyStrength,
+            planetId: this.planetId,
+            expireTicks: this.expireTicks,
+            tradeDeal: this.tradeDeal
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedOrder) {
+        this.faction = this.app.factions[data.factionId];
+        if (!this.faction) {
+            throw new Error("Could not find faction using faction id");
+        }
+        this.orderType = data.orderType;
+        this.orderResult = data.orderResult;
+        this.enemyStrength = data.enemyStrength;
+        this.planetId = data.planetId;
+        this.expireTicks = data.expireTicks;
+        this.tradeDeal = data.tradeDeal;
+    }
+
+    public static deserialize(game: Game, ship: Ship, data: ISerializedOrder): Order {
+        const faction = game.factions[data.factionId];
+        if (!faction) {
+            throw new Error("Could not find faction using faction id");
+        }
+
+        const item = new Order(game, ship, faction);
+        item.deserializeUpdate(data);
+        return item;
+    }
 
     constructor(app: Game, owner: Ship, faction: Faction) {
         this.app = app;

@@ -1,10 +1,10 @@
-import {IAutomatedShip, ICameraState, MoneyAccount} from "./Interface";
+import {IAutomatedShip, ICameraState, ISerializedMoneyAccount, MoneyAccount} from "./Interface";
 import Quaternion from "quaternion";
 import {EResourceType, ICargoItem} from "./Resource";
-import {EOrderResult, EOrderType, Order} from "./Order";
-import {DelaunayGraph, PathFinder, VoronoiGraph} from "./Graph";
+import {EOrderResult, EOrderType, ISerializedOrder, Order} from "./Order";
+import {DelaunayGraph, ISerializedPathFinder, ISerializedPathingNode, PathFinder, VoronoiGraph} from "./Graph";
 import {computeConeLineIntersection, IConeHitTest} from "./Intersection";
-import {Faction} from "./Faction";
+import {Faction, ISerializedFaction} from "./Faction";
 import {CannonBall, Crate} from "./Item";
 import {IResourceExported, Planet} from "./Planet";
 import {Game} from "./Game";
@@ -213,6 +213,32 @@ export const SHIP_DATA: IShipData[] = [{
     }
 }];
 
+export interface ISerializedShip {
+    id: string;
+    shipType: EShipType;
+    faction: EFaction | null;
+    planetId: string | null;
+    color: string;
+    position: Quaternion;
+    positionVelocity: Quaternion;
+    orientation: Quaternion;
+    orientationVelocity: Quaternion;
+    cannonLoading?: Date;
+    cannonCoolDown: number;
+    cannonadeCoolDown: number[];
+    activeKeys: string[];
+    pathFinding: ISerializedPathFinder;
+    fireControl: ISerializedFireControl;
+    orders: ISerializedOrder[];
+    health: number;
+    maxHealth: number;
+    cargo: ICargoItem[];
+    burnTicks: number[];
+    repairTicks: number[];
+    healthTickCoolDown: number;
+    moneyAccount: ISerializedMoneyAccount;
+}
+
 export class Ship implements IAutomatedShip {
     public app: Game;
     public id: string = "";
@@ -238,6 +264,67 @@ export class Ship implements IAutomatedShip {
     public repairTicks: number[] = new Array(Game.NUM_REPAIR_TICKS).fill(0);
     public healthTickCoolDown = Game.HEALTH_TICK_COOL_DOWN;
     public moneyAccount: MoneyAccount = new MoneyAccount();
+
+    public serialize(): ISerializedShip {
+        return {
+            id: this.id,
+            shipType: this.shipType,
+            faction: this.faction ? this.faction.id : null,
+            planetId: this.planet ? this.planet.id : null,
+            color: this.color,
+            position: this.position,
+            positionVelocity: this.positionVelocity,
+            orientation: this.orientation,
+            orientationVelocity: this.orientationVelocity,
+            cannonLoading: this.cannonLoading,
+            cannonCoolDown: this.cannonCoolDown,
+            cannonadeCoolDown: this.cannonadeCoolDown,
+            activeKeys: this.activeKeys,
+            pathFinding: this.pathFinding.serialize(),
+            fireControl: this.fireControl.serialize(),
+            orders: this.orders.map(o => o.serialize()),
+            health: this.health,
+            maxHealth: this.maxHealth,
+            cargo: this.cargo,
+            burnTicks: this.burnTicks,
+            repairTicks: this.repairTicks,
+            healthTickCoolDown: this.healthTickCoolDown,
+            moneyAccount: this.moneyAccount.serialize()
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedShip) {
+        this.id = data.id;
+        this.shipType = data.shipType;
+        this.faction = data.faction && this.app.factions[data.faction] || null;
+        this.planet = data.planetId && this.app.planets.find(p => p.id === data.planetId) || null;
+        this.color = data.color;
+        this.position = data.position;
+        this.positionVelocity = data.positionVelocity;
+        this.orientation = data.orientation;
+        this.orientationVelocity = data.orientationVelocity;
+        this.cannonLoading = data.cannonLoading;
+        this.cannonCoolDown = data.cannonCoolDown;
+        this.cannonadeCoolDown = data.cannonadeCoolDown;
+        this.activeKeys = data.activeKeys;
+        this.pathFinding.deserializeUpdate(data.pathFinding);
+        this.fireControl.deserializeUpdate(data.fireControl);
+        this.orders.splice(0, this.orders.length);
+        this.orders.push.apply(this.orders, data.orders.map(d => Order.deserialize(this.app, this, d)));
+        this.health = data.health;
+        this.maxHealth = data.maxHealth;
+        this.cargo = data.cargo;
+        this.burnTicks = data.burnTicks;
+        this.repairTicks = data.repairTicks;
+        this.healthTickCoolDown = data.healthTickCoolDown;
+        this.moneyAccount.deserializeUpdate(data.moneyAccount);
+    }
+
+    public static deserialize(game: Game, data: ISerializedShip): Ship {
+        const item = new Ship(game, data.shipType);
+        item.deserializeUpdate(data);
+        return item;
+    }
 
     constructor(app: Game, shipType: EShipType) {
         this.app = app;
@@ -512,6 +599,14 @@ export enum EFaction {
     SPANISH = "SPANISH",
 }
 
+export interface ISerializedFireControl {
+    targetShipId: string | null;
+    coolDown: number;
+    retargetCoolDown: number;
+    isAttacking: boolean;
+    lastStepShouldRotate: boolean;
+}
+
 /**
  * Allows the AI ship to fire at other ships in the world.
  */
@@ -523,6 +618,30 @@ export class FireControl<T extends IAutomatedShip> {
     public retargetCoolDown: number = 0;
     public isAttacking: boolean = false;
     public lastStepShouldRotate: boolean = false;
+
+    public serialize(): ISerializedFireControl {
+        return {
+            targetShipId: this.targetShipId,
+            coolDown: this.coolDown,
+            retargetCoolDown: this.retargetCoolDown,
+            isAttacking: this.isAttacking,
+            lastStepShouldRotate: this.lastStepShouldRotate
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedFireControl) {
+        this.targetShipId = data.targetShipId;
+        this.coolDown = data.coolDown;
+        this.retargetCoolDown = data.retargetCoolDown;
+        this.isAttacking = data.isAttacking;
+        this.lastStepShouldRotate = data.lastStepShouldRotate;
+    }
+
+    public static deserialize<T extends IAutomatedShip>(app: Game, instance: T, data: ISerializedFireControl): FireControl<T> {
+        const item = new FireControl<T>(app, instance);
+        item.deserializeUpdate(data);
+        return item;
+    }
 
     constructor(app: Game, owner: T) {
         this.app = app;

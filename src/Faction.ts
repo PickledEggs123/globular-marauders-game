@@ -1,4 +1,4 @@
-import {CAPITAL_GOODS, EResourceType, ITEM_DATA} from "./Resource";
+import {EResourceType} from "./Resource";
 import {EFaction, EShipType, Ship} from "./Ship";
 import {Planet} from "./Planet";
 import {Game} from "./Game";
@@ -82,6 +82,15 @@ export class LuxuryBuff {
     }
 }
 
+export interface ISerializedFaction {
+    id: EFaction;
+    factionColor: string;
+    homeWorldPlanetID: string;
+    planetIds: string[];
+    shipIds: string[];
+    shipsAvailable: Record<EShipType, number>;
+}
+
 /**
  * A class representing a faction in the game world. Responsible for building boats, setting up trade, and colonizing islands.
  */
@@ -118,6 +127,33 @@ export class Faction {
         [EShipType.BRIG]: 0,
         [EShipType.FRIGATE]: 0
     };
+
+    public serialize(): ISerializedFaction {
+        return {
+            id: this.id,
+            factionColor: this.factionColor,
+            homeWorldPlanetID: this.homeWorldPlanetId,
+            planetIds: this.planetIds,
+            shipIds: this.shipIds,
+            shipsAvailable: this.shipsAvailable
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedFaction) {
+        this.id = data.id;
+        this.factionColor = data.factionColor;
+        this.homeWorldPlanetId = data.homeWorldPlanetID;
+        this.planetIds = [...data.planetIds];
+        this.shipIds = [...data.shipIds];
+        this.shipsAvailable = {...data.shipsAvailable};
+    }
+
+    public static deserialize(game: Game, data: ISerializedFaction): Faction {
+        const item = new Faction(game, data.id, data.factionColor, data.homeWorldPlanetID);
+        item.deserializeUpdate(data);
+        return item;
+    }
+
     /**
      * A number which produces unique ship id names.
      * @private

@@ -3,10 +3,10 @@
  */
 import {Market, Planet, Star} from "./Planet";
 import {ICameraState, ICollidable, IDirectedMarketTrade, IExpirableTicks, MoneyAccount} from "./Interface";
-import {EFaction, EShipType, PHYSICS_SCALE, Ship, SHIP_DATA} from "./Ship";
-import {VoronoiCounty, VoronoiKingdom, VoronoiTerrain, VoronoiTree} from "./VoronoiTree";
-import {Faction, LuxuryBuff} from "./Faction";
-import {CannonBall, Crate, SmokeCloud} from "./Item";
+import {EFaction, EShipType, ISerializedShip, PHYSICS_SCALE, Ship, SHIP_DATA} from "./Ship";
+import {ISerializedVoronoiTerrain, VoronoiCounty, VoronoiKingdom, VoronoiTerrain, VoronoiTree} from "./VoronoiTree";
+import {Faction, ISerializedFaction, LuxuryBuff} from "./Faction";
+import {CannonBall, Crate, ISerializedCannonBall, ISerializedCrate, SmokeCloud} from "./Item";
 import Quaternion from "quaternion";
 import {
     DelaunayGraph,
@@ -20,6 +20,7 @@ import {
 } from "./Graph";
 import {IHitTest} from "./Intersection";
 import {EOrderType, Order} from "./Order";
+import {create} from "domain";
 
 /**
  * A list of player specific data for the server to store.
@@ -64,6 +65,26 @@ export interface IKeyboardMessage extends IMessage {
     messageType: EMessageType.KEYBOARD;
     key: string;
     enabled: boolean;
+}
+
+/**
+ * The initial game data sent from server to client. Used to setup terrain.
+ */
+export interface IGameInitializationFrame {
+    factions: ISerializedFaction[];
+    voronoiTerrain: ISerializedVoronoiTerrain;
+    ships: ISerializedShip[];
+    cannonBalls: ISerializedCannonBall[];
+    crates: ISerializedCrate[];
+}
+
+/**
+ * Data sent from server to client on every frame. 10 times a second. Should create an animation effect.
+ */
+export interface IGameSyncFrame {
+    ships: ISerializedShip[];
+    cannonBalls: ISerializedCannonBall[];
+    crates: ISerializedCrate[];
 }
 
 export class Game {
@@ -143,6 +164,111 @@ export class Game {
      * THe number of seconds between each trade tick.
      */
     public static TRADE_TICK_COOL_DOWN: number = 10 * 60 * 10;
+
+    /**
+     * Get the initial game load for multiplayer purposes.
+     */
+    public getInitializationFrame(): IGameInitializationFrame {
+        return {
+            factions: Object.values(this.factions).map(f => f.serialize()),
+            voronoiTerrain: this.voronoiTerrain.serialize(),
+            ships: this.ships.map(s => s.serialize()),
+            cannonBalls: this.cannonBalls.map(c => c.serialize()),
+            crates: this.crates.map(c => c.serialize())
+        };
+    }
+
+    /**
+     * Get a single frame of the game 10 times a second. For multiplayer purposes.
+     */
+    public getSyncFrame(): IGameSyncFrame {
+        return {
+            ships: this.ships.map(s => s.serialize()),
+            cannonBalls: this.cannonBalls.map(c => c.serialize()),
+            crates: this.crates.map(c => c.serialize())
+        };
+    }
+
+    /**
+     * Apply an initial load frame to the game. For multiplayer purposes.
+     * @param data
+     */
+    public applyGameInitializationFrame(data: IGameInitializationFrame) {
+        for (const factionData of data.factions) {
+            if (this.factions[factionData.id]) {
+                this.factions[factionData.id].deserializeUpdate(factionData);
+            } else {
+                this.factions[factionData.id] = Faction.deserialize(this, factionData);
+            }
+        }
+
+        this.voronoiTerrain = VoronoiTerrain.deserialize(this, data.voronoiTerrain);
+
+        this.applyGameSyncFrame({
+            ships: data.ships,
+            cannonBalls: data.cannonBalls,
+            crates: data.crates
+        });
+    }
+
+    /**
+     * Sync an array of network objects.
+     * @param mainArray The main array which should mutate.
+     * @param dataArray The data array to apply to the main array.
+     * @param createFunc A function to create a new instance.
+     * @param updateFunc A function to update an old instance.
+     */
+    public static syncNetworkArray<T extends {id: string}, U extends {id: string}>(mainArray: T[], dataArray: U[], createFunc: (u: U) => T, updateFunc: (t: T, u: U) => void) {
+        const shipsToRemove: T[] = [...mainArray];
+        for (const shipData of dataArray) {
+            const ship = mainArray.find(s => s.id === shipData.id);
+            if (ship) {
+                // ship did exist and still exist, simply update
+                updateFunc(ship, shipData)
+
+                // unmark ship to remove
+                const shipsToRemoveIndex = shipsToRemove.findIndex(s => s === ship);
+                if (shipsToRemoveIndex >= 0) {
+                    shipsToRemove.splice(shipsToRemoveIndex, 1);
+                }
+            } else {
+                // ship does not exist, create a new one
+                mainArray.push(createFunc(shipData));
+            }
+        }
+        // remove old ships
+        for (const ship of shipsToRemove) {
+            const index = mainArray.findIndex(s => s === ship);
+            if (index >= 0) {
+                mainArray.splice(index, 1);
+            }
+        }
+    }
+
+    /**
+     * Apply a game frame 10 times a second to the game. For multiplayer purposes.
+     * @param data
+     */
+    public applyGameSyncFrame(data: IGameSyncFrame) {
+        Game.syncNetworkArray(
+            this.ships,
+            data.ships,
+            (v: ISerializedShip) => Ship.deserialize(this, v),
+            (s: Ship, v: ISerializedShip) => s.deserializeUpdate(v)
+        );
+        Game.syncNetworkArray(
+            this.cannonBalls,
+            data.cannonBalls,
+            (v: ISerializedCannonBall) => CannonBall.deserialize(v),
+            (s: CannonBall, v: ISerializedCannonBall) => s.deserializeUpdate(v)
+        );
+        Game.syncNetworkArray(
+            this.crates,
+            data.crates,
+            (v: ISerializedCrate) => Crate.deserialize(v),
+            (s: Crate, v: ISerializedCrate) => s.deserializeUpdate(v)
+        );
+    }
 
     static GetCameraState(viewableObject: ICameraState): ICameraState {
         return {

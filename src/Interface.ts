@@ -1,7 +1,7 @@
 import Quaternion from "quaternion";
 import {PathFinder} from "./Graph";
 import {EFaction} from "./Ship";
-import {Planet} from "./Planet";
+import {ISerializedPlanetaryMoneyAccount, Planet} from "./Planet";
 import {Crate} from "./Item";
 import {Game} from "./Game";
 import {EResourceType} from "./Resource";
@@ -121,11 +121,32 @@ export interface ICurrency {
     amount: number;
 }
 
+export interface ISerializedMoneyAccount {
+    currencies: ICurrency[];
+}
+
 /**
  * An object which has gold. Can be used to pay for ships.
  */
 export class MoneyAccount {
     currencies: ICurrency[] = [];
+
+    public serialize(): ISerializedMoneyAccount {
+        return {
+            currencies: this.currencies
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedMoneyAccount) {
+        this.currencies.splice(0, this.currencies.length);
+        this.currencies.push.apply(this.currencies, data.currencies);
+    }
+
+    public static deserialize(data: ISerializedMoneyAccount): MoneyAccount {
+        const item = new MoneyAccount();
+        item.deserializeUpdate(data);
+        return item;
+    }
 
     constructor(startingGold: number = 0) {
         this.currencies.push({
