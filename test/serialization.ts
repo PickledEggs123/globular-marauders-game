@@ -43,4 +43,9 @@ describe("network serialization", () => {
         const b = Crate.deserialize(a.serialize());
         expect(a.serialize()).to.deep.equal(b.serialize());
     });
+    it("Initialize", () => {
+        const game2 = new Game();
+        game2.applyGameInitializationFrame(game.getInitializationFrame());
+        game2.applyGameSyncFrame(game.getSyncFrame());
+    });
 });

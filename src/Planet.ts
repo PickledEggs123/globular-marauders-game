@@ -788,12 +788,8 @@ export class PlanetaryEconomySystem {
 
         this.planets.splice(0, this.planets.length);
         this.planets.push.apply(this.planets, data.planetIds.map(planetId => {
-            const planet = this.instance.planets.find(p => p.id === planetId);
-            if (!planet) {
-                throw new Error("Could not find planet id in game instance");
-            }
-            return planet;
-        }));
+            return this.instance.planets.find(p => p.id === planetId) || null;
+        }).filter(p => !!p));
     }
 
     public static deserialize(instance: Game, data: ISerializedPlanetaryEconomySystem): PlanetaryEconomySystem {
@@ -1000,12 +996,7 @@ export class PlanetaryMoneyAccount {
         this.resourcePrices.push.apply(this.resourcePrices, data.resourcePrices);
     }
 
-    public static deserialize(instance: Game, data: ISerializedPlanetaryMoneyAccount): PlanetaryMoneyAccount {
-        const planet = instance.planets.find(p => p.id === data.planetId);
-        if (!planet) {
-            throw new Error("Could not find planet");
-        }
-
+    public static deserialize(instance: Game, planet: Planet, data: ISerializedPlanetaryMoneyAccount): PlanetaryMoneyAccount {
         const item = new PlanetaryMoneyAccount(planet, planet.currencySystem, planet.economySystem);
         item.deserializeUpdate(data);
         return item;
@@ -1840,7 +1831,7 @@ export class Planet implements ICameraState {
         } else if (this.moneyAccount && data.moneyAccount) {
             this.moneyAccount.deserializeUpdate(data.moneyAccount);
         } else if (!this.moneyAccount && data.moneyAccount) {
-            this.moneyAccount = PlanetaryMoneyAccount.deserialize(this.instance, data.moneyAccount);
+            this.moneyAccount = PlanetaryMoneyAccount.deserialize(this.instance, this, data.moneyAccount);
         }
     }
 
