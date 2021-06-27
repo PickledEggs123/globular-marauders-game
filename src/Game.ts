@@ -20,22 +20,45 @@ import {
 } from "./Graph";
 import {IHitTest} from "./Intersection";
 import {EOrderType, Order} from "./Order";
-import {create} from "domain";
 
 /**
  * A list of player specific data for the server to store.
  */
 export interface IPlayerData {
+    id: string;
+    factionId: EFaction | null;
+    planetId: string | null;
+    shipId: string;
     activeKeys: string[];
     moneyAccount: MoneyAccount;
-    shipId: string;
     autoPilotEnabled: boolean;
+}
+
+/**
+ * A list of possible spawn planets.
+ */
+export interface ISpawnPlanet {
+    planetId: string;
+    numShipsAvailable: number;
+}
+
+/**
+ * A list of possible spawn locations.
+ */
+export interface ISpawnLocation {
+    id: string;
+    numShipsAvailable: number;
+    price: number;
+    shipType: EShipType;
 }
 
 /**
  * The type of message sent to and from the server.
  */
 export enum EMessageType {
+    JOIN = "JOIN",
+    CHOOSE_FACTION = "CHOOSE_FACTION",
+    CHOOSE_PLANET = "CHOOSE_PLANET",
     SPAWN = "SPAWN",
     DEATH = "DEATH",
     AUTOPILOT = "AUTOPILOT",
@@ -44,6 +67,21 @@ export enum EMessageType {
 
 export interface IMessage {
     messageType: EMessageType;
+}
+
+export interface IJoin extends IMessage {
+    messageType: EMessageType.JOIN;
+    name: string;
+}
+
+export interface IChooseFactionMessage extends IMessage {
+    messageType: EMessageType.CHOOSE_FACTION;
+    factionId: EFaction | null;
+}
+
+export interface IChoosePlanetMessage extends IMessage {
+    messageType: EMessageType.CHOOSE_PLANET;
+    planetId: string | null;
 }
 
 export interface ISpawnMessage extends IMessage {
@@ -92,7 +130,6 @@ export class Game {
     public voronoiTerrain: VoronoiTerrain = new VoronoiTerrain(this);
     public factions: { [key: string]: Faction } = {};
     public ships: Ship[] = [];
-    public playerShip: Ship | null = null;
     public crates: Crate[] = [];
     public planets: Planet[] = [];
     public directedMarketTrade: Record<string, Array<IDirectedMarketTrade>> = {};
@@ -104,8 +141,8 @@ export class Game {
     public lastDemoAttackingShipTime: Date = new Date();
     public tradeTick: number = 10 * 5;
     public playerData: IPlayerData[] = [];
-    public incomingMessages: IMessage[] = [];
-    public outgoingMessages: IMessage[] = [];
+    public incomingMessages: Array<[string, IMessage]> = [];
+    public outgoingMessages: Array<[string, IMessage]> = [];
     public isTestMode: boolean = false;
 
     /**
@@ -268,6 +305,98 @@ export class Game {
             (v: ISerializedCrate) => Crate.deserialize(v),
             (s: Crate, v: ISerializedCrate) => s.deserializeUpdate(v)
         );
+    }
+
+    public getSpawnPlanets(playerData: IPlayerData): ISpawnPlanet[] {
+        const spawnPlanets: ISpawnPlanet[] = [];
+
+        // get faction
+        let faction: Faction | null = null;
+        if (playerData.factionId) {
+            faction = this.factions[playerData.factionId];
+        }
+
+        if (faction) {
+            // get planets of faction
+            const planetsToSpawnAt = this.planets.filter(p => faction && faction.planetIds.includes(p.id))
+                .sort((a, b) => {
+                    const settlementLevelDifference = b.settlementLevel - a.settlementLevel;
+                    if (settlementLevelDifference !== 0) {
+                        return settlementLevelDifference;
+                    }
+                    const settlementProgressDifference = b.settlementProgress - a.settlementProgress;
+                    if (settlementProgressDifference !== 0) {
+                        return settlementProgressDifference;
+                    }
+                    if (a.id > b.id) {
+                        return -1;
+                    } else {
+                        return 1;
+                    }
+                });
+
+            // get ships at planets of faction
+            for (const planet of planetsToSpawnAt) {
+                const spawnPlanet: ISpawnPlanet = {
+                    planetId: planet.id,
+                    numShipsAvailable: planet.shipyard.numShipsAvailable,
+                };
+                spawnPlanets.push(spawnPlanet);
+            }
+        }
+
+        return spawnPlanets;
+    }
+    public getSpawnLocations(playerData: IPlayerData): ISpawnLocation[] {
+        const spawnLocations: ISpawnLocation[] = [];
+
+        // get faction
+        let faction: Faction | null = null;
+        if (playerData.factionId) {
+            faction = this.factions[playerData.factionId];
+        }
+
+        if (faction) {
+            // get planets of faction
+            const planetsToSpawnAt = this.planets.filter(p => faction && faction.planetIds.includes(p.id))
+                .sort((a, b) => {
+                    const settlementLevelDifference = b.settlementLevel - a.settlementLevel;
+                    if (settlementLevelDifference !== 0) {
+                        return settlementLevelDifference;
+                    }
+                    const settlementProgressDifference = b.settlementProgress - a.settlementProgress;
+                    if (settlementProgressDifference !== 0) {
+                        return settlementProgressDifference;
+                    }
+                    if (a.id > b.id) {
+                        return -1;
+                    } else {
+                        return 1;
+                    }
+                });
+
+            // get ships at planets of faction
+            for (const planet of planetsToSpawnAt) {
+                if (planet.id !== playerData.planetId) {
+                    continue;
+                }
+
+                for (const shipType of Object.values(EShipType)) {
+                    const numShipsAvailable = planet.getNumShipsAvailable(shipType);
+                    if (numShipsAvailable > 0) {
+                        const spawnLocation: ISpawnLocation = {
+                            id: planet.id,
+                            numShipsAvailable,
+                            price: planet.shipyard.quoteShip(shipType)[0].amount,
+                            shipType
+                        };
+                        spawnLocations.push(spawnLocation);
+                    }
+                }
+            }
+        }
+
+        return spawnLocations;
     }
 
     static GetCameraState(viewableObject: ICameraState): ICameraState {
@@ -732,44 +861,92 @@ export class Game {
     public handleServerLoop() {
         // handle key strokes
         while (true) {
-            const message = this.incomingMessages.shift();
+            const [playerId, message] = this.incomingMessages.shift();
             if (message) {
                 // has message, process message
-                if (message.messageType === EMessageType.SPAWN) {
+                if (message.messageType === EMessageType.JOIN) {
+                    const player = this.playerData.find(p => p.id === playerId);
+                    if (!player) {
+                        this.playerData.push({
+                            id: playerId,
+                            factionId: null,
+                            planetId: null,
+                            shipId: "",
+                            activeKeys: [],
+                            moneyAccount: new MoneyAccount(2000),
+                            autoPilotEnabled: true,
+                        });
+                    }
+                } else if (message.messageType === EMessageType.CHOOSE_FACTION) {
+                    const chooseFactionMessage = message as IChooseFactionMessage;
+
+                    const player = this.playerData.find(p => p.id === playerId);
+                    if (!player) {
+                        throw new Error("Unknown player id");
+                    }
+                    player.factionId = chooseFactionMessage.factionId;
+
+                    if (player.factionId === null) {
+                        player.planetId = null;
+                        player.shipId = "";
+                    }
+                } else if (message.messageType === EMessageType.CHOOSE_PLANET) {
+                    const choosePlanetMessage = message as IChoosePlanetMessage;
+
+                    const player = this.playerData.find(p => p.id === playerId);
+                    if (!player) {
+                        throw new Error("Unknown player id");
+                    }
+                    player.planetId = choosePlanetMessage.planetId;
+
+                    if (player.planetId === null) {
+                        player.shipId = "";
+                    }
+                } else if (message.messageType === EMessageType.SPAWN) {
                     const spawnMessage = message as ISpawnMessage;
                     const {
                         shipType,
                         planetId
                     } = spawnMessage;
                     const planet = this.planets.find(p => p.id === planetId);
-                    if (!this.playerData[0]) {
-                        this.playerData.push({
-                            shipId: "",
-                            autoPilotEnabled: true,
-                            moneyAccount: new MoneyAccount(2000),
-                            activeKeys: []
-                        });
+
+                    const player = this.playerData.find(p => p.id === playerId);
+                    if (!player) {
+                        throw new Error("Unknown player id");
                     }
-                    if (planet && this.playerData[0] && this.playerData[0].moneyAccount.hasEnough(planet.shipyard.quoteShip(shipType))) {
-                        this.playerShip = planet.shipyard.buyShip(this.playerData[0].moneyAccount, shipType);
-                        this.playerData[0].shipId = this.playerShip.id;
+
+                    if (planet && player && player.moneyAccount.hasEnough(planet.shipyard.quoteShip(shipType))) {
+                        const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType);
+                        player.shipId = playerShip.id;
                     }
                 } if (message.messageType === EMessageType.AUTOPILOT) {
                     const autoPilotMessage = message as IAutoPilotMessage;
-                    if (this.playerData[0]) {
-                        this.playerData[0].autoPilotEnabled = autoPilotMessage.enabled;
+
+                    const player = this.playerData.find(p => p.id === playerId);
+                    if (!player) {
+                        throw new Error("Unknown player id");
+                    }
+
+                    if (player) {
+                        player.autoPilotEnabled = autoPilotMessage.enabled;
                     }
                 } else if (message.messageType === EMessageType.KEYBOARD) {
                     const keyboardMessage = message as IKeyboardMessage;
-                    if (this.playerData[0]) {
+
+                    const player = this.playerData.find(p => p.id === playerId);
+                    if (!player) {
+                        throw new Error("Unknown player id");
+                    }
+
+                    if (player) {
                         if (keyboardMessage.enabled) {
-                            if (!this.playerData[0].activeKeys.includes(keyboardMessage.key)) {
-                                this.playerData[0].activeKeys.push(keyboardMessage.key);
+                            if (!player.activeKeys.includes(keyboardMessage.key)) {
+                                player.activeKeys.push(keyboardMessage.key);
                             }
                         } else {
-                            const index = this.playerData[0].activeKeys.findIndex(k => k === keyboardMessage.key);
+                            const index = player.activeKeys.findIndex(k => k === keyboardMessage.key);
                             if (index >= 0) {
-                                this.playerData[0].activeKeys.splice(index, 1);
+                                player.activeKeys.splice(index, 1);
                             }
                         }
                     }
@@ -976,13 +1153,14 @@ export class Game {
 
         // remove destroyed ships
         for (const destroyedShip of destroyedShips) {
-            if (destroyedShip === this.playerShip) {
-                this.playerShip = null;
-                this.playerData.splice(0, this.playerData.length);
+            const playerIndex = this.playerData.findIndex(p => p.shipId === destroyedShip.id);
+            if (playerIndex >= 0) {
+                const player = this.playerData[playerIndex];
+                this.playerData.splice(playerIndex, 1);
                 const message: IDeathMessage = {
                     messageType: EMessageType.DEATH
                 };
-                this.outgoingMessages.push(message);
+                this.outgoingMessages.push([player.id, message]);
             }
             const index = this.ships.findIndex(s => s === destroyedShip);
             if (index >= 0) {
