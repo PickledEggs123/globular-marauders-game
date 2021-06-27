@@ -2,10 +2,10 @@ import {IAutomatedShip, ICameraState, ISerializedMoneyAccount, MoneyAccount} fro
 import Quaternion from "quaternion";
 import {EResourceType, ICargoItem} from "./Resource";
 import {EOrderResult, EOrderType, ISerializedOrder, Order} from "./Order";
-import {DelaunayGraph, ISerializedPathFinder, ISerializedPathingNode, PathFinder, VoronoiGraph} from "./Graph";
+import {DelaunayGraph, ISerializedPathFinder, PathFinder, VoronoiGraph} from "./Graph";
 import {computeConeLineIntersection, IConeHitTest} from "./Intersection";
-import {Faction, ISerializedFaction} from "./Faction";
-import {CannonBall, Crate} from "./Item";
+import {Faction} from "./Faction";
+import {CannonBall, Crate, DeserializeQuaternion, ISerializedQuaternion, SerializeQuaternion} from "./Item";
 import {IResourceExported, Planet} from "./Planet";
 import {Game} from "./Game";
 
@@ -219,10 +219,10 @@ export interface ISerializedShip {
     faction: EFaction | null;
     planetId: string | null;
     color: string;
-    position: Quaternion;
-    positionVelocity: Quaternion;
-    orientation: Quaternion;
-    orientationVelocity: Quaternion;
+    position: ISerializedQuaternion;
+    positionVelocity: ISerializedQuaternion;
+    orientation: ISerializedQuaternion;
+    orientationVelocity: ISerializedQuaternion;
     cannonLoading?: Date;
     cannonCoolDown: number;
     cannonadeCoolDown: number[];
@@ -272,10 +272,10 @@ export class Ship implements IAutomatedShip {
             faction: this.faction ? this.faction.id : null,
             planetId: this.planet ? this.planet.id : null,
             color: this.color,
-            position: this.position,
-            positionVelocity: this.positionVelocity,
-            orientation: this.orientation,
-            orientationVelocity: this.orientationVelocity,
+            position: SerializeQuaternion(this.position),
+            positionVelocity: SerializeQuaternion(this.positionVelocity),
+            orientation: SerializeQuaternion(this.orientation),
+            orientationVelocity: SerializeQuaternion(this.orientationVelocity),
             cannonLoading: this.cannonLoading,
             cannonCoolDown: this.cannonCoolDown,
             cannonadeCoolDown: this.cannonadeCoolDown,
@@ -299,10 +299,10 @@ export class Ship implements IAutomatedShip {
         this.faction = data.faction && this.app.factions[data.faction] || null;
         this.planet = data.planetId && this.app.planets.find(p => p.id === data.planetId) || null;
         this.color = data.color;
-        this.position = data.position;
-        this.positionVelocity = data.positionVelocity;
-        this.orientation = data.orientation;
-        this.orientationVelocity = data.orientationVelocity;
+        this.position = DeserializeQuaternion(data.position);
+        this.positionVelocity = DeserializeQuaternion(data.positionVelocity);
+        this.orientation = DeserializeQuaternion(data.orientation);
+        this.orientationVelocity = DeserializeQuaternion(data.orientationVelocity);
         this.cannonLoading = data.cannonLoading;
         this.cannonCoolDown = data.cannonCoolDown;
         this.cannonadeCoolDown = data.cannonadeCoolDown;

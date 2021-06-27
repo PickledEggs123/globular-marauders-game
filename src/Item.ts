@@ -1,18 +1,52 @@
 import {ICameraState, ICollidable, IExpirable, IExpirableTicks} from "./Interface";
 import Quaternion from "quaternion";
-import {EFaction, ISerializedShip} from "./Ship";
+import {EFaction} from "./Ship";
 import {EResourceType, ICargoItem} from "./Resource";
 import {Game} from "./Game";
-import {Order} from "./Order";
+
+/**
+ * The format of all serialized quaternion. Need to also serialize quaternions else
+ * the game data wont transfer correctly.
+ */
+export interface ISerializedQuaternion {
+    // picked poor names to catch type errors more easily
+    a: number;
+    b: number;
+    c: number;
+    d: number;
+}
+
+/**
+ * Convert a game data quaternion into a network data object.
+ * @param q The game quaternion to convert.
+ * @constructor
+ */
+export const SerializeQuaternion = (q: Quaternion): ISerializedQuaternion => {
+    return {
+        a: q.w,
+        b: q.x,
+        c: q.y,
+        d: q.z
+    };
+};
+
+/**
+ * Convert a network data object into a game data quaternion.
+ * @param d The network data object to convert.
+ * @constructor
+ */
+export const DeserializeQuaternion = (d: ISerializedQuaternion): Quaternion => {
+    return new Quaternion(d.a, d.b, d.c, d.d);
+};
 
 export interface ISerializedCrate {
     id: string;
     color: string;
     size: number;
-    position: Quaternion;
-    positionVelocity: Quaternion;
-    orientation: Quaternion;
-    orientationVelocity: Quaternion;
+    position: ISerializedQuaternion;
+    positionVelocity: ISerializedQuaternion;
+    orientation: ISerializedQuaternion;
+    orientationVelocity: ISerializedQuaternion;
     resourceType: EResourceType;
     sourcePlanetId: string;
     amount: number;
@@ -43,10 +77,10 @@ export class Crate implements ICameraState, ICargoItem, IExpirableTicks, ICollid
             id: this.id,
             color: this.color,
             size: this.size,
-            position: this.position,
-            positionVelocity: this.positionVelocity,
-            orientation: this.orientation,
-            orientationVelocity: this.orientationVelocity,
+            position: SerializeQuaternion(this.position),
+            positionVelocity: SerializeQuaternion(this.positionVelocity),
+            orientation: SerializeQuaternion(this.orientation),
+            orientationVelocity: SerializeQuaternion(this.orientationVelocity),
             resourceType: this.resourceType,
             sourcePlanetId: this.sourcePlanetId,
             amount: this.amount,
@@ -61,10 +95,10 @@ export class Crate implements ICameraState, ICargoItem, IExpirableTicks, ICollid
         this.id = data.id;
         this.color = data.color;
         this.size = data.size;
-        this.position = data.position;
-        this.positionVelocity = data.positionVelocity;
-        this.orientation = data.orientation;
-        this.orientationVelocity = data.orientationVelocity;
+        this.position = DeserializeQuaternion(data.position);
+        this.positionVelocity = DeserializeQuaternion(data.positionVelocity);
+        this.orientation = DeserializeQuaternion(data.orientation);
+        this.orientationVelocity = DeserializeQuaternion(data.orientationVelocity);
         this.resourceType = data.resourceType;
         this.sourcePlanetId = data.sourcePlanetId;
         this.amount = data.amount;
@@ -102,10 +136,10 @@ export class SmokeCloud implements ICameraState, IExpirable {
 export interface ISerializedCannonBall {
     id: string;
     color: string;
-    position: Quaternion;
-    positionVelocity: Quaternion;
-    orientation: Quaternion;
-    orientationVelocity: Quaternion;
+    position: ISerializedQuaternion;
+    positionVelocity: ISerializedQuaternion;
+    orientation: ISerializedQuaternion;
+    orientationVelocity: ISerializedQuaternion;
     size: number;
     damage: number;
     maxLive: number;
@@ -133,10 +167,10 @@ export class CannonBall implements ICameraState, IExpirableTicks, ICollidable {
         return {
             id: this.id,
             color: this.color,
-            position: this.position,
-            positionVelocity: this.positionVelocity,
-            orientation: this.orientation,
-            orientationVelocity: this.orientationVelocity,
+            position: SerializeQuaternion(this.position),
+            positionVelocity: SerializeQuaternion(this.positionVelocity),
+            orientation: SerializeQuaternion(this.orientation),
+            orientationVelocity: SerializeQuaternion(this.orientationVelocity),
             size: this.size,
             damage: this.damage,
             maxLive: this.maxLife,
@@ -148,10 +182,10 @@ export class CannonBall implements ICameraState, IExpirableTicks, ICollidable {
     public deserializeUpdate(data: ISerializedCannonBall) {
         this.id = data.id;
         this.color = data.color;
-        this.position = data.position;
-        this.positionVelocity = data.positionVelocity;
-        this.orientation = data.orientation;
-        this.orientationVelocity = data.orientationVelocity;
+        this.position = DeserializeQuaternion(data.position);
+        this.positionVelocity = DeserializeQuaternion(data.positionVelocity);
+        this.orientation = DeserializeQuaternion(data.orientation);
+        this.orientationVelocity = DeserializeQuaternion(data.orientationVelocity);
         this.size = data.size;
         this.damage = data.damage;
         this.maxLife = data.maxLive;

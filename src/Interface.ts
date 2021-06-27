@@ -1,7 +1,7 @@
 import Quaternion from "quaternion";
 import {PathFinder} from "./Graph";
 import {EFaction} from "./Ship";
-import {ISerializedPlanetaryMoneyAccount, Planet} from "./Planet";
+import {Planet} from "./Planet";
 import {Crate} from "./Item";
 import {Game} from "./Game";
 import {EResourceType} from "./Resource";

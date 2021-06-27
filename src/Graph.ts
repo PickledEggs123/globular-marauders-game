@@ -1,10 +1,6 @@
 import Quaternion from "quaternion";
 import {IAutomatedShip, ICameraState} from "./Interface";
 import {Game} from "./Game";
-import {VoronoiCounty} from "./VoronoiTree";
-import {ISerializedPlanet} from "./Planet";
-import {Order} from "./Order";
-import {ISerializedShip} from "./Ship";
 
 export interface ITessellatedTriangle {
     vertices: Quaternion[];

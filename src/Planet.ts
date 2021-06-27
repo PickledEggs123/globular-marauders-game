@@ -25,13 +25,12 @@ import {EShipType, Ship, SHIP_DATA} from "./Ship";
 import {
     FeudalGovernment,
     ISerializedFeudalGovernment,
-    ISerializedVoronoiCounty,
-    ISerializedVoronoiDuchy,
     VoronoiCounty
 } from "./VoronoiTree";
-import {ERoyalRank, Faction, ISerializedFaction, LuxuryBuff} from "./Faction";
+import {ERoyalRank, Faction, LuxuryBuff} from "./Faction";
 import {EOrderType, Order} from "./Order";
 import {Game} from "./Game";
+import {DeserializeQuaternion, ISerializedQuaternion, SerializeQuaternion} from "./Item";
 
 export interface IResourceExported {
     resourceType: EResourceType;
@@ -524,10 +523,10 @@ export class Blacksmith extends Building {
 
 export interface ISerializedStar {
     id: string;
-    position: Quaternion;
-    positionVelocity: Quaternion;
-    orientation: Quaternion;
-    orientationVelocity: Quaternion;
+    position: ISerializedQuaternion;
+    positionVelocity: ISerializedQuaternion;
+    orientation: ISerializedQuaternion;
+    orientationVelocity: ISerializedQuaternion;
     color: string;
     size: number;
 }
@@ -545,10 +544,10 @@ export class Star implements ICameraState {
     public serialize(): ISerializedStar {
         return {
             id: this.id,
-            position: this.position,
-            positionVelocity: this.positionVelocity,
-            orientation: this.orientation,
-            orientationVelocity: this.orientationVelocity,
+            position: SerializeQuaternion(this.position),
+            positionVelocity: SerializeQuaternion(this.positionVelocity),
+            orientation: SerializeQuaternion(this.orientation),
+            orientationVelocity: SerializeQuaternion(this.orientationVelocity),
             color: this.color,
             size: this.size
         };
@@ -556,10 +555,10 @@ export class Star implements ICameraState {
 
     public deserializeUpdate(data: ISerializedStar) {
         this.id = data.id;
-        this.position = data.position;
-        this.positionVelocity = data.positionVelocity;
-        this.orientation = data.orientation;
-        this.orientationVelocity = data.orientationVelocity;
+        this.position = DeserializeQuaternion(data.position);
+        this.positionVelocity = DeserializeQuaternion(data.positionVelocity);
+        this.orientation = DeserializeQuaternion(data.orientation);
+        this.orientationVelocity = DeserializeQuaternion(data.orientationVelocity);
         this.color = data.color;
         this.size = data.size;
     }
@@ -1535,10 +1534,10 @@ export class Market {
 
 export interface ISerializedPlanet {
     id: string;
-    position: Quaternion;
-    positionVelocity: Quaternion;
-    orientation: Quaternion;
-    orientationVelocity: Quaternion;
+    position: ISerializedQuaternion;
+    positionVelocity: ISerializedQuaternion;
+    orientation: ISerializedQuaternion;
+    orientationVelocity: ISerializedQuaternion;
     color: string;
     size: number;
     
@@ -1720,10 +1719,10 @@ export class Planet implements ICameraState {
     public serialize(): ISerializedPlanet {
         return {
             id: this.id,
-            position: this.position,
-            positionVelocity: this.positionVelocity,
-            orientation: this.orientation,
-            orientationVelocity: this.orientationVelocity,
+            position: SerializeQuaternion(this.position),
+            positionVelocity: SerializeQuaternion(this.positionVelocity),
+            orientation: SerializeQuaternion(this.orientation),
+            orientationVelocity: SerializeQuaternion(this.orientationVelocity),
             color: this.color,
             size: this.size,
 
@@ -1764,10 +1763,10 @@ export class Planet implements ICameraState {
 
     public deserializeUpdate(data: ISerializedPlanet) {
         this.id = data.id;
-        this.position = data.position;
-        this.positionVelocity = data.positionVelocity;
-        this.orientation = data.orientation;
-        this.orientationVelocity = data.orientationVelocity;
+        this.position = DeserializeQuaternion(data.position);
+        this.positionVelocity = DeserializeQuaternion(data.positionVelocity);
+        this.orientation = DeserializeQuaternion(data.orientation);
+        this.orientationVelocity = DeserializeQuaternion(data.orientationVelocity);
         this.color = data.color;
         this.size = data.size;
 
