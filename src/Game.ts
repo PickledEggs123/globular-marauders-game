@@ -861,8 +861,9 @@ export class Game {
     public handleServerLoop() {
         // handle key strokes
         while (true) {
-            const [playerId, message] = this.incomingMessages.shift();
-            if (message) {
+            const item = this.incomingMessages.shift();
+            if (item) {
+                const [playerId, message] = item;
                 // has message, process message
                 if (message.messageType === EMessageType.JOIN) {
                     const player = this.playerData.find(p => p.id === playerId);
