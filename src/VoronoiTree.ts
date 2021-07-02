@@ -1178,9 +1178,7 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
     public *getNearestCounties(position: [number, number, number], radius: number = 1): Generator<VoronoiCounty> {
         for (const kingdom of this.kingdoms) {
             if (kingdom.isNearBy(position, radius)) {
-                for (const county of kingdom.getNearestCounties(position, radius)) {
-                    yield county;
-                }
+                yield * kingdom.getNearestCounties(position, radius);
             }
         }
     }
