@@ -3,8 +3,9 @@ import {DelaunayGraph, VoronoiCell, VoronoiGraph} from "./Graph";
 import Quaternion from "quaternion";
 import {ISerializedPlanet, ISerializedStar, Planet, Star} from "./Planet";
 import {Faction} from "./Faction";
-import {Game} from "./Game";
-import {EFaction} from "./Ship";
+import {Game, IGameSyncFrame} from "./Game";
+import {EFaction, Ship} from "./Ship";
+import {CannonBall, Crate} from "./Item";
 
 interface IVoronoiTreeNodeParent<T extends ICameraState> {
     nodes: Array<VoronoiTreeNode<T>>;
@@ -669,6 +670,10 @@ export class VoronoiCounty extends VoronoiTreeNode<ICameraState> {
     getPlanetId: () => number;
     capital: Planet | null = null;
 
+    ships: Ship[] = [];
+    cannonBalls: CannonBall[] = [];
+    crates: Crate[] = [];
+
     public serialize(): ISerializedVoronoiCounty {
         return {
             faction: this.faction ? this.faction.id : null,
@@ -728,6 +733,41 @@ export class VoronoiCounty extends VoronoiTreeNode<ICameraState> {
         if (this.planet) {
             yield this.planet;
         }
+    }
+
+    removeDataItem(key: any, item: any) {
+        const index = this[key].findIndex(i => i.id === item.id);
+        if (index >= 0) {
+            this[key].splice(index, 1);
+        }
+    }
+
+    addDataItem(key: any, item: any) {
+        this[key].push(item);
+    }
+
+    removeShip(item: Ship) {
+        this.removeDataItem("ships", item);
+    }
+
+    addShip(item: Ship) {
+        this.addDataItem("ships", item);
+    }
+
+    removeCannonBall(item: CannonBall) {
+        this.removeDataItem("cannonBalls", item);
+    }
+
+    addCannonBall(item: CannonBall) {
+        this.addDataItem("cannonBalls", item);
+    }
+
+    removeCrate(item: Crate) {
+        this.removeDataItem("crates", item);
+    }
+
+    addCrate(item: Crate) {
+        this.addDataItem("crates", item);
     }
 
     public claim(faction: Faction) {
@@ -867,6 +907,23 @@ export class VoronoiDuchy extends VoronoiTreeNode<ICameraState> {
         }
     }
 
+    public getNearestCounty(position: [number, number, number]): VoronoiCounty | null {
+        let bestCounty: VoronoiCounty | null = null;
+        let bestDistance: number | null = null;
+        for (const county of this.counties) {
+            const distance = VoronoiGraph.angularDistance(position, county.voronoiCell.centroid, this.app.worldScale);
+            if (bestDistance === null || (distance < bestDistance)) {
+                bestCounty = county;
+                bestDistance = distance;
+            }
+        }
+        if (bestCounty !== null) {
+            return bestCounty;
+        } else {
+            return null;
+        }
+    }
+
     public claim(county: VoronoiCounty, faction: Faction) {
         // set faction
         this.faction = faction;
@@ -982,6 +1039,33 @@ export class VoronoiKingdom extends VoronoiTreeNode<ICameraState> {
         }
     }
 
+    public *getNearestCounties(position: [number, number, number], radius: number = 1): Generator<VoronoiCounty> {
+        for (const duchy of this.duchies) {
+            if (duchy.isNearBy(position, radius)) {
+                for (const county of duchy.counties) {
+                    yield county;
+                }
+            }
+        }
+    }
+
+    public getNearestCounty(position: [number, number, number]): VoronoiCounty | null {
+        let bestDuchy: VoronoiDuchy | null = null;
+        let bestDistance: number | null = null;
+        for (const duchy of this.duchies) {
+            const distance = VoronoiGraph.angularDistance(position, duchy.voronoiCell.centroid, this.app.worldScale);
+            if (bestDistance === null || (distance < bestDistance)) {
+                bestDuchy = duchy;
+                bestDistance = distance;
+            }
+        }
+        if (bestDuchy !== null) {
+            return bestDuchy.getNearestCounty(position);
+        } else {
+            return null;
+        }
+    }
+
     public claim(duchy: VoronoiDuchy, faction: Faction) {
         // set faction
         this.faction = faction;
@@ -998,6 +1082,11 @@ export interface ISerializedVoronoiTerrain {
     kingdoms: ISerializedVoronoiKingdom[];
 }
 
+interface IVoronoiTerrainItem<T extends ICameraState> {
+    item: T;
+    voronoiCounty: VoronoiCounty;
+}
+
 /**
  * A voronoi tree used to generate terrain. There are 20 kingdoms.
  */
@@ -1006,6 +1095,10 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
     recursionNodeLevels(): number[] {
         return [20, 3, 3];
     }
+
+    ships: Record<string, IVoronoiTerrainItem<Ship>> = {};
+    cannonBalls: Record<string, IVoronoiTerrainItem<CannonBall>> = {};
+    crates: Record<string, IVoronoiTerrainItem<Crate>> = {};
 
     planetId: number = 0;
     getPlanetId = () => {
@@ -1080,5 +1173,125 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
                 yield * kingdom.getStars(position, radius);
             }
         }
+    }
+
+    public *getNearestCounties(position: [number, number, number], radius: number = 1): Generator<VoronoiCounty> {
+        for (const kingdom of this.kingdoms) {
+            if (kingdom.isNearBy(position, radius)) {
+                kingdom.getNearestCounties(position, radius);
+            }
+        }
+    }
+
+    public removeDataItem<T extends ICameraState>(
+        key: any,
+        removeItem: (voronoiCounty: VoronoiCounty, item: T) => void,
+        item: T
+    ) {
+        const voronoiTerrainItem = this[key][item.id];
+        if (voronoiTerrainItem) {
+            removeItem(voronoiTerrainItem.voronoiCounty, item);
+            delete this[key][item.id];
+        }
+    }
+
+    public updateDataItem<T extends ICameraState>(
+        key: any,
+        removeItem: (voronoiCounty: VoronoiCounty, item: T) => void,
+        addItem: (voronoiCounty: VoronoiCounty, item: T) => void,
+        item: T
+    ) {
+        // remove old item
+        const voronoiTerrainItem = this[key][item.id];
+        if (voronoiTerrainItem) {
+            removeItem(voronoiTerrainItem.voronoiCounty, item);
+        }
+
+        // add new item
+        const closestCounty = this.getNearestCounty(item.position.rotateVector([0, 0, 1]));
+        addItem(closestCounty, item);
+        if (voronoiTerrainItem) {
+            voronoiTerrainItem.voronoiCounty = closestCounty;
+        } else {
+            this[key][item.id] = {
+                item,
+                voronoiCounty: closestCounty
+            };
+        }
+    }
+
+    public updateShip(item: Ship) {
+        this.updateDataItem(
+            "ships",
+            (voronoiCounty: VoronoiCounty, item: Ship) => voronoiCounty.removeShip(item),
+            (voronoiCounty: VoronoiCounty, item: Ship) => voronoiCounty.addShip(item),
+            item);
+    }
+    public removeShip(item: Ship) {
+        this.removeDataItem(
+            "ships",
+            (voronoiCounty: VoronoiCounty, item: Ship) => voronoiCounty.removeShip(item),
+            item);
+    }
+    public updateCannonBall(item: CannonBall) {
+        this.updateDataItem(
+            "cannonBalls",
+            (voronoiCounty: VoronoiCounty, item: CannonBall) => voronoiCounty.removeCannonBall(item),
+            (voronoiCounty: VoronoiCounty, item: CannonBall) => voronoiCounty.addCannonBall(item),
+            item);
+    }
+    public removeCannonBall(item: CannonBall) {
+        this.removeDataItem(
+            "cannonBalls",
+            (voronoiCounty: VoronoiCounty, item: CannonBall) => voronoiCounty.removeCannonBall(item),
+            item);
+    }
+    public updateCrate(item: Crate) {
+        this.updateDataItem(
+            "crates",
+            (voronoiCounty: VoronoiCounty, item: Crate) => voronoiCounty.removeCrate(item),
+            (voronoiCounty: VoronoiCounty, item: Crate) => voronoiCounty.addCrate(item),
+            item);
+    }
+    public removeCrate(item: Crate) {
+        this.removeDataItem(
+            "crates",
+            (voronoiCounty: VoronoiCounty, item: Crate) => voronoiCounty.removeCrate(item),
+            item);
+    }
+
+    public getNearestCounty(position: [number, number, number]): VoronoiCounty | null {
+        let bestKingdom: VoronoiKingdom | null = null;
+        let bestDistance: number | null = null;
+        for (const kingdom of this.kingdoms) {
+            const distance = VoronoiGraph.angularDistance(position, kingdom.voronoiCell.centroid, this.app.worldScale);
+            if (bestDistance === null || (distance < bestDistance)) {
+                bestKingdom = kingdom;
+                bestDistance = distance;
+            }
+        }
+        if (bestKingdom !== null) {
+            return bestKingdom.getNearestCounty(position);
+        } else {
+            return null;
+        }
+    }
+
+    public getClientFrame(position: [number, number, number], radius: number = 1): IGameSyncFrame {
+        const ships: Ship[] = [];
+        const cannonBalls: CannonBall[] = [];
+        const crates: Crate[] = [];
+
+        for (const county of this.getNearestCounties(position, radius)) {
+            ships.push.apply(ships, county.ships);
+            cannonBalls.push.apply(cannonBalls, county.cannonBalls);
+            crates.push.apply(crates, county.crates);
+        }
+
+        return {
+            ships: ships.map(s => s.serialize()),
+            cannonBalls: cannonBalls.map(c => c.serialize()),
+            crates: crates.map(c => c.serialize()),
+        };
     }
 }
