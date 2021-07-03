@@ -658,8 +658,8 @@ export class FireControl<T extends IAutomatedShip> {
             .mul(target.position.clone())
             .rotateVector([0, 0, 1]);
         const shipPosition: [number, number] = [
-            shipPositionPoint[0],
-            shipPositionPoint[1]
+            (shipPositionPoint[0] / this.app.worldScale),
+            (shipPositionPoint[1] / this.app.worldScale)
         ];
         const shipDirectionPoint = this.owner.orientation.clone().inverse()
             .mul(this.owner.position.clone().inverse())
@@ -668,8 +668,8 @@ export class FireControl<T extends IAutomatedShip> {
             .mul(target.positionVelocity.clone().pow(target.getSpeedFactor()))
             .rotateVector([0, 0, 1]);
         const shipDirection: [number, number] = [
-            shipDirectionPoint[0] - shipPosition[0],
-            shipDirectionPoint[1] - shipPosition[1]
+            (shipDirectionPoint[0] / this.app.worldScale) - shipPosition[0],
+            (shipDirectionPoint[1] / this.app.worldScale) - shipPosition[1]
         ];
         const projectileSpeed = Game.PROJECTILE_SPEED / this.app.worldScale;
         return computeConeLineIntersection(shipPosition, shipDirection, projectileSpeed);

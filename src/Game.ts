@@ -144,6 +144,9 @@ export class Game {
     public incomingMessages: Array<[string, IMessage]> = [];
     public outgoingMessages: Array<[string, IMessage]> = [];
     public isTestMode: boolean = false;
+    public clientLoopDelta: number = 1000 / 10;
+    public clientLoopStart: number = Date.now();
+    public clientLoopDeltaStart: number = Date.now();
 
     /**
      * Velocity step size of ships.
@@ -858,6 +861,15 @@ export class Game {
         }
     }
 
+    /**
+     * ------------------------------------------------------------------------
+     * Server loop
+     * ------------------------------------------------------------------------
+     */
+
+    /**
+     * Handle server responsibilities. Move things around and compute collisions.
+     */
     public handleServerLoop() {
         // handle key strokes
         while (true) {
@@ -1287,6 +1299,49 @@ export class Game {
         // handle AI factions
         for (const faction of Object.values(this.factions)) {
             faction.handleFactionLoop();
+        }
+    }
+
+    /**
+     * --------------------------------------------------------------------------
+     * Client Loop
+     * --------------------------------------------------------------------------
+     */
+
+    /**
+     * Reset the client loop. Used to interpolate data from server onto client.
+     */
+    public resetClientLoop() {
+        const now = Date.now();
+        this.clientLoopDelta = (now - this.clientLoopStart) / 1000;
+        this.clientLoopStart = now;
+        this.clientLoopDeltaStart = now;
+    }
+
+    public handleClientLoop() {
+        // get client frame delta
+        const now = Date.now();
+        const delta = ((now - this.clientLoopDeltaStart) / 1000) / this.clientLoopDelta;
+        this.clientLoopDeltaStart = now;
+
+        // get a list of items to move on the client
+        const movableItems: Array<{
+            array: ICameraState[]
+        }> = [{
+            array: this.ships,
+        }, {
+            array: this.cannonBalls,
+        }, {
+            array: this.crates
+        }];
+
+        // for each client item
+        for (const {array: movableArray} of movableItems) {
+            // extrapolate items
+            for (const item of movableArray) {
+                item.position = item.position.clone().mul(item.positionVelocity.clone().pow(delta));
+                item.orientation = item.orientation.clone().mul(item.orientationVelocity.clone().pow(delta));
+            }
         }
     }
 
