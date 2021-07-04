@@ -861,7 +861,7 @@ export class Game {
         }
         if (!isAutomated)
             this.smokeClouds = smokeClouds;
-        this.cannonBalls = [...cannonBalls, ...newCannonBalls];
+        this.cannonBalls = isAutomated ? [...cannonBalls, ...newCannonBalls] : [...cannonBalls];
 
         // emit ship state events if not automated, i.e is player controlled
         if (!isAutomated) {
