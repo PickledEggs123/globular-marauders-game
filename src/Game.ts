@@ -237,33 +237,9 @@ export class Game {
             ships: this.ships.map(s => s.serialize()),
             cannonBalls: this.cannonBalls.map(c => c.serialize()),
             crates: this.crates.map(c => c.serialize()),
-            planets: this.planets.filter(p => p.id === playerData.planetId).map(p => p.serialize()),
-            factions: Object.values(this.factions).filter(f => f.id === playerData.factionId).map(f => f.serialize())
+            planets: this.planets.map(p => p.serialize()),
+            factions: Object.values(this.factions).map(f => f.serialize())
         };
-    }
-
-    /**
-     * Apply an initial load frame to the game. For multiplayer purposes.
-     * @param data
-     */
-    public applyGameInitializationFrame(data: IGameInitializationFrame) {
-        for (const factionData of data.factions) {
-            if (this.factions[factionData.id]) {
-                this.factions[factionData.id].deserializeUpdate(factionData);
-            } else {
-                this.factions[factionData.id] = Faction.deserialize(this, factionData);
-            }
-        }
-
-        this.voronoiTerrain = VoronoiTerrain.deserialize(this, data.voronoiTerrain);
-
-        this.applyGameSyncFrame({
-            ships: data.ships,
-            cannonBalls: data.cannonBalls,
-            crates: data.crates,
-            planets: [],
-            factions: []
-        });
     }
 
     /**
@@ -333,6 +309,41 @@ export class Game {
         for (const shipId of shipsToRemove) {
             delete mainArray[shipId];
         }
+    }
+
+    /**
+     * Apply an initial load frame to the game. For multiplayer purposes.
+     * @param data
+     */
+    public applyGameInitializationFrame(data: IGameInitializationFrame) {
+        for (const factionData of data.factions) {
+            if (this.factions[factionData.id]) {
+                this.factions[factionData.id].deserializeUpdate(factionData);
+            } else {
+                this.factions[factionData.id] = Faction.deserialize(this, factionData);
+            }
+        }
+
+        this.voronoiTerrain = VoronoiTerrain.deserialize(this, data.voronoiTerrain);
+
+        Game.syncNetworkArray(
+            this.ships,
+            data.ships,
+            (v: ISerializedShip) => Ship.deserialize(this, v),
+            (s: Ship, v: ISerializedShip) => s.deserializeUpdate(v)
+        );
+        Game.syncNetworkArray(
+            this.cannonBalls,
+            data.cannonBalls,
+            (v: ISerializedCannonBall) => CannonBall.deserialize(v),
+            (s: CannonBall, v: ISerializedCannonBall) => s.deserializeUpdate(v)
+        );
+        Game.syncNetworkArray(
+            this.crates,
+            data.crates,
+            (v: ISerializedCrate) => Crate.deserialize(v),
+            (s: Crate, v: ISerializedCrate) => s.deserializeUpdate(v)
+        );
     }
 
     /**
