@@ -3,7 +3,7 @@ import {DelaunayGraph, VoronoiCell, VoronoiGraph} from "./Graph";
 import Quaternion from "quaternion";
 import {ISerializedPlanet, ISerializedStar, Planet, Star} from "./Planet";
 import {Faction} from "./Faction";
-import {Game, IGameSyncFrame} from "./Game";
+import {Game, IGameSyncFrame, IPlayerData} from "./Game";
 import {EFaction, Ship} from "./Ship";
 import {CannonBall, Crate} from "./Item";
 
@@ -1277,21 +1277,28 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
         }
     }
 
-    public getClientFrame(position: [number, number, number], radius: number = 1): IGameSyncFrame {
+    public getClientFrame(playerData: IPlayerData, position: [number, number, number], radius: number = 1): IGameSyncFrame {
         const ships: Ship[] = [];
         const cannonBalls: CannonBall[] = [];
         const crates: Crate[] = [];
+        const planets: Planet[] = [];
+        const factions: Faction[] = Object.values(this.app.factions).filter(f => f.id === playerData.factionId);
 
         for (const county of this.getNearestCounties(position, radius)) {
             ships.push.apply(ships, county.ships);
             cannonBalls.push.apply(cannonBalls, county.cannonBalls);
             crates.push.apply(crates, county.crates);
+            if (county.planet) {
+                planets.push(county.planet);
+            }
         }
 
         return {
             ships: ships.map(s => s.serialize()),
             cannonBalls: cannonBalls.map(c => c.serialize()),
             crates: crates.map(c => c.serialize()),
+            planets: planets.map(p => p.serialize()),
+            factions: factions.map(f => f.serialize())
         };
     }
 }

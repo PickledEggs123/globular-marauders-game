@@ -46,6 +46,5 @@ describe("network serialization", () => {
     it("Initialize", () => {
         const game2 = new Game();
         game2.applyGameInitializationFrame(game.getInitializationFrame());
-        game2.applyGameSyncFrame(game.getSyncFrame());
     });
 });

@@ -1,12 +1,20 @@
 /**
  * The direction of the market trade node/edge.
  */
-import {Market, Planet, Star} from "./Planet";
+import {ISerializedPlanet, Market, Planet, Star} from "./Planet";
 import {ICameraState, ICollidable, IDirectedMarketTrade, IExpirableTicks, MoneyAccount} from "./Interface";
 import {EFaction, EShipType, ISerializedShip, PHYSICS_SCALE, Ship, SHIP_DATA} from "./Ship";
 import {ISerializedVoronoiTerrain, VoronoiCounty, VoronoiKingdom, VoronoiTerrain, VoronoiTree} from "./VoronoiTree";
 import {Faction, ISerializedFaction, LuxuryBuff} from "./Faction";
-import {CannonBall, Crate, ISerializedCannonBall, ISerializedCrate, SmokeCloud} from "./Item";
+import {
+    CannonBall,
+    Crate,
+    DeserializeQuaternion,
+    ISerializedCannonBall,
+    ISerializedCrate,
+    ISerializedQuaternion, SerializeQuaternion,
+    SmokeCloud
+} from "./Item";
 import Quaternion from "quaternion";
 import {
     DelaunayGraph,
@@ -26,6 +34,7 @@ import {EOrderType, Order} from "./Order";
  */
 export interface IPlayerData {
     id: string;
+    name: string;
     factionId: EFaction | null;
     planetId: string | null;
     shipId: string;
@@ -62,14 +71,14 @@ export enum EMessageType {
     SPAWN = "SPAWN",
     DEATH = "DEATH",
     AUTOPILOT = "AUTOPILOT",
-    KEYBOARD = "KEYBOARD",
+    SHIP_STATE = "SHIP_STATE",
 }
 
 export interface IMessage {
     messageType: EMessageType;
 }
 
-export interface IJoin extends IMessage {
+export interface IJoinMessage extends IMessage {
     messageType: EMessageType.JOIN;
     name: string;
 }
@@ -99,10 +108,13 @@ export interface IAutoPilotMessage extends IMessage {
     enabled: boolean;
 }
 
-export interface IKeyboardMessage extends IMessage {
-    messageType: EMessageType.KEYBOARD;
-    key: string;
-    enabled: boolean;
+export interface IShipStateMessage extends IMessage {
+    messageType: EMessageType.SHIP_STATE;
+    position: ISerializedQuaternion;
+    positionVelocity: ISerializedQuaternion;
+    orientation: ISerializedQuaternion;
+    orientationVelocity: ISerializedQuaternion;
+    newCannonBalls: ISerializedCannonBall[];
 }
 
 /**
@@ -123,6 +135,8 @@ export interface IGameSyncFrame {
     ships: ISerializedShip[];
     cannonBalls: ISerializedCannonBall[];
     crates: ISerializedCrate[];
+    planets: ISerializedPlanet[];
+    factions: ISerializedFaction[];
 }
 
 export class Game {
@@ -144,9 +158,6 @@ export class Game {
     public incomingMessages: Array<[string, IMessage]> = [];
     public outgoingMessages: Array<[string, IMessage]> = [];
     public isTestMode: boolean = false;
-    public clientLoopDelta: number = 1000 / 10;
-    public clientLoopStart: number = Date.now();
-    public clientLoopDeltaStart: number = Date.now();
 
     /**
      * Velocity step size of ships.
@@ -221,11 +232,13 @@ export class Game {
     /**
      * Get a single frame of the game 10 times a second. For multiplayer purposes.
      */
-    public getSyncFrame(): IGameSyncFrame {
+    public getSyncFrame(playerData: IPlayerData): IGameSyncFrame {
         return {
             ships: this.ships.map(s => s.serialize()),
             cannonBalls: this.cannonBalls.map(c => c.serialize()),
-            crates: this.crates.map(c => c.serialize())
+            crates: this.crates.map(c => c.serialize()),
+            planets: this.planets.filter(p => p.id === playerData.planetId).map(p => p.serialize()),
+            factions: Object.values(this.factions).filter(f => f.id === playerData.factionId).map(f => f.serialize())
         };
     }
 
@@ -247,7 +260,9 @@ export class Game {
         this.applyGameSyncFrame({
             ships: data.ships,
             cannonBalls: data.cannonBalls,
-            crates: data.crates
+            crates: data.crates,
+            planets: [],
+            factions: []
         });
     }
 
@@ -258,7 +273,7 @@ export class Game {
      * @param createFunc A function to create a new instance.
      * @param updateFunc A function to update an old instance.
      */
-    public static syncNetworkArray<T extends {id: string}, U extends {id: string}>(mainArray: T[], dataArray: U[], createFunc: (u: U) => T, updateFunc: (t: T, u: U) => void) {
+    public static syncNetworkArray<T extends {id: string}, U extends {id: string}>(mainArray: T[], dataArray: U[], createFunc: ((u: U) => T) | null, updateFunc: (t: T, u: U) => void) {
         const shipsToRemove: T[] = [...mainArray];
         for (const shipData of dataArray) {
             const ship = mainArray.find(s => s.id === shipData.id);
@@ -273,7 +288,9 @@ export class Game {
                 }
             } else {
                 // ship does not exist, create a new one
-                mainArray.push(createFunc(shipData));
+                if (createFunc) {
+                    mainArray.push(createFunc(shipData));
+                }
             }
         }
         // remove old ships
@@ -282,6 +299,39 @@ export class Game {
             if (index >= 0) {
                 mainArray.splice(index, 1);
             }
+        }
+    }
+
+    /**
+     * Sync an array of network objects.
+     * @param mainArray The main array which should mutate.
+     * @param dataArray The data array to apply to the main array.
+     * @param createFunc A function to create a new instance.
+     * @param updateFunc A function to update an old instance.
+     */
+    public static syncNetworkMap<T extends {id: string}, U extends {id: string}>(mainArray: Record<string, T>, dataArray: U[], createFunc: ((u: U) => T) | null, updateFunc: (t: T, u: U) => void) {
+        const shipsToRemove: string[] = Object.values(mainArray).map(s => s.id);
+        for (const shipData of dataArray) {
+            const ship = mainArray[shipData.id];
+            if (ship) {
+                // ship did exist and still exist, simply update
+                updateFunc(ship, shipData)
+
+                // unmark ship to remove
+                const shipsToRemoveIndex = shipsToRemove.findIndex(s => s === ship.id);
+                if (shipsToRemoveIndex >= 0) {
+                    shipsToRemove.splice(shipsToRemoveIndex, 1);
+                }
+            } else {
+                // ship does not exist, create a new one
+                if (createFunc) {
+                    mainArray[shipData.id] = createFunc(shipData);
+                }
+            }
+        }
+        // remove old ships
+        for (const shipId of shipsToRemove) {
+            delete mainArray[shipId];
         }
     }
 
@@ -307,6 +357,18 @@ export class Game {
             data.crates,
             (v: ISerializedCrate) => Crate.deserialize(v),
             (s: Crate, v: ISerializedCrate) => s.deserializeUpdate(v)
+        );
+        Game.syncNetworkArray(
+            this.planets,
+            data.planets,
+            null,
+            (s: Planet, v: ISerializedPlanet) => s.deserializeUpdate(v)
+        );
+        Game.syncNetworkMap(
+            this.factions,
+            data.factions,
+            (v: ISerializedFaction) => Faction.deserialize(this, v),
+            (s: Faction, v: ISerializedFaction) => s.deserializeUpdate(v)
         );
     }
 
@@ -567,7 +629,7 @@ export class Game {
      * @param isAutomated If the function is called by AI, which shouldn't clear pathfinding logic.
      * @private
      */
-    private handleShipLoop(shipIndex: number, getActiveKeys: () => string[], isAutomated: boolean) {
+    public handleShipLoop(shipIndex: number, getActiveKeys: () => string[], isAutomated: boolean) {
         let {
             id: cameraId,
             position: cameraPosition,
@@ -590,6 +652,7 @@ export class Game {
         const cannonBalls = [
             ...this.cannonBalls.slice(-100)
         ];
+        const newCannonBalls: CannonBall[] = [];
 
         let clearPathFindingPoints: boolean = false;
 
@@ -699,7 +762,7 @@ export class Game {
                 cannonBall.positionVelocity = fireVelocity.clone();
                 cannonBall.size = 15;
                 cannonBall.damage = 10;
-                cannonBalls.push(cannonBall);
+                newCannonBalls.push(cannonBall);
             }
         }
         if (activeKeys.includes(" ") && cameraCannonLoading && Date.now() - +cameraCannonLoading > 3000) {
@@ -745,7 +808,7 @@ export class Game {
                 cannonBall.positionVelocity = fireVelocity.clone();
                 cannonBall.size = 15;
                 cannonBall.damage = 10;
-                cannonBalls.push(cannonBall);
+                newCannonBalls.push(cannonBall);
 
                 // apply a cool down to the cannonades
                 this.ships[shipIndex].cannonadeCoolDown[i] = 45;
@@ -787,7 +850,23 @@ export class Game {
         }
         if (!isAutomated)
             this.smokeClouds = smokeClouds;
-        this.cannonBalls = cannonBalls;
+        this.cannonBalls = [...cannonBalls, ...newCannonBalls];
+
+        // emit ship state events if not automated, i.e is player controlled
+        if (!isAutomated) {
+            const playerData = this.playerData.find(p => p.shipId === this.ships[shipIndex].id);
+            if (playerData) {
+                const shipStateMessage: IShipStateMessage = {
+                    messageType: EMessageType.SHIP_STATE,
+                    position: SerializeQuaternion(cameraPosition),
+                    positionVelocity: SerializeQuaternion(cameraPositionVelocity),
+                    orientation: SerializeQuaternion(cameraOrientation),
+                    orientationVelocity: SerializeQuaternion(cameraOrientationVelocity),
+                    newCannonBalls: newCannonBalls.map(c => c.serialize())
+                };
+                this.outgoingMessages.push([playerData.id, shipStateMessage]);
+            }
+        }
     }
 
     public static computeIntercept(a: [number, number, number], b: [number, number, number], c: [number, number, number], d: [number, number, number]): [number, number, number] {
@@ -878,10 +957,13 @@ export class Game {
                 const [playerId, message] = item;
                 // has message, process message
                 if (message.messageType === EMessageType.JOIN) {
+                    const joinMessage = message as IJoinMessage;
+
                     const player = this.playerData.find(p => p.id === playerId);
                     if (!player) {
                         this.playerData.push({
                             id: playerId,
+                            name: joinMessage.name,
                             factionId: null,
                             planetId: null,
                             shipId: "",
@@ -943,24 +1025,28 @@ export class Game {
                     if (player) {
                         player.autoPilotEnabled = autoPilotMessage.enabled;
                     }
-                } else if (message.messageType === EMessageType.KEYBOARD) {
-                    const keyboardMessage = message as IKeyboardMessage;
+                } else if (message.messageType === EMessageType.SHIP_STATE) {
+                    const shipStateMessage = message as IShipStateMessage;
 
                     const player = this.playerData.find(p => p.id === playerId);
                     if (!player) {
                         throw new Error("Unknown player id");
                     }
 
-                    if (player) {
-                        if (keyboardMessage.enabled) {
-                            if (!player.activeKeys.includes(keyboardMessage.key)) {
-                                player.activeKeys.push(keyboardMessage.key);
-                            }
-                        } else {
-                            const index = player.activeKeys.findIndex(k => k === keyboardMessage.key);
-                            if (index >= 0) {
-                                player.activeKeys.splice(index, 1);
-                            }
+                    if (player && !player.autoPilotEnabled) {
+                        const ship = this.ships.find(s => s.id === player.shipId);
+                        if (ship) {
+                            // update ship position
+                            ship.position = DeserializeQuaternion(shipStateMessage.position);
+                            ship.positionVelocity = DeserializeQuaternion(shipStateMessage.positionVelocity);
+                            ship.orientation = DeserializeQuaternion(shipStateMessage.orientation);
+                            ship.orientationVelocity = DeserializeQuaternion(shipStateMessage.orientationVelocity);
+
+                            // add new cannon balls
+                            this.cannonBalls.push.apply(
+                                this.cannonBalls,
+                                shipStateMessage.newCannonBalls.map(c => CannonBall.deserialize(c))
+                            );
                         }
                     }
                 }
@@ -1188,7 +1274,7 @@ export class Game {
             const playerIndex = this.playerData.findIndex(p => p.shipId === destroyedShip.id);
             if (playerIndex >= 0) {
                 const player = this.playerData[playerIndex];
-                this.playerData.splice(playerIndex, 1);
+                player.shipId = "";
                 const message: IDeathMessage = {
                     messageType: EMessageType.DEATH
                 };
@@ -1307,43 +1393,6 @@ export class Game {
      * Client Loop
      * --------------------------------------------------------------------------
      */
-
-    /**
-     * Reset the client loop. Used to interpolate data from server onto client.
-     */
-    public resetClientLoop() {
-        const now = Date.now();
-        this.clientLoopDelta = (now - this.clientLoopStart) / 1000;
-        this.clientLoopStart = now;
-        this.clientLoopDeltaStart = now;
-    }
-
-    public handleClientLoop() {
-        // get client frame delta
-        const now = Date.now();
-        const delta = ((now - this.clientLoopDeltaStart) / 1000) / this.clientLoopDelta;
-        this.clientLoopDeltaStart = now;
-
-        // get a list of items to move on the client
-        const movableItems: Array<{
-            array: ICameraState[]
-        }> = [{
-            array: this.ships,
-        }, {
-            array: this.cannonBalls,
-        }, {
-            array: this.crates
-        }];
-
-        // for each client item
-        for (const {array: movableArray} of movableItems) {
-            // extrapolate items
-            for (const item of movableArray) {
-                item.position = item.position.clone().mul(item.positionVelocity.clone().pow(delta));
-                item.orientation = item.orientation.clone().mul(item.orientationVelocity.clone().pow(delta));
-            }
-        }
-    }
 
     private static MAX_TESSELLATION: number = 3;
 
