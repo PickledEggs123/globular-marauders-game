@@ -374,8 +374,11 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
      * @param forNode
      * @param voronoiCells
      */
-    public static createTreeNodes<T extends ICameraState>(originalNodes: Array<VoronoiTreeNode<T>>, forNode: VoronoiTreeNode<T>, voronoiCells?: VoronoiCell[]) {
+    public static createTreeNodes<T extends ICameraState>(originalNodes: Array<VoronoiTreeNode<T>>, forNode: VoronoiTreeNode<T>, voronoiCells?: VoronoiCell[], numRandomPoints?: number) {
         const nodes: Array<VoronoiTreeNode<T>> = [];
+        if (numRandomPoints === undefined) {
+            numRandomPoints = forNode.recursionNodeLevels()[forNode.level];
+        }
 
         let goodPoints: VoronoiCell[] = [];
         if (voronoiCells) {
@@ -384,7 +387,6 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
         } else {
             // generate random points within a voronoi cell.
             let randomPointsWithinVoronoiCell: Array<[number, number, number]> = [];
-            const numRandomPoints = forNode.recursionNodeLevels()[forNode.level];
             for (let i = 0; i < numRandomPoints; i++) {
                 randomPointsWithinVoronoiCell.push(VoronoiTreeNode.createRandomPoint(forNode));
             }
@@ -870,7 +872,7 @@ export class VoronoiDuchy extends VoronoiTreeNode<ICameraState> {
             this.stars = data.stars.map(s => Star.deserialize(this.app, s));
         } else {
             // create stars from scratch
-            const tempStars = VoronoiTreeNode.createTreeNodes(this.parent.nodes, this);
+            const tempStars = VoronoiTreeNode.createTreeNodes(this.parent.nodes, this, undefined, 15);
             this.stars = tempStars.map(s => s.voronoiCell.centroid).map((starPosition) => {
                 return this.app.buildStar.call(this.app, starPosition, this.getStarId());
             });
