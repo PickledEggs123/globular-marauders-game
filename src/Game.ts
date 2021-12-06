@@ -988,7 +988,7 @@ export class Game {
 
                     const player = this.playerData.find(p => p.id === playerId);
                     if (!player) {
-                        throw new Error("Unknown player id");
+                        continue;
                     }
                     player.factionId = chooseFactionMessage.factionId;
 
@@ -1001,7 +1001,7 @@ export class Game {
 
                     const player = this.playerData.find(p => p.id === playerId);
                     if (!player) {
-                        throw new Error("Unknown player id");
+                        continue;
                     }
                     player.planetId = choosePlanetMessage.planetId;
 
@@ -1018,7 +1018,7 @@ export class Game {
 
                     const player = this.playerData.find(p => p.id === playerId);
                     if (!player) {
-                        throw new Error("Unknown player id");
+                        continue;
                     }
 
                     if (planet && player && player.moneyAccount.hasEnough(planet.shipyard.quoteShip(shipType))) {
@@ -1030,7 +1030,7 @@ export class Game {
 
                     const player = this.playerData.find(p => p.id === playerId);
                     if (!player) {
-                        throw new Error("Unknown player id");
+                        continue;
                     }
 
                     if (player) {
@@ -1041,7 +1041,7 @@ export class Game {
 
                     const player = this.playerData.find(p => p.id === playerId);
                     if (!player) {
-                        throw new Error("Unknown player id");
+                        continue;
                     }
 
                     if (player && !player.autoPilotEnabled) {
@@ -1575,6 +1575,10 @@ export class Game {
         }
         for (let step = 0; step < numSteps; step++) {
             // this line is needed because inserting vertices could remove old vertices.
+            if (delaunayGraph.triangles.length <= 0) {
+                delaunayGraph = new DelaunayGraph<T>(this);
+                delaunayGraph.initialize();
+            }
             while (delaunayGraph.numRealVertices() < numPoints) {
                 delaunayGraph.incrementalInsert();
             }
@@ -1584,6 +1588,10 @@ export class Game {
             delaunayGraph.initializeWithPoints(lloydPoints);
         }
         // this line is needed because inserting vertices could remove old vertices.
+        if (delaunayGraph.triangles.length <= 0) {
+            delaunayGraph = new DelaunayGraph<T>(this);
+            delaunayGraph.initialize();
+        }
         while (delaunayGraph.numRealVertices() < numPoints) {
             delaunayGraph.incrementalInsert();
         }

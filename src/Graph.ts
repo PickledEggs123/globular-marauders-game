@@ -218,6 +218,9 @@ export class VoronoiGraph<T extends ICameraState> {
             sumWeight += triangleFanParameter.area;
         }
 
+        if (sumWeight === 0) {
+            return cell.centroid;
+        }
         return DelaunayGraph.normalize([
             sumAveragePoint[0] / sumWeight,
             sumAveragePoint[1] / sumWeight,
@@ -241,6 +244,9 @@ export class VoronoiGraph<T extends ICameraState> {
                 throw new Error("Bad cell vertex");
             }
             const point = VoronoiGraph.centroidOfCell(cell);
+            if (point.some(i => isNaN(i))) {
+                throw new Error("Bad Output Centroid");
+            }
             relaxedPoints.push(point);
         }
 
@@ -460,7 +466,8 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
 
     public initializeWithPoints(points: Array<[number, number, number]>) {
         if (points.length < 4) {
-            throw new Error("Not enough points to initialize delaunay");
+            this.initialize();
+            return;
         }
 
         // initialize sphere
@@ -468,21 +475,36 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
 
         // match vertices to the original point tetrahedron
         const pointPairs: number[] = [];
+        const sortedTempPointPairs: Array<{index: number, value: number, distance: number}> = [];
         for (let i = 0; i < 4; i++) {
             const point = points[i];
 
-            let bestDistance: number = Math.PI;
-            let bestPointIndex: number | null = null;
             for (let j = 0; j < this.vertices.length; j++) {
                 const distance = VoronoiGraph.angularDistance(point, this.vertices[j], 1);
-                if (distance < bestDistance && !pointPairs.includes(j)) {
-                    bestDistance = distance;
-                    bestPointIndex = j;
+                if (distance < Math.PI) {
+                    sortedTempPointPairs.push({
+                        index: i,
+                        value: j,
+                        distance
+                    });
                 }
             }
-            if (bestPointIndex !== null) {
-                pointPairs.push(bestPointIndex);
-            } else {
+        }
+        sortedTempPointPairs.sort((a, b) => a.distance - b.distance);
+        for (const {index, value} of sortedTempPointPairs) {
+            let allFilled = true;
+            for (let i = 0; i < 4; i++) {
+                if (pointPairs[i] === undefined) {
+                    allFilled = false;
+                }
+            }
+            if (allFilled) {
+                break;
+            }
+            pointPairs[index] = value;
+        }
+        for (let i = 0; i < 4; i++) {
+            if (pointPairs[i] === undefined) {
                 throw new Error("Could not initialize sphere delaunay");
             }
         }
@@ -685,8 +707,14 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
      * Perform an incremental insert into the delaunay graph, add random data points and maintain the triangle mesh.
      * @param point An optional point to insert into the delaunay graph. If no point is supplied, a random point will
      * be generated.
+     * @param step The number of steps executed so far.
      */
-    public incrementalInsert(point?: [number, number, number]) {
+    public incrementalInsert(point?: [number, number, number], step: number = 0) {
+        // the max step
+        if (step >= 3) {
+            return;
+        }
+
         let vertex: [number, number, number];
         let triangleIndex: number = -1;
         if (point) {
@@ -701,6 +729,9 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             if (triangleIndex < 0) {
                 const randomTriangleIndex = Math.floor(this.triangles.length * Math.random());
                 const triangle = this.triangles[randomTriangleIndex];
+                if (!triangle) {
+                    return this.incrementalInsert(point, step + 1);
+                }
                 const triangleVertices = triangle.map(edgeIndex => this.vertices[this.edges[edgeIndex][0]]);
                 vertex = DelaunayGraph.normalize(Game.getAveragePoint(triangleVertices));
             } else {
@@ -708,7 +739,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             }
         }
         if (triangleIndex < 0) {
-            throw new Error("COULD NOT FIND TRIANGLE");
+            return this.incrementalInsert(point, step + 1);
         }
 
         // add triangle incrementally
