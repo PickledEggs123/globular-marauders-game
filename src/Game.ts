@@ -261,7 +261,7 @@ export class Game {
         }
         return hash;
     };
-    private computeSyncDelta<T extends {id: string}>(oldData: T[], newData: T[]): IGameSyncFrameDelta<T> {
+    private computeSyncDelta<T extends {id: string}>(oldData: T[], newData: T[], canUpdate: boolean): IGameSyncFrameDelta<T> {
         const oldHashes: [string, number, number][] = oldData.map((i, index) => [i.id, index, this.hashCode(JSON.stringify(i))]);
         const newHashes: [string, number, number][] = newData.map((i, index) => [i.id, index, this.hashCode(JSON.stringify(i))]);
 
@@ -271,7 +271,7 @@ export class Game {
 
         for (const newItem of newHashes) {
             const otherItem = oldHashes.find(i => i[0] === newItem[0]);
-            if (otherItem) {
+            if (otherItem && canUpdate) {
                 if (newItem[2] !== otherItem[2]) {
                     update.push(newData[newItem[1]]);
                 }
@@ -295,11 +295,11 @@ export class Game {
 
     private computeSyncFrame(oldState: IPlayerSyncState, newState: IPlayerSyncState): IGameSyncFrame {
         const item: IGameSyncFrame = {
-            ships: this.computeSyncDelta(oldState.ships, newState.ships),
-            crates: this.computeSyncDelta(oldState.crates, newState.crates),
-            cannonBalls: this.computeSyncDelta(oldState.cannonBalls, newState.cannonBalls),
-            planets: this.computeSyncDelta(oldState.planets, newState.planets),
-            factions: this.computeSyncDelta(oldState.factions, newState.factions),
+            ships: this.computeSyncDelta(oldState.ships, newState.ships, true),
+            crates: this.computeSyncDelta(oldState.crates, newState.crates, false),
+            cannonBalls: this.computeSyncDelta(oldState.cannonBalls, newState.cannonBalls, false),
+            planets: this.computeSyncDelta(oldState.planets, newState.planets, true),
+            factions: this.computeSyncDelta(oldState.factions, newState.factions, true),
         };
 
         this.playerSyncState.splice(this.playerSyncState.indexOf(oldState), 1, newState);
