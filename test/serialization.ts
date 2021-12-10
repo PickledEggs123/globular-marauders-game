@@ -15,6 +15,7 @@ describe("network serialization", () => {
         for (const a of Object.values(game.factions)) {
             const b = Faction.deserialize(game, a.serialize());
             expect(a.serialize()).to.deep.equal(b.serialize());
+            expect(a).to.deep.equal(b);
         }
     });
     it("Planet", () => {
@@ -32,16 +33,19 @@ describe("network serialization", () => {
         const a = new Ship(game, EShipType.CUTTER);
         const b = Ship.deserialize(game, a.serialize());
         expect(a.serialize()).to.deep.equal(b.serialize());
+        expect(a).to.deep.equal(b);
     });
     it("CannonBall", () => {
         const a = new CannonBall(EFaction.DUTCH);
         const b = CannonBall.deserialize(a.serialize());
         expect(a.serialize()).to.deep.equal(b.serialize());
+        expect(a).to.deep.equal(b);
     });
     it("Crate", () => {
         const a = new Crate(EResourceType.RUM, game.factions[EFaction.DUTCH].homeWorldPlanetId, 1);
         const b = Crate.deserialize(a.serialize());
         expect(a.serialize()).to.deep.equal(b.serialize());
+        expect(a).to.deep.equal(b);
     });
     it("Initialize", () => {
         const game2 = new Game();

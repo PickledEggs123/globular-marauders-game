@@ -4,7 +4,8 @@ import {
     ICameraState,
     ICurrency,
     IDirectedMarketTrade,
-    IExplorationGraphData, ISerializedMoneyAccount,
+    IExplorationGraphData,
+    ISerializedMoneyAccount,
     ITradeDeal,
     MoneyAccount
 } from "./Interface";
@@ -22,11 +23,7 @@ import {
     OUTPOST_GOODS
 } from "./Resource";
 import {EShipType, Ship, SHIP_DATA} from "./Ship";
-import {
-    FeudalGovernment,
-    ISerializedFeudalGovernment,
-    VoronoiCounty
-} from "./VoronoiTree";
+import {FeudalGovernment, ISerializedFeudalGovernment, VoronoiCounty} from "./VoronoiTree";
 import {ERoyalRank, Faction, LuxuryBuff} from "./Faction";
 import {EOrderType, Order} from "./Order";
 import {Game} from "./Game";
@@ -49,7 +46,29 @@ export class ShipyardDock {
     public progress: number = 0;
     public shipCost: number = 0;
     public shipType: EShipType | null = null;
-    private sentDoneSignal: boolean = false;
+    public sentDoneSignal: boolean = false;
+
+    public serialize(): ISerializedShipyardDock {
+        return {
+            progress: this.progress,
+            shipCost: this.shipCost,
+            shipType: this.shipType,
+            sentDoneSignal: this.sentDoneSignal
+        };
+    }
+
+    public static deserialize(instance: Game, planet: Planet, shipyard: Shipyard, data: ISerializedShipyardDock): ShipyardDock {
+        const item = new ShipyardDock(instance, planet, shipyard);
+        item.deserializeUpdate(data);
+        return item;
+    }
+
+    public deserializeUpdate(data: ISerializedShipyardDock) {
+        this.progress = data.progress;
+        this.shipCost = data.shipCost;
+        this.shipType = data.shipType;
+        this.sentDoneSignal = data.sentDoneSignal;
+    }
 
     constructor(instance: Game, planet: Planet, shipyard: Shipyard) {
         this.instance = instance;
@@ -174,6 +193,22 @@ export abstract class Building {
         this.instance = instance;
         this.planet = planet;
     }
+
+    public abstract serialize(): ISerializedBuilding;
+
+    public static deserializeBuilding(instance: Game, planet: Planet, data: ISerializedBuilding): Building {
+        switch (data.buildingType) {
+            case EBuildingType.SHIPYARD: return Shipyard.deserialize(instance, planet, data);
+            case EBuildingType.FORESTRY: return Forestry.deserialize(instance, planet, data);
+            case EBuildingType.MINE: return Mine.deserialize(instance, planet, data);
+            case EBuildingType.BLACKSMITH: return Blacksmith.deserialize(instance, planet, data);
+            case EBuildingType.PLANTATION: return Plantation.deserialize(instance, planet, data);
+            case EBuildingType.MANUFACTORY: return Manufactory.deserialize(instance, planet, data);
+        }
+        throw new Error("Missing building deserialization");
+    }
+
+    public abstract deserializeUpdate(data: ISerializedBuilding);
 }
 
 /**
@@ -201,6 +236,41 @@ export class Shipyard extends Building {
     };
 
     buildingType: EBuildingType = EBuildingType.SHIPYARD;
+
+    public serialize(): ISerializedBuilding {
+        const item: ISerializedShipyard = {
+            docks: this.docks.map(d => d.serialize()),
+            numberOfDocks: this.numberOfDocks,
+            numShipsAvailable: this.numShipsAvailable,
+            shipsAvailable: this.shipsAvailable,
+            shipsBuilding: this.shipsBuilding,
+            buildingType: this.buildingType,
+            buildingLevel: this.buildingLevel,
+            upgradeProgress: this.upgradeProgress,
+        };
+        return item;
+    }
+    
+    public static deserialize(instance: Game, planet: Planet, data: ISerializedBuilding): Shipyard {
+        const item = new Shipyard(instance, planet);
+        item.deserializeUpdate(data as ISerializedShipyard);
+        return item;
+    }
+
+    public deserializeUpdate(data: ISerializedShipyard) {
+        if (this.docks.length === data.docks.length) {
+            this.docks.forEach(d => d.deserializeUpdate(d));
+        } else {
+            this.docks = data.docks.map(d => ShipyardDock.deserialize(this.instance, this.planet, this, d));
+        }
+        this.numberOfDocks = data.numberOfDocks;
+        this.numShipsAvailable = data.numShipsAvailable;
+        this.shipsAvailable = data.shipsAvailable;
+        this.shipsBuilding = data.shipsBuilding;
+        this.buildingType = data.buildingType;
+        this.buildingLevel = data.buildingLevel;
+        this.upgradeProgress = data.upgradeProgress;
+    }
 
     getUpgradeCost(): number {
         // 5 minutes to begin upgrade
@@ -346,6 +416,26 @@ export class Shipyard extends Building {
 export class Forestry extends Building {
     buildingType: EBuildingType = EBuildingType.FORESTRY;
 
+    public serialize(): ISerializedBuilding {
+        return {
+            buildingType: this.buildingType,
+            buildingLevel: this.buildingLevel,
+            upgradeProgress: this.upgradeProgress,
+        };
+    }
+
+    public static deserialize(instance: Game, planet: Planet, data: ISerializedBuilding) {
+        const item = new Forestry(instance, planet);
+        item.deserializeUpdate(data);
+        return item;
+    }
+
+    public deserializeUpdate(data: ISerializedBuilding) {
+        this.buildingType = data.buildingType;
+        this.buildingLevel = data.buildingLevel;
+        this.upgradeProgress = data.upgradeProgress;
+    }
+
     getUpgradeCost(): number {
         // forestry requires 2 minutes to begin upgrade
         return 2 * 60 * 10 * Math.pow(this.buildingLevel + 1, Math.sqrt(2));
@@ -366,6 +456,29 @@ export class Forestry extends Building {
 export class Plantation extends Building {
     buildingType: EBuildingType = EBuildingType.PLANTATION;
     resourceType: EResourceType;
+
+    public serialize(): ISerializedBuilding {
+        const item: ISerializedPlantation = {
+            buildingType: this.buildingType,
+            buildingLevel: this.buildingLevel,
+            upgradeProgress: this.upgradeProgress,
+            resourceType: this.resourceType,
+        };
+        return item;
+    }
+
+    public static deserialize(instance: Game, planet: Planet, data: ISerializedBuilding) {
+        const item = new Plantation(instance, planet, (data as ISerializedPlantation).resourceType);
+        item.deserializeUpdate(data as ISerializedPlantation);
+        return item;
+    }
+
+    public deserializeUpdate(data: ISerializedPlantation) {
+        this.buildingType = data.buildingType;
+        this.buildingLevel = data.buildingLevel;
+        this.upgradeProgress = data.upgradeProgress;
+        this.resourceType = data.resourceType;
+    }
 
     constructor(instance: Game, planet: Planet, resourceType: EResourceType) {
         super(instance, planet);
@@ -402,6 +515,29 @@ export class Plantation extends Building {
 export class Manufactory extends Building {
     buildingType: EBuildingType = EBuildingType.MANUFACTORY;
     recipe: IItemRecipe;
+
+    public serialize(): ISerializedBuilding {
+        const item: ISerializedManufactory = {
+            buildingType: this.buildingType,
+            buildingLevel: this.buildingLevel,
+            upgradeProgress: this.upgradeProgress,
+            recipe: this.recipe,
+        };
+        return item;
+    }
+
+    public static deserialize(instance: Game, planet: Planet, data: ISerializedBuilding) {
+        const item = new Manufactory(instance, planet, (data as ISerializedManufactory).recipe);
+        item.deserializeUpdate(data as ISerializedManufactory);
+        return item;
+    }
+
+    public deserializeUpdate(data: ISerializedManufactory) {
+        this.buildingType = data.buildingType;
+        this.buildingLevel = data.buildingLevel;
+        this.upgradeProgress = data.upgradeProgress;
+        this.recipe = data.recipe;
+    }
 
     constructor(instance: Game, planet: Planet, recipe: IItemRecipe) {
         super(instance, planet);
@@ -453,6 +589,26 @@ export class Manufactory extends Building {
 export class Mine extends Building {
     buildingType: EBuildingType = EBuildingType.MINE;
 
+    public serialize(): ISerializedBuilding {
+        return {
+            buildingType: this.buildingType,
+            buildingLevel: this.buildingLevel,
+            upgradeProgress: this.upgradeProgress,
+        };
+    }
+
+    public static deserialize(instance: Game, planet: Planet, data: ISerializedBuilding) {
+        const item = new Mine(instance, planet);
+        item.deserializeUpdate(data);
+        return item;
+    }
+
+    public deserializeUpdate(data: ISerializedBuilding) {
+        this.buildingType = data.buildingType;
+        this.buildingLevel = data.buildingLevel;
+        this.upgradeProgress = data.upgradeProgress;
+    }
+
     getUpgradeCost(): number {
         // mine requires 2 minutes to begin upgrade
         return 2 * 60 * 10 * Math.pow(this.buildingLevel + 1, Math.sqrt(2));
@@ -487,6 +643,26 @@ export class Mine extends Building {
  */
 export class Blacksmith extends Building {
     buildingType: EBuildingType = EBuildingType.BLACKSMITH;
+
+    public serialize(): ISerializedBuilding {
+        return {
+            buildingType: this.buildingType,
+            buildingLevel: this.buildingLevel,
+            upgradeProgress: this.upgradeProgress,
+        };
+    }
+
+    public static deserialize(instance: Game, planet: Planet, data: ISerializedBuilding) {
+        const item = new Blacksmith(instance, planet);
+        item.deserializeUpdate(data);
+        return item;
+    }
+
+    public deserializeUpdate(data: ISerializedBuilding) {
+        this.buildingType = data.buildingType;
+        this.buildingLevel = data.buildingLevel;
+        this.upgradeProgress = data.upgradeProgress;
+    }
 
     getUpgradeCost(): number {
         // blacksmith currently is not upgradable
@@ -913,6 +1089,35 @@ export interface ISerializedPlanetaryMoneyAccount {
     citizenCash: ISerializedMoneyAccount;
     citizenDemand: ISerializedPlanetaryEconomyDemand;
     resourcePrices: IMarketPrice[];
+}
+
+export interface ISerializedBuilding {
+    buildingType: EBuildingType;
+    buildingLevel: number;
+    upgradeProgress: number;
+}
+
+export interface ISerializedShipyardDock {
+    progress: number;
+    shipCost: number;
+    shipType: EShipType | null;
+    sentDoneSignal: boolean;
+}
+
+export interface ISerializedShipyard extends ISerializedBuilding {
+    docks: ISerializedShipyardDock[];
+    numberOfDocks: number;
+    numShipsAvailable: number;
+    shipsAvailable: Record<EShipType, number>;
+    shipsBuilding: Record<EShipType, number>;
+}
+
+export interface ISerializedPlantation extends ISerializedBuilding {
+    resourceType: EResourceType;
+}
+
+export interface ISerializedManufactory extends ISerializedBuilding {
+    recipe: IItemRecipe;
 }
 
 /**
@@ -1573,6 +1778,8 @@ export interface ISerializedPlanet {
     economySystem: ISerializedPlanetaryEconomySystem;
     currencySystem: ISerializedPlanetaryCurrencySystem;
     moneyAccount: ISerializedPlanetaryMoneyAccount;
+
+    buildings: ISerializedBuilding[];
 }
 export class Planet implements ICameraState {
     public instance: Game;
@@ -1655,15 +1862,43 @@ export class Planet implements ICameraState {
 
     // real estate properties, used to manufacture stuff
     // a building which builds ships
-    public shipyard: Shipyard;
+    public get shipyard(): Shipyard {
+        const shipyard = this.buildings.find((b): b is Shipyard => b.buildingType === EBuildingType.SHIPYARD);
+        if (shipyard) {
+            return shipyard;
+        } else {
+            throw new Error("Missing Shipyard");
+        }
+    }
     // a building which chops down trees for wood
-    public forestry: Forestry;
+    public get forestry(): Forestry {
+        const forestry = this.buildings.find((b): b is Forestry => b.buildingType === EBuildingType.FORESTRY);
+        if (forestry) {
+            return forestry;
+        } else {
+            throw new Error("Missing Forestry");
+        }
+    }
     // a building which mines iron, coal, gems, and marble
-    public mine: Mine;
+    public get mine(): Mine {
+        const mine = this.buildings.find((b): b is Mine => b.buildingType === EBuildingType.MINE);
+        if (mine) {
+            return mine;
+        } else {
+            throw new Error("Missing Mine");
+        }
+    }
     // a building which produces weapons and tools
-    public blacksmith: Blacksmith;
+    public get blacksmith(): Blacksmith {
+        const blacksmith = this.buildings.find((b): b is Blacksmith => b.buildingType === EBuildingType.BLACKSMITH);
+        if (blacksmith) {
+            return blacksmith;
+        } else {
+            throw new Error("Missing Blacksmith");
+        }
+    }
     // a list of buildings to upgrade
-    public readonly buildings: Building[];
+    public buildings: Building[];
 
     // property used to initialize buildings
     private numTicks: number = 0;
@@ -1758,6 +1993,8 @@ export class Planet implements ICameraState {
             economySystem: this.economySystem ? this.economySystem.serialize() : null,
             currencySystem: this.currencySystem ? this.currencySystem.serialize() : null,
             moneyAccount: this.moneyAccount ? this.moneyAccount.serialize() : null,
+
+            buildings: this.buildings.map(b => b.serialize()),
         };
     }
 
@@ -1832,6 +2069,12 @@ export class Planet implements ICameraState {
         } else if (!this.moneyAccount && data.moneyAccount) {
             this.moneyAccount = PlanetaryMoneyAccount.deserialize(this.instance, this, data.moneyAccount);
         }
+
+        if (this.buildings.length === data.buildings.length) {
+            this.buildings.forEach((b, i) => b.deserializeUpdate(data.buildings[i]));
+        } else {
+            this.buildings = data.buildings.map(b => Building.deserializeBuilding(this.instance, this, b));
+        }
     }
 
     public static deserialize(instance: Game, county: VoronoiCounty, data: ISerializedPlanet): Planet {
@@ -1856,15 +2099,11 @@ export class Planet implements ICameraState {
         }
 
         // initialize buildings
-        this.shipyard = new Shipyard(this.instance, this);
-        this.forestry = new Forestry(this.instance, this);
-        this.mine = new Mine(this.instance, this);
-        this.blacksmith = new Blacksmith(this.instance, this);
         this.buildings = [
-            this.shipyard,
-            this.forestry,
-            this.mine,
-            this.blacksmith
+            new Shipyard(this.instance, this),
+            new Forestry(this.instance, this),
+            new Mine(this.instance, this),
+            new Blacksmith(this.instance, this)
         ];
     }
 

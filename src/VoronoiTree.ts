@@ -1296,11 +1296,31 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
         }
 
         return {
-            ships: ships.map(s => s.serialize()),
-            cannonBalls: cannonBalls.map(c => c.serialize()),
-            crates: crates.map(c => c.serialize()),
-            planets: planets.map(p => p.serialize()),
-            factions: factions.map(f => f.serialize())
+            ships: {
+                create: ships.map(s => s.serialize()),
+                update: [],
+                remove: []
+            },
+            cannonBalls: {
+                create: cannonBalls.map(c => c.serialize()),
+                update: [],
+                remove: []
+            },
+            crates: {
+                create: crates.map(c => c.serialize()),
+                update: [],
+                remove: []
+            },
+            planets: {
+                create: planets.map(p => p.serialize()),
+                update: [],
+                remove: []
+            },
+            factions: {
+                create: factions.map(f => f.serialize()),
+                update: [],
+                remove: []
+            },
         };
     }
 }

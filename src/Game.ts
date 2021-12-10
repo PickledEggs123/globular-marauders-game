@@ -129,9 +129,30 @@ export interface IGameInitializationFrame {
 }
 
 /**
+ * An interface to perform delta updates on the networked objects.
+ */
+export interface IGameSyncFrameDelta<T extends {id: string}> {
+    create: T[];
+    update: T[];
+    remove: string[];
+}
+
+/**
  * Data sent from server to client on every frame. 10 times a second. Should create an animation effect.
  */
 export interface IGameSyncFrame {
+    ships: IGameSyncFrameDelta<ISerializedShip>;
+    cannonBalls: IGameSyncFrameDelta<ISerializedCannonBall>;
+    crates: IGameSyncFrameDelta<ISerializedCrate>;
+    planets: IGameSyncFrameDelta<ISerializedPlanet>;
+    factions: IGameSyncFrameDelta<ISerializedFaction>;
+}
+
+/**
+ * The state of a player's game. Used for computing the delta or difference between the server and the player.
+ */
+export interface IPlayerSyncState {
+    id: string;
     ships: ISerializedShip[];
     cannonBalls: ISerializedCannonBall[];
     crates: ISerializedCrate[];
@@ -155,6 +176,7 @@ export class Game {
     public lastDemoAttackingShipTime: Date = new Date();
     public tradeTick: number = 10 * 5;
     public playerData: IPlayerData[] = [];
+    public playerSyncState: IPlayerSyncState[];
     public incomingMessages: Array<[string, IMessage]> = [];
     public outgoingMessages: Array<[string, IMessage]> = [];
     public isTestMode: boolean = false;
@@ -229,17 +251,88 @@ export class Game {
         };
     }
 
+    hashCode(str: string) {
+        let hash = 0, i, chr;
+        if (str.length === 0) return hash;
+        for (i = 0; i < str.length; i++) {
+            chr   = str.charCodeAt(i);
+            hash  = ((hash << 5) - hash) + chr;
+            hash |= 0; // Convert to 32bit integer
+        }
+        return hash;
+    };
+    private computeSyncDelta<T extends {id: string}>(oldData: T[], newData: T[]): IGameSyncFrameDelta<T> {
+        const oldHashes: [string, number, number][] = oldData.map((i, index) => [i.id, index, this.hashCode(JSON.stringify(i))]);
+        const newHashes: [string, number, number][] = newData.map((i, index) => [i.id, index, this.hashCode(JSON.stringify(i))]);
+
+        const create: T[] = [];
+        const update: T[] = [];
+        const remove: string[] = [];
+
+        for (const newItem of newHashes) {
+            const otherItem = oldHashes.find(i => i[0] === newItem[0]);
+            if (otherItem) {
+                if (newItem[2] !== otherItem[2]) {
+                    update.push(newData[newItem[1]]);
+                }
+            } else {
+                create.push(newData[newItem[1]]);
+            }
+        }
+        for (const oldItem of oldHashes) {
+            const otherItem = newHashes.find(i => i[0] === oldItem[0]);
+            if (!otherItem) {
+                remove.push(oldItem[0]);
+            }
+        }
+
+        return {
+            create,
+            update,
+            remove
+        };
+    };
+
+    private computeSyncFrame(oldState: IPlayerSyncState, newState: IPlayerSyncState): IGameSyncFrame {
+        const item: IGameSyncFrame = {
+            ships: this.computeSyncDelta(oldState.ships, newState.ships),
+            crates: this.computeSyncDelta(oldState.crates, newState.crates),
+            cannonBalls: this.computeSyncDelta(oldState.cannonBalls, newState.cannonBalls),
+            planets: this.computeSyncDelta(oldState.planets, newState.planets),
+            factions: this.computeSyncDelta(oldState.factions, newState.factions),
+        };
+
+        this.playerSyncState.splice(this.playerSyncState.indexOf(oldState), 1, newState);
+
+        return item;
+    }
+
     /**
      * Get a single frame of the game 10 times a second. For multiplayer purposes.
      */
     public getSyncFrame(playerData: IPlayerData): IGameSyncFrame {
-        return {
+        let playerDelta: IPlayerSyncState = this.playerSyncState.find(p => p.id === playerData.id);
+        if (!playerDelta) {
+            playerDelta = {
+                id: playerData.id,
+                factions: [],
+                planets: [],
+                ships: [],
+                crates: [],
+                cannonBalls: []
+            };
+        }
+
+        const newPlayerState: IPlayerSyncState = {
+            id: playerData.id,
             ships: this.ships.map(s => s.serialize()),
             cannonBalls: this.cannonBalls.map(c => c.serialize()),
             crates: this.crates.map(c => c.serialize()),
             planets: this.planets.map(p => p.serialize()),
             factions: Object.values(this.factions).map(f => f.serialize())
         };
+
+        return this.computeSyncFrame(playerDelta, newPlayerState);
     }
 
     /**
@@ -249,29 +342,23 @@ export class Game {
      * @param createFunc A function to create a new instance.
      * @param updateFunc A function to update an old instance.
      */
-    public static syncNetworkArray<T extends {id: string}, U extends {id: string}>(mainArray: T[], dataArray: U[], createFunc: ((u: U) => T) | null, updateFunc: (t: T, u: U) => void) {
-        const shipsToRemove: T[] = [...mainArray];
-        for (const shipData of dataArray) {
+    public static syncNetworkArray<T extends {id: string}, U extends {id: string}>(mainArray: T[], dataArray: IGameSyncFrameDelta<U>, createFunc: ((u: U) => T) | null, updateFunc: (t: T, u: U) => void) {
+        for (const shipData of dataArray.create) {
+            // ship does not exist, create a new one
+            if (createFunc) {
+                mainArray.push(createFunc(shipData));
+            }
+        }
+        for (const shipData of dataArray.update) {
             const ship = mainArray.find(s => s.id === shipData.id);
             if (ship) {
                 // ship did exist and still exist, simply update
                 updateFunc(ship, shipData)
-
-                // unmark ship to remove
-                const shipsToRemoveIndex = shipsToRemove.findIndex(s => s === ship);
-                if (shipsToRemoveIndex >= 0) {
-                    shipsToRemove.splice(shipsToRemoveIndex, 1);
-                }
-            } else {
-                // ship does not exist, create a new one
-                if (createFunc) {
-                    mainArray.push(createFunc(shipData));
-                }
             }
         }
         // remove old ships
-        for (const ship of shipsToRemove) {
-            const index = mainArray.findIndex(s => s === ship);
+        for (const ship of dataArray.remove) {
+            const index = mainArray.findIndex(s => s.id === ship);
             if (index >= 0) {
                 mainArray.splice(index, 1);
             }
@@ -285,28 +372,22 @@ export class Game {
      * @param createFunc A function to create a new instance.
      * @param updateFunc A function to update an old instance.
      */
-    public static syncNetworkMap<T extends {id: string}, U extends {id: string}>(mainArray: Record<string, T>, dataArray: U[], createFunc: ((u: U) => T) | null, updateFunc: (t: T, u: U) => void) {
-        const shipsToRemove: string[] = Object.values(mainArray).map(s => s.id);
-        for (const shipData of dataArray) {
+    public static syncNetworkMap<T extends {id: string}, U extends {id: string}>(mainArray: Record<string, T>, dataArray: IGameSyncFrameDelta<U>, createFunc: ((u: U) => T) | null, updateFunc: (t: T, u: U) => void) {
+        for (const shipData of dataArray.create) {
+            // ship does not exist, create a new one
+            if (createFunc) {
+                mainArray[shipData.id] = createFunc(shipData);
+            }
+        }
+        for (const shipData of dataArray.update) {
             const ship = mainArray[shipData.id];
             if (ship) {
                 // ship did exist and still exist, simply update
                 updateFunc(ship, shipData)
-
-                // unmark ship to remove
-                const shipsToRemoveIndex = shipsToRemove.findIndex(s => s === ship.id);
-                if (shipsToRemoveIndex >= 0) {
-                    shipsToRemove.splice(shipsToRemoveIndex, 1);
-                }
-            } else {
-                // ship does not exist, create a new one
-                if (createFunc) {
-                    mainArray[shipData.id] = createFunc(shipData);
-                }
             }
         }
         // remove old ships
-        for (const shipId of shipsToRemove) {
+        for (const shipId of dataArray.remove) {
             delete mainArray[shipId];
         }
     }
@@ -327,20 +408,29 @@ export class Game {
         this.voronoiTerrain = VoronoiTerrain.deserialize(this, data.voronoiTerrain);
 
         Game.syncNetworkArray(
-            this.ships,
-            data.ships,
+            this.ships, {
+                create: data.ships,
+                update: [],
+                remove: []
+            },
             (v: ISerializedShip) => Ship.deserialize(this, v),
             (s: Ship, v: ISerializedShip) => s.deserializeUpdate(v)
         );
         Game.syncNetworkArray(
-            this.cannonBalls,
-            data.cannonBalls,
+            this.cannonBalls, {
+                create: data.cannonBalls,
+                update: [],
+                remove: []
+            },
             (v: ISerializedCannonBall) => CannonBall.deserialize(v),
             (s: CannonBall, v: ISerializedCannonBall) => s.deserializeUpdate(v)
         );
         Game.syncNetworkArray(
-            this.crates,
-            data.crates,
+            this.crates, {
+                create: data.crates,
+                update: [],
+                remove: []
+            },
             (v: ISerializedCrate) => Crate.deserialize(v),
             (s: Crate, v: ISerializedCrate) => s.deserializeUpdate(v)
         );
