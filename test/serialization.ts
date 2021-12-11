@@ -4,7 +4,14 @@ import {Faction, Game, Planet, Ship, VoronoiTerrain} from "../src";
 import {EFaction, EShipType} from "../src/Ship";
 import {CannonBall, Crate} from "../src/Item";
 import {EResourceType} from "../src/Resource";
-import {EMessageType, IChooseFactionMessage, IChoosePlanetMessage, IJoinMessage, ISpawnMessage} from "../src/Game";
+import {
+    EMessageType,
+    IChooseFactionMessage,
+    IChoosePlanetMessage,
+    IJoinMessage,
+    IPlayerData,
+    ISpawnMessage
+} from "../src/Game";
 
 // force verbose deep equal
 config.truncateThreshold = 0;
@@ -52,11 +59,7 @@ describe("network serialization", () => {
         const game2 = new Game();
         game2.applyGameInitializationFrame(game.getInitializationFrame());
     });
-    it("Low enough idle internet to handle 128kbps internet connection", function () {
-        this.timeout(30 * 1000);
-        const networkGame = new Game();
-        networkGame.initializeGame();
-
+    const shouldSpawnShip = (networkGame: Game): IPlayerData => {
         // pick name
         const loginMessage: IJoinMessage = {
             messageType: EMessageType.JOIN,
@@ -94,10 +97,26 @@ describe("network serialization", () => {
         networkGame.incomingMessages.push(["test", spawn]);
         networkGame.handleServerLoop();
 
+        return playerData;
+    };
+    it("Low enough idle internet to handle 56kbps internet connection", function () {
+        this.timeout(30 * 1000);
+        const networkGame = new Game();
+        networkGame.initializeGame();
+
+        const playerData = shouldSpawnShip(networkGame);
+        let shipPosition: [number, number, number] =
+            networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+
         let byteCount: number = 0;
         const bytesPerField: Map<string, number> = new Map<string, number>();
+        networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
+        networkGame.handleServerLoop();
+
         for (let i = 0; i < 20; i++) {
-            const data = networkGame.getSyncFrame(playerData);
+            shipPosition =
+                networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+            const data = networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
             byteCount = JSON.stringify(data).length;
             for (const [key, value] of Object.entries(data)) {
                 if (bytesPerField.has(key)) {
@@ -108,6 +127,24 @@ describe("network serialization", () => {
             }
             networkGame.handleServerLoop();
         }
-        expect(byteCount).to.be.lessThan(128 * 1024 / 8);
+        expect(byteCount).to.be.lessThan(56 * 1024 / 8);
+    });
+    it("should delta compress information that's the same", function () {
+        this.timeout(30 * 1000);
+        const networkGame = new Game();
+        networkGame.initializeGame();
+
+        const playerData = shouldSpawnShip(networkGame);
+        let shipPosition: [number, number, number] =
+            networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+        const data = networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
+
+        for (let i = 0; i < 20; i++) {
+            shipPosition =
+                networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+            const data = networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
+            const byteCount = JSON.stringify(data).length;
+            expect(byteCount).to.be.lessThan(250);
+        }
     });
 });

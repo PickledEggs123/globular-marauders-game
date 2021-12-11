@@ -310,7 +310,7 @@ export class Game {
     /**
      * Get a single frame of the game 10 times a second. For multiplayer purposes.
      */
-    public getSyncFrame(playerData: IPlayerData): IGameSyncFrame {
+    public getSyncFrame(playerData: IPlayerData, newPlayerState: IPlayerSyncState): IGameSyncFrame {
         let playerDelta: IPlayerSyncState = this.playerSyncState.find(p => p.id === playerData.id);
         if (!playerDelta) {
             playerDelta = {
@@ -322,15 +322,6 @@ export class Game {
                 cannonBalls: []
             };
         }
-
-        const newPlayerState: IPlayerSyncState = {
-            id: playerData.id,
-            ships: this.ships.map(s => s.serialize()),
-            cannonBalls: this.cannonBalls.map(c => c.serialize()),
-            crates: this.crates.map(c => c.serialize()),
-            planets: this.planets.map(p => p.serialize()),
-            factions: Object.values(this.factions).map(f => f.serialize())
-        };
 
         return this.computeSyncFrame(playerDelta, newPlayerState);
     }
