@@ -176,7 +176,7 @@ export class Game {
     public lastDemoAttackingShipTime: Date = new Date();
     public tradeTick: number = 10 * 5;
     public playerData: IPlayerData[] = [];
-    public playerSyncState: IPlayerSyncState[];
+    public playerSyncState: IPlayerSyncState[] = [];
     public incomingMessages: Array<[string, IMessage]> = [];
     public outgoingMessages: Array<[string, IMessage]> = [];
     public isTestMode: boolean = false;
