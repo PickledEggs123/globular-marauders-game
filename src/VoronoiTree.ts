@@ -314,6 +314,28 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
     }
 
     /**
+     * Perform a brute force check of all children to determine the nearest node.
+     * @param position The position to check.
+     * @param arr An array of children.
+     */
+    public static getBruteForceNearestTerrain<S extends VoronoiTreeNode<any>>(position: [number, number, number], arr: S[], app: Game): S | null {
+        const itemDistances = arr.map((d): [S, number] => [d, VoronoiGraph.angularDistance(
+            d.voronoiCell.centroid,
+            position,
+            app.worldScale
+        )]);
+        let closestItem: S | null = null;
+        let closestItemDistance: number | null = null;
+        for (const [item, distance] of itemDistances) {
+            if (closestItemDistance === null || distance < closestItemDistance) {
+                closestItem = item;
+                closestItemDistance = distance;
+            }
+        }
+        return closestItem;
+    }
+
+    /**
      * If the point is near by a voronoi node.
      * @param point The point to test.
      * @param radius The radius of the sphere to test.
@@ -885,10 +907,17 @@ export class VoronoiDuchy extends VoronoiTreeNode<ICameraState> {
     }
 
     public getNearestPlanet(position: [number, number, number]): Planet {
+        // try polygon check
         for (const county of this.counties) {
             if (county.voronoiCell.containsPoint(position)) {
                 return county.getNearestPlanet(position);
             }
+        }
+
+        // try brute force distance check
+        const bruteforceCounty = VoronoiTreeNode.getBruteForceNearestTerrain(position, this.counties, this.app);
+        if (bruteforceCounty) {
+            return bruteforceCounty.getNearestPlanet(position);
         }
         throw new Error("Could not find nearest planet");
     }
@@ -1013,11 +1042,19 @@ export class VoronoiKingdom extends VoronoiTreeNode<ICameraState> {
     }
 
     public getNearestPlanet(position: [number, number, number]): Planet {
+        // try polygon check
         for (const duchy of this.duchies) {
             if (duchy.voronoiCell.containsPoint(position)) {
                 return duchy.getNearestPlanet(position);
             }
         }
+
+        // try brute force distance check
+        const bruteForceDuchy = VoronoiTreeNode.getBruteForceNearestTerrain(position, this.duchies, this.app);
+        if (bruteForceDuchy) {
+            return bruteForceDuchy.getNearestPlanet(position);
+        }
+
         throw new Error("Could not find nearest planet");
     }
 
@@ -1149,11 +1186,19 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
     }
 
     public getNearestPlanet(position: [number, number, number]): Planet {
+        // try polygon check
         for (const kingdom of this.kingdoms) {
             if (kingdom.voronoiCell.containsPoint(position)) {
                 return kingdom.getNearestPlanet(position);
             }
         }
+
+        // try brute force distance check
+        const bruteForceKingdom = VoronoiTreeNode.getBruteForceNearestTerrain(position, this.kingdoms, this.app);
+        if (bruteForceKingdom) {
+            return bruteForceKingdom.getNearestPlanet(position);
+        }
+
         throw new Error("Could not find nearest planet");
     }
 
