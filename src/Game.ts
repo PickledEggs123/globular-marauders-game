@@ -354,6 +354,8 @@ export class Game {
             if (ship) {
                 // ship did exist and still exist, simply update
                 updateFunc(ship, shipData)
+            } else if (createFunc) {
+                mainArray.push(createFunc(shipData));
             }
         }
         // remove old ships
@@ -384,6 +386,8 @@ export class Game {
             if (ship) {
                 // ship did exist and still exist, simply update
                 updateFunc(ship, shipData)
+            } else if (createFunc) {
+                mainArray[shipData.id] = createFunc(shipData);
             }
         }
         // remove old ships
@@ -1783,7 +1787,6 @@ export class Game {
      * @param planetPoint The point the planet is created at.
      * @param county The feudal county of the planet.
      * @param planetI The index of the planet.
-     * @param isCapital If the planet is a capital.
      * @private
      */
     public createPlanet(planetPoint: [number, number, number], county: VoronoiCounty, planetI: number): Planet {
