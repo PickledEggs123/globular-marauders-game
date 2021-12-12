@@ -5,10 +5,10 @@ describe("Endurance tests", () => {
         1,
         2,
         4,
-        8,
-        24,
-        2 * 24,
-        7 * 24
+        // 8,
+        // 24,
+        // 3 * 24,
+        // 7 * 24
     ];
     for (const numHours of numHoursTrials) {
         it(`should run for ${numHours} hour without crashing`, function () {

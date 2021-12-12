@@ -129,6 +129,76 @@ describe("network serialization", () => {
         }
         expect(byteCount).to.be.lessThan(56 * 1024 / 8);
     });
+    it("Low enough idle internet to handle 128kbps internet connection after 10 minutes", function () {
+        this.timeout(10 * 60 * 1000);
+        const networkGame = new Game();
+        networkGame.initializeGame();
+
+        const playerData = shouldSpawnShip(networkGame);
+        let shipPosition: [number, number, number] =
+            networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+
+        let byteCount: number = 0;
+        const bytesPerField: Map<string, number> = new Map<string, number>();
+        for (let i = 0; i < 10 * 60 * 10; i++) {
+            // spin up 10 minutes, then measure internet
+            networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
+            networkGame.handleServerLoop();
+            networkGame.outgoingMessages.splice(0, networkGame.outgoingMessages.length);
+        }
+
+        for (let i = 0; i < 20; i++) {
+            shipPosition =
+                networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+            const data = networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
+            byteCount = JSON.stringify(data).length;
+            for (const [key, value] of Object.entries(data)) {
+                if (bytesPerField.has(key)) {
+                    bytesPerField.set(key, bytesPerField.get(key) + JSON.stringify(value).length);
+                } else {
+                    bytesPerField.set(key, JSON.stringify(value).length);
+                }
+            }
+            networkGame.handleServerLoop();
+            networkGame.outgoingMessages.splice(0, networkGame.outgoingMessages.length);
+        }
+        expect(byteCount).to.be.lessThan(128 * 1024 / 8);
+    });
+    it("Low enough idle internet to handle 128kbps internet connection after 30 minutes", function () {
+        this.timeout(10 * 60 * 1000);
+        const networkGame = new Game();
+        networkGame.initializeGame();
+
+        const playerData = shouldSpawnShip(networkGame);
+        let shipPosition: [number, number, number] =
+            networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+
+        let byteCount: number = 0;
+        const bytesPerField: Map<string, number> = new Map<string, number>();
+        for (let i = 0; i < 30 * 60 * 10; i++) {
+            // spin up 30 minutes, then measure internet
+            networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
+            networkGame.handleServerLoop();
+            networkGame.outgoingMessages.splice(0, networkGame.outgoingMessages.length);
+        }
+
+        for (let i = 0; i < 20; i++) {
+            shipPosition =
+                networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+            const data = networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
+            byteCount = JSON.stringify(data).length;
+            for (const [key, value] of Object.entries(data)) {
+                if (bytesPerField.has(key)) {
+                    bytesPerField.set(key, bytesPerField.get(key) + JSON.stringify(value).length);
+                } else {
+                    bytesPerField.set(key, JSON.stringify(value).length);
+                }
+            }
+            networkGame.handleServerLoop();
+            networkGame.outgoingMessages.splice(0, networkGame.outgoingMessages.length);
+        }
+        expect(byteCount).to.be.lessThan(128 * 1024 / 8);
+    });
     it("should delta compress information that's the same", function () {
         this.timeout(30 * 1000);
         const networkGame = new Game();

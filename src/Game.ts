@@ -271,8 +271,8 @@ export class Game {
 
         for (const newItem of newHashes) {
             const otherItem = oldHashes.find(i => i[0] === newItem[0]);
-            if (otherItem && canUpdate) {
-                if (newItem[2] !== otherItem[2]) {
+            if (otherItem) {
+                if (canUpdate && newItem[2] !== otherItem[2]) {
                     update.push(newData[newItem[1]]);
                 }
             } else {
