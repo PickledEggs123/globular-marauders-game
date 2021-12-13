@@ -1,5 +1,5 @@
 import {
-    EDirectedMarketTradeDirection,
+    EDirectedMarketTradeDirection, EServerType,
     ESettlementLevel,
     ICameraState,
     ICurrency,
@@ -1668,71 +1668,87 @@ export class Market {
 
     static ComputeProfitableTradeDirectedGraph(instance: Game) {
         // setup best profitable trades for the entire game
-        for (const planet of instance.planets) {
-            if (planet.moneyAccount) {
-                planet.bestProfitableTrades = Market.GetBiggestPriceDifferenceInImportsForPlanet(planet).slice(0, 30);
+        if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(instance.serverType)) {
+            for (const planet of instance.planets) {
+                if ([EServerType.PHYSICS_NODE].includes(instance.serverType)) {
+                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                    if (instance.physicsKingdomIndex !== kingdomIndex) {
+                        continue;
+                    }
+                }
+                if (planet.moneyAccount) {
+                    planet.bestProfitableTrades = Market.GetBiggestPriceDifferenceInImportsForPlanet(planet).slice(0, 30);
+                }
             }
         }
 
         // compute a directed edge graph of the trades
-        for (let i = 0; i < instance.planets.length; i++) {
-            for (let j = i + 1; j < instance.planets.length; j++) {
-                const a = instance.planets[i];
-                const b = instance.planets[j];
-                const data = [] as Array<IDirectedMarketTrade>;
-                for (const [resourceType, profit, planet] of a.bestProfitableTrades) {
-                    if (planet.id === b.id) {
-                        data.push({
-                            tradeDirection: EDirectedMarketTradeDirection.TO,
-                            resourceType,
-                            profit,
-                        });
+        if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE]) {
+            for (let i = 0; i < instance.planets.length; i++) {
+                for (let j = i + 1; j < instance.planets.length; j++) {
+                    const a = instance.planets[i];
+                    const b = instance.planets[j];
+                    const data = [] as Array<IDirectedMarketTrade>;
+                    for (const [resourceType, profit, planet] of a.bestProfitableTrades) {
+                        if (planet.id === b.id) {
+                            data.push({
+                                tradeDirection: EDirectedMarketTradeDirection.TO,
+                                resourceType,
+                                profit,
+                            });
+                        }
                     }
-                }
-                for (const [resourceType, profit, planet] of b.bestProfitableTrades) {
-                    if (planet.id === a.id) {
-                        data.push({
-                            tradeDirection: EDirectedMarketTradeDirection.FROM,
-                            resourceType,
-                            profit,
-                        });
+                    for (const [resourceType, profit, planet] of b.bestProfitableTrades) {
+                        if (planet.id === a.id) {
+                            data.push({
+                                tradeDirection: EDirectedMarketTradeDirection.FROM,
+                                resourceType,
+                                profit,
+                            });
+                        }
                     }
+                    instance.directedMarketTrade[`${a.id}#${b.id}`] = data;
                 }
-                instance.directedMarketTrade[`${a.id}#${b.id}`] = data;
             }
         }
 
         // compute possible trade deals, pair each directed edge into a series of bilateral trade deals
-        for (const planet of instance.planets) {
-            planet.possibleTradeDeals = [];
+        if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(instance.serverType)) {
+            for (const planet of instance.planets) {
+                planet.possibleTradeDeals = [];
+            }
         }
-        for (let i = 0; i < instance.planets.length; i++) {
-            for (let j = i + 1; j < instance.planets.length; j++) {
-                const a = instance.planets[i];
-                const b = instance.planets[j];
-                const data = instance.directedMarketTrade[`${a.id}#${b.id}`];
-                const toTrades = data.filter(t => t.tradeDirection === EDirectedMarketTradeDirection.TO);
-                const fromTrades = data.filter(t => t.tradeDirection === EDirectedMarketTradeDirection.FROM);
-                for (const toTrade of toTrades) {
-                    for (const fromTrade of fromTrades) {
-                        a.possibleTradeDeals.push({
-                            toResourceType: toTrade.resourceType,
-                            fromResourceType: fromTrade.resourceType,
-                            profit: toTrade.profit + fromTrade.profit,
-                            planet: b,
-                        });
-                        b.possibleTradeDeals.push({
-                            toResourceType: fromTrade.resourceType,
-                            fromResourceType: toTrade.resourceType,
-                            profit: toTrade.profit + fromTrade.profit,
-                            planet: a,
-                        });
+        if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(instance.serverType)) {
+            for (let i = 0; i < instance.planets.length; i++) {
+                for (let j = i + 1; j < instance.planets.length; j++) {
+                    const a = instance.planets[i];
+                    const b = instance.planets[j];
+                    const data = instance.directedMarketTrade[`${a.id}#${b.id}`];
+                    const toTrades = data.filter(t => t.tradeDirection === EDirectedMarketTradeDirection.TO);
+                    const fromTrades = data.filter(t => t.tradeDirection === EDirectedMarketTradeDirection.FROM);
+                    for (const toTrade of toTrades) {
+                        for (const fromTrade of fromTrades) {
+                            a.possibleTradeDeals.push({
+                                toResourceType: toTrade.resourceType,
+                                fromResourceType: fromTrade.resourceType,
+                                profit: toTrade.profit + fromTrade.profit,
+                                planet: b,
+                            });
+                            b.possibleTradeDeals.push({
+                                toResourceType: fromTrade.resourceType,
+                                fromResourceType: toTrade.resourceType,
+                                profit: toTrade.profit + fromTrade.profit,
+                                planet: a,
+                            });
+                        }
                     }
                 }
             }
         }
-        for (const planet of instance.planets) {
-            planet.possibleTradeDeals.sort((a, b) => a.profit - b.profit);
+        if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(instance.serverType)) {
+            for (const planet of instance.planets) {
+                planet.possibleTradeDeals.sort((a, b) => a.profit - b.profit);
+            }
         }
     }
 }

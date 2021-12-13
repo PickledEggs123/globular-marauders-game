@@ -194,6 +194,7 @@ export class Game {
     public outgoingMessages: Array<[string, IMessage]> = [];
     public isTestMode: boolean = false;
     public serverType: EServerType = EServerType.STANDALONE;
+    public physicsKingdomIndex: number | undefined = undefined;
     public shardList: IShardListItem[] = [];
     public outgoingShardMessages: Array<[string, IShardMessage]> = [];
     public incomingShardMessages: Array<[string, IShardMessage]> = [];
@@ -1281,6 +1282,7 @@ export class Game {
             }
         }
 
+        // DONE - should be converted into SHARD FORMAT
         // handle physics and sharded data per server instance
         // PHYSIC === Truth, will send info back to AI and Global, PHYSICS -> AI
         // handle trade routes and physics
@@ -1288,11 +1290,12 @@ export class Game {
         // cannonballs and crates go here
         // - Physics send cannonballs
         // - Physics send crates
-        if ([EServerType.STANDALONE || EServerType.PHYSICS_NODE].includes(this.serverType)) {
+        if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
             if (this.isTradeTick()) {
                 Market.ComputeProfitableTradeDirectedGraph(this);
             }
-
+        }
+        if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
             // expire cannon balls and crates
             const expirableArrays: Array<{
                 array: IExpirableTicks[],
@@ -1419,10 +1422,9 @@ export class Game {
                     }
                 }
             }
-        } else if ([EServerType.AI_NODE].includes(this.serverType)) {
-            // get data from physics after movement and collisions, PHYSICS -> AI
         }
 
+        // DONE - should be converted into SHARD FORMAT
         // update collision acceleration structures
         // required by AI and PHYSICS
         if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE, EServerType.AI_NODE].includes(this.serverType)) {
