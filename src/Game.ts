@@ -1023,6 +1023,7 @@ export class Game {
      * Handle the data loading functions of a server shard.
      */
     public handleServerShardPreLoop() {
+        // TODO: add state message parsing for GLOBAL STATE, AI, and Physics
         while (true) {
             const item = this.incomingShardMessages.shift();
             if (item) {
@@ -1120,7 +1121,6 @@ export class Game {
     public handleServerShardPostLoop() {
         switch (this.serverType) {
             case EServerType.LOAD_BALANCER: {
-
                 break;
             }
             case EServerType.GLOBAL_STATE_NODE: {
@@ -1171,7 +1171,7 @@ export class Game {
                 break;
             }
             case EServerType.PHYSICS_NODE: {
-
+                // TODO: physics should send messages to AI and Global State
                 break;
             }
         }
@@ -1517,6 +1517,7 @@ export class Game {
                 // handle ship orders
                 // handle automatic piracy orders
                 if ([EServerType.STANDALONE, EServerType.AI_NODE].includes(this.serverType)) {
+                    // TODO: Analyze this
                     const hasPiracyOrder: boolean = ship.hasPirateOrder();
                     const hasPirateCargo: boolean = ship.hasPirateCargo();
                     if (!hasPiracyOrder && hasPirateCargo && ship.faction) {
@@ -1540,6 +1541,7 @@ export class Game {
                     }
                 }
 
+                // TODO: Analyze this
                 if (ship.fireControl.targetShipId) {
                     // handle firing at ships
                     ship.fireControl.fireControlLoop();
