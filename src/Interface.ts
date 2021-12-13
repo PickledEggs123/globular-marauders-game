@@ -1,10 +1,12 @@
 import Quaternion from "quaternion";
-import {PathFinder} from "./Graph";
-import {EFaction, EShipType} from "./Ship";
+import {ISerializedPathFinder, PathFinder} from "./Graph";
+import {EFaction, EShipType, ISerializedFireControl} from "./Ship";
 import {Planet} from "./Planet";
 import {Crate, ISerializedCannonBall, ISerializedQuaternion} from "./Item";
-import {Game} from "./Game";
+import {Game, IGameSyncFrameDelta, IPlayerData} from "./Game";
 import {EResourceType} from "./Resource";
+import {ISerializedFaction} from "./Faction";
+import {ISerializedOrder} from "./Order";
 
 /**
  * The different server types which will affect how the server loop will execute.
@@ -26,9 +28,12 @@ export enum EServerType {
 }
 
 export enum EShardMessageType {
+    GLOBAL_STATE = "GLOBAL_STATE",
+    AI_PLAYER_DATA_STATE = "AI_PLAYER_DATA_STATE",
     SPAWN_SHIP = "SPAWN_SHIP",
     SPAWN_SHIP_RESULT = "SPAWN_SHIP_RESULT",
     SHIP_STATE = "SHIP_STATE",
+    DESTROY_SHIP = "DESTROY_SHIP",
 }
 
 /**
@@ -36,6 +41,19 @@ export enum EShardMessageType {
  */
 export interface IShardMessage {
     shardMessageType: EShardMessageType;
+}
+
+export interface IGlobalStateShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.GLOBAL_STATE;
+    factions: IGameSyncFrameDelta<ISerializedFaction>;
+}
+
+export interface IAIPlayerDataStateShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.AI_PLAYER_DATA_STATE;
+    playerData: IPlayerData;
+    orders: ISerializedOrder[];
+    pathFinding: ISerializedPathFinder;
+    fireControl: ISerializedFireControl;
 }
 
 export interface ISpawnShardMessage extends IShardMessage {
@@ -59,6 +77,11 @@ export interface IShipStateShardMessage extends IShardMessage {
     orientation: ISerializedQuaternion;
     orientationVelocity: ISerializedQuaternion;
     newCannonBalls: ISerializedCannonBall[];
+}
+
+export interface IDestroyShipShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.DESTROY_SHIP;
+    shipId: string;
 }
 
 /**

@@ -1670,12 +1670,6 @@ export class Market {
         // setup best profitable trades for the entire game
         if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(instance.serverType)) {
             for (const planet of instance.planets) {
-                if ([EServerType.PHYSICS_NODE].includes(instance.serverType)) {
-                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                    if (instance.physicsKingdomIndex !== kingdomIndex) {
-                        continue;
-                    }
-                }
                 if (planet.moneyAccount) {
                     planet.bestProfitableTrades = Market.GetBiggestPriceDifferenceInImportsForPlanet(planet).slice(0, 30);
                 }
