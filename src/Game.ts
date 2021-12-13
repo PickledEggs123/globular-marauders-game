@@ -2,7 +2,20 @@
  * The direction of the market trade node/edge.
  */
 import {ISerializedPlanet, Market, Planet, Star} from "./Planet";
-import {ICameraState, ICollidable, IDirectedMarketTrade, IExpirableTicks, MoneyAccount} from "./Interface";
+import {
+    EServerType,
+    EShardMessageType,
+    ICameraState,
+    ICollidable,
+    IDirectedMarketTrade,
+    IExpirableTicks,
+    IShardListItem,
+    IShardMessage,
+    IShipStateShardMessage,
+    ISpawnResultShardMessage,
+    ISpawnShardMessage,
+    MoneyAccount
+} from "./Interface";
 import {EFaction, EShipType, ISerializedShip, PHYSICS_SCALE, Ship, SHIP_DATA} from "./Ship";
 import {ISerializedVoronoiTerrain, VoronoiCounty, VoronoiKingdom, VoronoiTerrain, VoronoiTree} from "./VoronoiTree";
 import {Faction, ISerializedFaction, LuxuryBuff} from "./Faction";
@@ -12,13 +25,14 @@ import {
     DeserializeQuaternion,
     ISerializedCannonBall,
     ISerializedCrate,
-    ISerializedQuaternion, SerializeQuaternion,
-    SmokeCloud
+    ISerializedQuaternion,
+    SerializeQuaternion,
 } from "./Item";
 import Quaternion from "quaternion";
 import {
     DelaunayGraph,
-    DelaunayTile, DelaunayTriangle,
+    DelaunayTile,
+    DelaunayTriangle,
     ICellData,
     IDrawableTile,
     ITessellatedTriangle,
@@ -168,7 +182,6 @@ export class Game {
     public crates: Crate[] = [];
     public planets: Planet[] = [];
     public directedMarketTrade: Record<string, Array<IDirectedMarketTrade>> = {};
-    public smokeClouds: SmokeCloud[] = [];
     public cannonBalls: CannonBall[] = [];
     public luxuryBuffs: LuxuryBuff[] = [];
     public worldScale: number = 3;
@@ -180,6 +193,10 @@ export class Game {
     public incomingMessages: Array<[string, IMessage]> = [];
     public outgoingMessages: Array<[string, IMessage]> = [];
     public isTestMode: boolean = false;
+    public serverType: EServerType = EServerType.STANDALONE;
+    public shardList: IShardListItem[] = [];
+    public outgoingShardMessages: Array<[string, IShardMessage]> = [];
+    public incomingShardMessages: Array<[string, IShardMessage]> = [];
 
     /**
      * Velocity step size of ships.
@@ -742,9 +759,6 @@ export class Game {
             throw new Error("Could not find Ship Type");
         }
         const speedFactor = this.ships[shipIndex].getSpeedFactor();
-        const smokeClouds = [
-            ...this.smokeClouds.slice(-20)
-        ];
         const cannonBalls = [
             ...this.cannonBalls.slice(-100)
         ];
@@ -779,18 +793,6 @@ export class Game {
             if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * Game.VELOCITY_STEP / this.worldScale) {
                 cameraPositionVelocity = Quaternion.ONE;
             }
-
-            // make backward smoke cloud
-            const smokeCloud = new SmokeCloud();
-            smokeCloud.id = `${cameraId}-${Math.floor(Math.random() * 100000000)}`;
-            smokeCloud.position = cameraPosition.clone();
-            smokeCloud.positionVelocity = cameraOrientation.clone().inverse()
-                .mul(cameraPosition.clone().inverse())
-                .mul(rotation.clone())
-                .mul(cameraPosition.clone())
-                .mul(cameraOrientation.clone());
-            smokeCloud.size = 2;
-            smokeClouds.push(smokeCloud);
         }
         if (activeKeys.includes("s")) {
             const rotation = cameraPositionVelocity.clone().inverse().pow(Game.BRAKE_POWER / this.worldScale);
@@ -804,32 +806,6 @@ export class Game {
             engineBackwardsPointInitial[2] = 0;
             const engineBackwardsPoint = DelaunayGraph.normalize(engineBackwardsPointInitial);
             const engineBackwards = Quaternion.fromBetweenVectors([0, 0, 1], engineBackwardsPoint).pow(Game.VELOCITY_STEP / this.worldScale);
-
-            // make left smoke cloud
-            const smokeCloudLeft = new SmokeCloud();
-            smokeCloudLeft.id = `${cameraId}-${Math.floor(Math.random() * 100000000)}`;
-            smokeCloudLeft.position = cameraPosition.clone();
-            smokeCloudLeft.positionVelocity = cameraOrientation.clone().inverse()
-                .mul(cameraPosition.clone().inverse())
-                .mul(Quaternion.fromAxisAngle([0, 0, 1], Math.PI / 4))
-                .mul(engineBackwards.clone())
-                .mul(cameraPosition.clone())
-                .mul(cameraOrientation.clone());
-            smokeCloudLeft.size = 2;
-            smokeClouds.push(smokeCloudLeft);
-
-            // make right smoke cloud
-            const smokeCloudRight = new SmokeCloud();
-            smokeCloudRight.id = `${cameraId}-${Math.floor(Math.random() * 100000000)}`;
-            smokeCloudRight.position = cameraPosition.clone();
-            smokeCloudLeft.positionVelocity = cameraOrientation.clone().inverse()
-                .mul(cameraPosition.clone().inverse())
-                .mul(Quaternion.fromAxisAngle([0, 0, 1], -Math.PI / 4))
-                .mul(engineBackwards.clone())
-                .mul(cameraPosition.clone())
-                .mul(cameraOrientation.clone());
-            smokeCloudRight.size = 2;
-            smokeClouds.push(smokeCloudRight);
         }
 
         // handle main cannons
@@ -944,8 +920,6 @@ export class Game {
         if (clearPathFindingPoints) {
             this.ships[shipIndex].pathFinding.points = [];
         }
-        if (!isAutomated)
-            this.smokeClouds = smokeClouds;
         this.cannonBalls = isAutomated ? [...cannonBalls, ...newCannonBalls] : [...cannonBalls];
 
         // emit ship state events if not automated, i.e is player controlled
@@ -1043,445 +1017,648 @@ export class Game {
      */
 
     /**
-     * Handle server responsibilities. Move things around and compute collisions.
+     * Handle the data loading functions of a server shard.
      */
-    public handleServerLoop() {
-        // handle key strokes
+    public handleServerShardPreLoop() {
         while (true) {
-            const item = this.incomingMessages.shift();
+            const item = this.incomingShardMessages.shift();
             if (item) {
-                const [playerId, message] = item;
-                // has message, process message
-                if (message.messageType === EMessageType.JOIN) {
-                    const joinMessage = message as IJoinMessage;
+                const [fromShardName, message] = item;
+                switch (this.serverType) {
+                    case EServerType.LOAD_BALANCER: {
 
-                    const player = this.playerData.find(p => p.id === playerId);
-                    if (!player) {
-                        this.playerData.push({
-                            id: playerId,
-                            name: joinMessage.name,
-                            factionId: null,
-                            planetId: null,
-                            shipId: "",
-                            activeKeys: [],
-                            moneyAccount: new MoneyAccount(2000),
-                            autoPilotEnabled: true,
-                        });
+                        break;
                     }
-                } else if (message.messageType === EMessageType.CHOOSE_FACTION) {
-                    const chooseFactionMessage = message as IChooseFactionMessage;
+                    case EServerType.GLOBAL_STATE_NODE: {
 
-                    const player = this.playerData.find(p => p.id === playerId);
-                    if (!player) {
-                        continue;
+                        break;
                     }
-                    player.factionId = chooseFactionMessage.factionId;
-
-                    if (player.factionId === null) {
-                        player.planetId = null;
-                        player.shipId = "";
-                    }
-                } else if (message.messageType === EMessageType.CHOOSE_PLANET) {
-                    const choosePlanetMessage = message as IChoosePlanetMessage;
-
-                    const player = this.playerData.find(p => p.id === playerId);
-                    if (!player) {
-                        continue;
-                    }
-                    player.planetId = choosePlanetMessage.planetId;
-
-                    if (player.planetId === null) {
-                        player.shipId = "";
-                    }
-                } else if (message.messageType === EMessageType.SPAWN) {
-                    const spawnMessage = message as ISpawnMessage;
-                    const {
-                        shipType,
-                        planetId
-                    } = spawnMessage;
-                    const planet = this.planets.find(p => p.id === planetId);
-
-                    const player = this.playerData.find(p => p.id === playerId);
-                    if (!player) {
-                        continue;
-                    }
-
-                    if (planet && player && player.moneyAccount.hasEnough(planet.shipyard.quoteShip(shipType))) {
-                        const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType);
-                        player.shipId = playerShip.id;
-                    }
-                } if (message.messageType === EMessageType.AUTOPILOT) {
-                    const autoPilotMessage = message as IAutoPilotMessage;
-
-                    const player = this.playerData.find(p => p.id === playerId);
-                    if (!player) {
-                        continue;
-                    }
-
-                    if (player) {
-                        player.autoPilotEnabled = autoPilotMessage.enabled;
-                    }
-                } else if (message.messageType === EMessageType.SHIP_STATE) {
-                    const shipStateMessage = message as IShipStateMessage;
-
-                    const player = this.playerData.find(p => p.id === playerId);
-                    if (!player) {
-                        continue;
-                    }
-
-                    if (player && !player.autoPilotEnabled) {
-                        const ship = this.ships.find(s => s.id === player.shipId);
-                        if (ship) {
-                            // update ship position
-                            ship.position = DeserializeQuaternion(shipStateMessage.position);
-                            ship.positionVelocity = DeserializeQuaternion(shipStateMessage.positionVelocity);
-                            ship.orientation = DeserializeQuaternion(shipStateMessage.orientation);
-                            ship.orientationVelocity = DeserializeQuaternion(shipStateMessage.orientationVelocity);
-
-                            // add new cannon balls
-                            this.cannonBalls.push.apply(
-                                this.cannonBalls,
-                                shipStateMessage.newCannonBalls.map(c => CannonBall.deserialize(c))
-                            );
+                    case EServerType.AI_NODE: {
+                        switch (message.shardMessageType) {
+                            case EShardMessageType.SPAWN_SHIP_RESULT: {
+                                const {
+                                    playerId,
+                                    shipId
+                                } = message as ISpawnResultShardMessage;
+                                const player = this.playerData.find(p => p.id === playerId);
+                                if (!player) {
+                                    continue;
+                                }
+                                player.shipId = shipId;
+                                break;
+                            }
                         }
+                        break;
+                    }
+                    case EServerType.PHYSICS_NODE: {
+                        switch (message.shardMessageType) {
+                            case EShardMessageType.SPAWN_SHIP: {
+                                const spawnMessage = message as ISpawnShardMessage;
+                                const {
+                                    shipType,
+                                    planetId,
+                                    playerId
+                                } = spawnMessage;
+                                const planet = this.planets.find(p => p.id === planetId);
+
+                                const player = this.playerData.find(p => p.id === playerId);
+                                if (!player) {
+                                    continue;
+                                }
+                                const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType);
+                                player.shipId = playerShip.id;
+
+                                const spawnShipResultMessage: ISpawnResultShardMessage = {
+                                    shardMessageType: EShardMessageType.SPAWN_SHIP_RESULT,
+                                    playerId,
+                                    shipId: playerShip.id
+                                };
+                                this.outgoingShardMessages.push([fromShardName, spawnShipResultMessage]);
+                                break;
+                            }
+                            case EShardMessageType.SHIP_STATE: {
+                                const shipStateMessage = message as IShipStateShardMessage;
+                                const playerId = shipStateMessage.playerId;
+
+                                const player = this.playerData.find(p => p.id === playerId);
+                                if (!player) {
+                                    continue;
+                                }
+
+                                const ship = this.ships.find(s => s.id === player.shipId);
+                                if (ship) {
+                                    // update ship position
+                                    ship.position = DeserializeQuaternion(shipStateMessage.position);
+                                    ship.positionVelocity = DeserializeQuaternion(shipStateMessage.positionVelocity);
+                                    ship.orientation = DeserializeQuaternion(shipStateMessage.orientation);
+                                    ship.orientationVelocity = DeserializeQuaternion(shipStateMessage.orientationVelocity);
+
+                                    // add new cannon balls
+                                    this.cannonBalls.push.apply(
+                                        this.cannonBalls,
+                                        shipStateMessage.newCannonBalls.map(c => CannonBall.deserialize(c))
+                                    );
+                                }
+                                break;
+                            }
+                        }
+                        break;
                     }
                 }
             } else {
-                // no more messages, continue
                 break;
             }
         }
+    }
 
-        if (this.isTradeTick()) {
-            Market.ComputeProfitableTradeDirectedGraph(this);
-        }
+    /**
+     * Handle the data sending function of a server shard
+     */
+    public handleServerShardPostLoop() {
+        switch (this.serverType) {
+            case EServerType.LOAD_BALANCER: {
 
-        // expire smoke clouds
-        const expiredSmokeClouds: SmokeCloud[] = [];
-        for (const smokeCloud of this.smokeClouds) {
-            const isExpired = +smokeCloud.expires > Date.now();
-            if (isExpired) {
-                expiredSmokeClouds.push(smokeCloud);
+                break;
+            }
+            case EServerType.GLOBAL_STATE_NODE: {
+
+                break;
+            }
+            case EServerType.AI_NODE: {
+
+                break;
+            }
+            case EServerType.PHYSICS_NODE: {
+
+                break;
             }
         }
-        for (const expiredSmokeCloud of expiredSmokeClouds) {
-            const index = this.smokeClouds.findIndex(s => s === expiredSmokeCloud);
-            if (index >= 0) {
-                this.smokeClouds.splice(index, 1);
-            }
-        }
+    }
 
-        // expire cannon balls and crates
-        const expirableArrays: Array<{
-            array: IExpirableTicks[],
-            removeFromDataStructures: (item: IExpirableTicks) => void,
-        }> = [{
-            array: this.cannonBalls,
-            removeFromDataStructures(this: Game, item: CannonBall) {
-                this.voronoiTerrain.removeCannonBall(item);
-            }
-        }, {
-            array: this.crates,
-            removeFromDataStructures(this: Game, item: Crate) {
-                this.voronoiTerrain.removeCrate(item);
-            }
-        }];
-        for (const {array: expirableArray, removeFromDataStructures} of expirableArrays) {
+    /**
+     * Handle server responsibilities. Move things around and compute collisions.
+     */
+    public handleServerLoop() {
+        this.handleServerShardPreLoop();
 
-            // collect expired entities
-            const expiredEntities: IExpirableTicks[] = [];
-            for (const entity of expirableArray) {
-                const isExpired = entity.life >= entity.maxLife;
-                if (isExpired) {
-                    expiredEntities.push(entity);
-                }
-            }
+        // DONE - should be converted into SHARD FORMAT
+        // handle player input, if in shard mode, forward from  browser -> AI -> Physics
+        // handle player input
+        // the AI will remember the player's keys and send special spawn ship messages to the Physics
+        if ([EServerType.STANDALONE, EServerType.AI_NODE].includes(this.serverType)) {
+            // handle key strokes
+            while (true) {
+                const item = this.incomingMessages.shift();
+                if (item) {
+                    const [playerId, message] = item;
+                    // has message, process message
+                    if (message.messageType === EMessageType.JOIN) {
+                        const joinMessage = message as IJoinMessage;
 
-            // remove expired entities
-            for (const expiredEntity of expiredEntities) {
-                const index = expirableArray.findIndex(s => s === expiredEntity);
-                if (index >= 0) {
-                    expirableArray.splice(index, 1);
-                    removeFromDataStructures.call(this, expiredEntity);
-                }
-            }
-        }
-
-        // move cannon balls and crates
-        const movableArrays: Array<Array<ICameraState & IExpirableTicks>> = [
-            this.cannonBalls,
-            this.crates
-        ];
-        for (const movableArray of movableArrays) {
-            for (const entity of movableArray) {
-                entity.position = entity.position.clone().mul(entity.positionVelocity.clone());
-                entity.orientation = entity.orientation.clone().mul(entity.orientationVelocity.clone());
-                entity.life += 1;
-            }
-        }
-
-        // handle physics and collision detection
-        const collidableArrays: Array<{
-            arr: ICollidable[],
-            collideFn: (this: Game, ship: Ship, entity: ICollidable, hit: IHitTest) => void,
-            useRayCast: boolean,
-            removeFromDataStructures: (item: IExpirableTicks) => void,
-        }> = [{
-            arr: this.cannonBalls,
-            collideFn(this: Game, ship: Ship, entity: ICollidable, hit: IHitTest) {
-                ship.applyDamage(entity as CannonBall);
-
-                // make collision smoke cloud
-                if (hit.point) {
-                    const smokeCloud = new SmokeCloud();
-                    smokeCloud.id = `${ship.id}-${Math.floor(Math.random() * 100000000)}`;
-                    smokeCloud.position = Quaternion.fromBetweenVectors([0, 0, 1], hit.point);
-                    smokeCloud.size = 2;
-                    this.smokeClouds.push(smokeCloud);
-                }
-            },
-            useRayCast: true,
-            removeFromDataStructures(this: Game, item: CannonBall) {
-                this.voronoiTerrain.removeCannonBall(item);
-            }
-        }, {
-            arr: this.crates,
-            collideFn(this: Game, ship: Ship, entity: ICollidable, hit: IHitTest) {
-                ship.pickUpCargo(entity as Crate);
-            },
-            useRayCast: false,
-            removeFromDataStructures(this: Game, item: Crate) {
-                this.voronoiTerrain.removeCrate(item);
-            }
-        }];
-        for (const {arr: collidableArray, collideFn, useRayCast, removeFromDataStructures} of collidableArrays) {
-            const entitiesToRemove = [];
-            for (const entity of collidableArray) {
-                // get nearby ships
-                const position = entity.position.rotateVector([0, 0, 1]);
-                const nearByShips = Array.from(this.voronoiShips.listItems(position));
-
-                // compute closest ship
-                let bestHit: IHitTest | null = null;
-                let bestShip: Ship | null = null;
-                for (const nearByShip of nearByShips) {
-                    if (useRayCast) {
-                        const hit = Game.cannonBallCollision(entity, nearByShip, this.worldScale);
-                        if (hit.success && hit.time && (!bestHit || (bestHit && bestHit.time && hit.time < bestHit.time))) {
-                            bestHit = hit;
-                            bestShip = nearByShip;
+                        const player = this.playerData.find(p => p.id === playerId);
+                        if (!player) {
+                            this.playerData.push({
+                                id: playerId,
+                                name: joinMessage.name,
+                                factionId: null,
+                                planetId: null,
+                                shipId: "",
+                                activeKeys: [],
+                                moneyAccount: new MoneyAccount(2000),
+                                autoPilotEnabled: true,
+                            });
                         }
-                    } else {
-                        const point = nearByShip.position.rotateVector([0, 0, 1]);
+                    } else if (message.messageType === EMessageType.CHOOSE_FACTION) {
+                        const chooseFactionMessage = message as IChooseFactionMessage;
+
+                        const player = this.playerData.find(p => p.id === playerId);
+                        if (!player) {
+                            continue;
+                        }
+                        player.factionId = chooseFactionMessage.factionId;
+
+                        if (player.factionId === null) {
+                            player.planetId = null;
+                            player.shipId = "";
+                        }
+                    } else if (message.messageType === EMessageType.CHOOSE_PLANET) {
+                        const choosePlanetMessage = message as IChoosePlanetMessage;
+
+                        const player = this.playerData.find(p => p.id === playerId);
+                        if (!player) {
+                            continue;
+                        }
+                        player.planetId = choosePlanetMessage.planetId;
+
+                        if (player.planetId === null) {
+                            player.shipId = "";
+                        }
+                    } else if (message.messageType === EMessageType.SPAWN) {
+                        const spawnMessage = message as ISpawnMessage;
+                        const {
+                            shipType,
+                            planetId
+                        } = spawnMessage;
+                        const planet = this.planets.find(p => p.id === planetId);
+
+                        const player = this.playerData.find(p => p.id === playerId);
+                        if (!player) {
+                            continue;
+                        }
+
+                        if (planet && player && player.moneyAccount.hasEnough(planet.shipyard.quoteShip(shipType))) {
+                            if ([EServerType.STANDALONE].includes(this.serverType)) {
+                                const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType);
+                                player.shipId = playerShip.id;
+                            } else if ([EServerType.AI_NODE].includes(this.serverType)) {
+                                const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                                const kingdomPhysicsNode = this.shardList.find(p => p.type === EServerType.PHYSICS_NODE && p.kingdomIndex === kingdomIndex);
+                                const spawnShipMessage: ISpawnShardMessage = {
+                                    shardMessageType: EShardMessageType.SPAWN_SHIP,
+                                    shipType,
+                                    planetId,
+                                    playerId: player.id
+                                };
+                                this.outgoingShardMessages.push([kingdomPhysicsNode.name, spawnShipMessage]);
+                            }
+                        }
+                    } if (message.messageType === EMessageType.AUTOPILOT) {
+                        const autoPilotMessage = message as IAutoPilotMessage;
+
+                        const player = this.playerData.find(p => p.id === playerId);
+                        if (!player) {
+                            continue;
+                        }
+
+                        if (player) {
+                            player.autoPilotEnabled = autoPilotMessage.enabled;
+                        }
+                    } else if (message.messageType === EMessageType.SHIP_STATE) {
+                        const shipStateMessage = message as IShipStateMessage;
+
+                        const player = this.playerData.find(p => p.id === playerId);
+                        if (!player) {
+                            continue;
+                        }
+
+                        if (player && !player.autoPilotEnabled) {
+                            const ship = this.ships.find(s => s.id === player.shipId);
+                            if (ship) {
+                                if ([EServerType.STANDALONE].includes(this.serverType)) {
+                                    // update ship position
+                                    ship.position = DeserializeQuaternion(shipStateMessage.position);
+                                    ship.positionVelocity = DeserializeQuaternion(shipStateMessage.positionVelocity);
+                                    ship.orientation = DeserializeQuaternion(shipStateMessage.orientation);
+                                    ship.orientationVelocity = DeserializeQuaternion(shipStateMessage.orientationVelocity);
+
+                                    // add new cannon balls
+                                    this.cannonBalls.push.apply(
+                                        this.cannonBalls,
+                                        shipStateMessage.newCannonBalls.map(c => CannonBall.deserialize(c))
+                                    );
+                                } else if ([EServerType.AI_NODE].includes(this.serverType)) {
+                                    const planet = this.voronoiTerrain.getNearestPlanet(ship.position.rotateVector([0, 0, 1]));
+                                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                                    const kingdomPhysicsNode = this.shardList.find(p => p.type === EServerType.PHYSICS_NODE && p.kingdomIndex === kingdomIndex);
+                                    const shipStateShardMessage: IShipStateShardMessage = {
+                                        shardMessageType: EShardMessageType.SHIP_STATE,
+                                        playerId: player.id,
+                                        position: shipStateMessage.position,
+                                        positionVelocity: shipStateMessage.positionVelocity,
+                                        orientation: shipStateMessage.orientation,
+                                        orientationVelocity: shipStateMessage.orientationVelocity,
+                                        newCannonBalls: shipStateMessage.newCannonBalls
+                                    };
+                                    this.outgoingShardMessages.push([kingdomPhysicsNode.name, shipStateShardMessage]);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // no more messages, continue
+                    break;
+                }
+            }
+        }
+
+        // handle physics and sharded data per server instance
+        // PHYSIC === Truth, will send info back to AI and Global, PHYSICS -> AI
+        // handle trade routes and physics
+        // the core physics of the game, will update the AI with the latest physics, for rendering in browser
+        // cannonballs and crates go here
+        // - Physics send cannonballs
+        // - Physics send crates
+        if ([EServerType.STANDALONE || EServerType.PHYSICS_NODE].includes(this.serverType)) {
+            if (this.isTradeTick()) {
+                Market.ComputeProfitableTradeDirectedGraph(this);
+            }
+
+            // expire cannon balls and crates
+            const expirableArrays: Array<{
+                array: IExpirableTicks[],
+                removeFromDataStructures: (item: IExpirableTicks) => void,
+            }> = [{
+                array: this.cannonBalls,
+                removeFromDataStructures(this: Game, item: CannonBall) {
+                    this.voronoiTerrain.removeCannonBall(item);
+                }
+            }, {
+                array: this.crates,
+                removeFromDataStructures(this: Game, item: Crate) {
+                    this.voronoiTerrain.removeCrate(item);
+                }
+            }];
+            for (const {array: expirableArray, removeFromDataStructures} of expirableArrays) {
+
+                // collect expired entities
+                const expiredEntities: IExpirableTicks[] = [];
+                for (const entity of expirableArray) {
+                    const isExpired = entity.life >= entity.maxLife;
+                    if (isExpired) {
+                        expiredEntities.push(entity);
+                    }
+                }
+
+                // remove expired entities
+                for (const expiredEntity of expiredEntities) {
+                    const index = expirableArray.findIndex(s => s === expiredEntity);
+                    if (index >= 0) {
+                        expirableArray.splice(index, 1);
+                        removeFromDataStructures.call(this, expiredEntity);
+                    }
+                }
+            }
+
+            // move cannon balls and crates
+            const movableArrays: Array<Array<ICameraState & IExpirableTicks>> = [
+                this.cannonBalls,
+                this.crates
+            ];
+            for (const movableArray of movableArrays) {
+                for (const entity of movableArray) {
+                    entity.position = entity.position.clone().mul(entity.positionVelocity.clone());
+                    entity.orientation = entity.orientation.clone().mul(entity.orientationVelocity.clone());
+                    entity.life += 1;
+                }
+            }
+
+            // handle physics and collision detection
+            const collidableArrays: Array<{
+                arr: ICollidable[],
+                collideFn: (this: Game, ship: Ship, entity: ICollidable, hit: IHitTest) => void,
+                useRayCast: boolean,
+                removeFromDataStructures: (item: IExpirableTicks) => void,
+            }> = [{
+                arr: this.cannonBalls,
+                collideFn(this: Game, ship: Ship, entity: ICollidable, hit: IHitTest) {
+                    ship.applyDamage(entity as CannonBall);
+                },
+                useRayCast: true,
+                removeFromDataStructures(this: Game, item: CannonBall) {
+                    this.voronoiTerrain.removeCannonBall(item);
+                }
+            }, {
+                arr: this.crates,
+                collideFn(this: Game, ship: Ship, entity: ICollidable, hit: IHitTest) {
+                    ship.pickUpCargo(entity as Crate);
+                },
+                useRayCast: false,
+                removeFromDataStructures(this: Game, item: Crate) {
+                    this.voronoiTerrain.removeCrate(item);
+                }
+            }];
+            for (const {arr: collidableArray, collideFn, useRayCast, removeFromDataStructures} of collidableArrays) {
+                const entitiesToRemove = [];
+                for (const entity of collidableArray) {
+                    // get nearby ships
+                    const position = entity.position.rotateVector([0, 0, 1]);
+                    const nearByShips = Array.from(this.voronoiShips.listItems(position));
+
+                    // compute closest ship
+                    let bestHit: IHitTest | null = null;
+                    let bestShip: Ship | null = null;
+                    for (const nearByShip of nearByShips) {
+                        if (useRayCast) {
+                            const hit = Game.cannonBallCollision(entity, nearByShip, this.worldScale);
+                            if (hit.success && hit.time && (!bestHit || (bestHit && bestHit.time && hit.time < bestHit.time))) {
+                                bestHit = hit;
+                                bestShip = nearByShip;
+                            }
+                        } else {
+                            const point = nearByShip.position.rotateVector([0, 0, 1]);
+                            const distance = VoronoiGraph.angularDistance(
+                                point,
+                                position,
+                                this.worldScale
+                            );
+                            if (distance < PHYSICS_SCALE * (entity.size || 1) && (!bestHit || (bestHit && bestHit.distance && distance < bestHit.distance))) {
+                                bestHit = {
+                                    success: true,
+                                    distance,
+                                    time: 0,
+                                    point
+                                };
+                                bestShip = nearByShip;
+                            }
+                        }
+                    }
+
+                    // apply damage
+                    const teamDamage = bestShip && bestShip.faction && entity.factionId && bestShip.faction.id === entity.factionId;
+                    if (bestHit && bestShip && !teamDamage) {
+                        collideFn.call(this, bestShip, entity, bestHit);
+                        entitiesToRemove.push(entity);
+                    }
+                }
+                // remove collided cannon balls
+                for (const entityToRemove of entitiesToRemove) {
+                    const index = collidableArray.findIndex(c => c === entityToRemove);
+                    if (index >= 0) {
+                        collidableArray.splice(index, 1);
+                        removeFromDataStructures.call(this, entityToRemove);
+                    }
+                }
+            }
+        } else if ([EServerType.AI_NODE].includes(this.serverType)) {
+            // get data from physics after movement and collisions, PHYSICS -> AI
+        }
+
+        // update collision acceleration structures
+        // required by AI and PHYSICS
+        if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE, EServerType.AI_NODE].includes(this.serverType)) {
+            for (const ship of this.ships) {
+                this.voronoiShips.removeItem(ship);
+            }
+        }
+
+        // handle AI, must send messages back to physics since physics is the source of truth
+        // handle AI movement, ship movement and orders
+        // - Physics send ship health updates
+        // - AI send destroy message
+        // - AI send new orders
+        // - Physics Performs Ship Movement
+        // - AI sends playerData
+        if ([EServerType.STANDALONE, EServerType.AI_NODE].includes(this.serverType)) {
+            // AI ship loop
+            const destroyedShips: Ship[] = [];
+            for (let i = 0; i < this.ships.length; i++) {
+                const ship = this.ships[i];
+
+                // handle ship health
+                if (ship.health <= 0) {
+                    destroyedShips.push(ship);
+                    const crates = ship.destroy();
+                    for (const crate of crates) {
+                        this.crates.push(crate);
+                    }
+                    continue;
+                }
+
+                // handle ship orders
+                // handle automatic piracy orders
+                const hasPiracyOrder: boolean = ship.hasPirateOrder();
+                const hasPirateCargo: boolean = ship.hasPirateCargo();
+                if (!hasPiracyOrder && hasPirateCargo && ship.faction) {
+                    const piracyOrder = new Order(this, ship, ship.faction);
+                    piracyOrder.orderType = EOrderType.PIRATE;
+                    ship.orders.splice(0, 0, piracyOrder);
+                }
+                // get new orders from faction
+                if (ship.orders.length === 0) {
+                    if (ship.planet) {
+                        ship.orders.push(ship.planet.getOrder(ship));
+                    }
+                }
+                // handle first priority order
+                const shipOrder = ship.orders[0];
+                if (shipOrder) {
+                    shipOrder.handleOrderLoop();
+                }
+
+                if (ship.fireControl.targetShipId) {
+                    // handle firing at ships
+                    ship.fireControl.fireControlLoop();
+                }
+                // handle pathfinding
+                ship.pathFinding.pathFindingLoop(ship.fireControl.isAttacking);
+
+                const playerData = this.playerData.find(d => d.shipId === ship.id);
+                if (playerData && !playerData.autoPilotEnabled) {
+                    // ship is player ship which has no auto pilot, accept player control
+                    this.handleShipLoop(i, () => playerData.activeKeys, false);
+                } else {
+                    // ship is npc ship if autoPilot is not enabled
+                    this.handleShipLoop(i, () => ship.activeKeys, true);
+                }
+            }
+
+            // remove destroyed ships
+            for (const destroyedShip of destroyedShips) {
+                const playerIndex = this.playerData.findIndex(p => p.shipId === destroyedShip.id);
+                if (playerIndex >= 0) {
+                    const player = this.playerData[playerIndex];
+                    player.shipId = "";
+                    const message: IDeathMessage = {
+                        messageType: EMessageType.DEATH
+                    };
+                    this.outgoingMessages.push([player.id, message]);
+                }
+                const index = this.ships.findIndex(s => s === destroyedShip);
+                if (index >= 0) {
+                    this.ships.splice(index, 1);
+                    this.voronoiTerrain.removeShip(destroyedShip);
+                }
+            }
+        } else if ([EServerType.PHYSICS_NODE].includes(this.serverType)) {
+            // download new info from AI nodes, AI -> PHYSICS
+        }
+
+        // update collision acceleration structures
+        // used by PHYSICS for collision
+        // used by AI for speeding up orders
+        if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE, EServerType.AI_NODE].includes(this.serverType)) {
+            for (const ship of this.ships) {
+                this.voronoiShips.addItem(ship);
+            }
+            for (const ship of this.ships) {
+                this.voronoiTerrain.updateShip(ship);
+            }
+            for (const cannonBall of this.cannonBalls) {
+                this.voronoiTerrain.updateCannonBall(cannonBall);
+            }
+            for (const crate of this.crates) {
+                this.voronoiTerrain.updateCrate(crate);
+            }
+        }
+
+        // AI will send order updates to physics
+        // - send order updates to PHYSICS
+        // AI -> PHYSICS
+        if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE, EServerType.AI_NODE].includes(this.serverType)) {
+            for (const ship of this.ships) {
+                // handle detecting ships to shoot at
+                if (!ship.fireControl.targetShipId && !ship.fireControl.retargetCoolDown) {
+                    // get a list of nearby ships
+                    const shipPosition = ship.position.clone().rotateVector([0, 0, 1]);
+                    const nearByShips = Array.from(this.voronoiShips.listItems(shipPosition));
+                    const nearByEnemyShips: Ship[] = [];
+                    const nearByFriendlyShips: Ship[] = [];
+                    for (const nearByShip of nearByShips) {
+                        if (VoronoiGraph.angularDistance(
+                            nearByShip.position.clone().rotateVector([0, 0, 1]),
+                            shipPosition,
+                            this.worldScale
+                        ) < Game.PROJECTILE_DETECTION_RANGE) {
+                            if (!(nearByShip.faction && ship.faction && nearByShip.faction.id === ship.faction.id)) {
+                                nearByEnemyShips.push(nearByShip);
+                            } else {
+                                nearByFriendlyShips.push(nearByShip);
+                            }
+                        }
+                    }
+
+                    // find closest target
+                    let closestTarget: Ship | null = null;
+                    let closestDistance: number | null = null;
+                    // also count the number of cannons
+                    let numEnemyCannons: number = 0;
+                    let numFriendlyCannons: number = 0;
+                    for (const nearByEnemyShip of nearByEnemyShips) {
                         const distance = VoronoiGraph.angularDistance(
-                            point,
-                            position,
+                            shipPosition,
+                            nearByEnemyShip.position.clone().rotateVector([0, 0, 1]),
                             this.worldScale
                         );
-                        if (distance < PHYSICS_SCALE * (entity.size || 1) && (!bestHit || (bestHit && bestHit.distance && distance < bestHit.distance))) {
-                            bestHit = {
-                                success: true,
-                                distance,
-                                time: 0,
-                                point
-                            };
-                            bestShip = nearByShip;
+                        if (!closestDistance || distance < closestDistance) {
+                            closestDistance = distance;
+                            closestTarget = nearByEnemyShip;
+                        }
+
+                        const shipData = SHIP_DATA.find(s => s.shipType === nearByEnemyShip.shipType);
+                        if (!shipData) {
+                            throw new Error("Could not find ship type");
+                        }
+                        numEnemyCannons += shipData.cannons.numCannons;
+                    }
+                    for (const nearByFriendlyShip of nearByFriendlyShips) {
+                        const shipData = SHIP_DATA.find(s => s.shipType === nearByFriendlyShip.shipType);
+                        if (!shipData) {
+                            throw new Error("Could not find ship type");
+                        }
+                        numFriendlyCannons += shipData.cannons.numCannons;
+                    }
+
+                    // set closest target
+                    if (closestTarget) {
+                        ship.fireControl.targetShipId = closestTarget.id;
+                        if (!this.demoAttackingShipId || +this.lastDemoAttackingShipTime + 30 * 1000 < +new Date()) {
+                            this.demoAttackingShipId = ship.id;
+                            this.lastDemoAttackingShipTime = new Date();
+                        }
+                    }
+
+                    // if too many ships, cancel order and stop attacking
+                    const currentShipData = SHIP_DATA.find(s => s.shipType === ship.shipType);
+                    if (!currentShipData) {
+                        throw new Error("Could not find ship type");
+                    }
+                    if (numEnemyCannons > (numFriendlyCannons + currentShipData.cannons.numCannons) * 1.5 && ship.hasPirateOrder()) {
+                        for (const order of ship.orders) {
+                            order.cancelOrder(numEnemyCannons);
+                            ship.fireControl.isAttacking = false;
                         }
                     }
                 }
-
-                // apply damage
-                const teamDamage = bestShip && bestShip.faction && entity.factionId && bestShip.faction.id === entity.factionId;
-                if (bestHit && bestShip && !teamDamage) {
-                    collideFn.call(this, bestShip, entity, bestHit);
-                    entitiesToRemove.push(entity);
-                }
-            }
-            // remove collided cannon balls
-            for (const entityToRemove of entitiesToRemove) {
-                const index = collidableArray.findIndex(c => c === entityToRemove);
-                if (index >= 0) {
-                    collidableArray.splice(index, 1);
-                    removeFromDataStructures.call(this, entityToRemove);
-                }
             }
         }
 
-        // update collision acceleration structures
-        for (const ship of this.ships) {
-            this.voronoiShips.removeItem(ship);
-        }
-
-        // AI ship loop
-        const destroyedShips: Ship[] = [];
-        for (let i = 0; i < this.ships.length; i++) {
-            const ship = this.ships[i];
-
-            // handle ship health
-            if (ship.health <= 0) {
-                destroyedShips.push(ship);
-                const crates = ship.destroy();
-                for (const crate of crates) {
-                    this.crates.push(crate);
-                }
-                continue;
+        // handle local shard state, this is physics node
+        // - send plant update to AI and GLOBAL STATE
+        if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
+            // handle planet loop
+            for (const planet of this.planets) {
+                planet.handlePlanetLoop();
             }
+        } else if ([EServerType.GLOBAL_STATE_NODE, EServerType.AI_NODE].includes(this.serverType)) {
+            // handle PHYSICS -> AI, PHYSICS -> GLOBAL STATE
+        }
 
-            // handle ship orders
-            // handle automatic piracy orders
-            const hasPiracyOrder: boolean = ship.hasPirateOrder();
-            const hasPirateCargo: boolean = ship.hasPirateCargo();
-            if (!hasPiracyOrder && hasPirateCargo && ship.faction) {
-                const piracyOrder = new Order(this, ship, ship.faction);
-                piracyOrder.orderType = EOrderType.PIRATE;
-                ship.orders.splice(0, 0, piracyOrder);
+        // handle global state
+        // - send faction update to AI and PHYSICS
+        if ([EServerType.GLOBAL_STATE_NODE].includes(this.serverType)) {
+            // fetch and apply physics information
+        }
+        if ([EServerType.STANDALONE, EServerType.GLOBAL_STATE_NODE].includes(this.serverType)) {
+            // handle AI factions
+            for (const faction of Object.values(this.factions)) {
+                faction.handleFactionLoop();
             }
-            // get new orders from faction
-            if (ship.orders.length === 0) {
-                if (ship.planet) {
-                    ship.orders.push(ship.planet.getOrder(ship));
-                }
-            }
-            // handle first priority order
-            const shipOrder = ship.orders[0];
-            if (shipOrder) {
-                shipOrder.handleOrderLoop();
-            }
-
-            if (ship.fireControl.targetShipId) {
-                // handle firing at ships
-                ship.fireControl.fireControlLoop();
-            }
-            // handle pathfinding
-            ship.pathFinding.pathFindingLoop(ship.fireControl.isAttacking);
-
-            const playerData = this.playerData.find(d => d.shipId === ship.id);
-            if (playerData && !playerData.autoPilotEnabled) {
-                // ship is player ship which has no auto pilot, accept player control
-                this.handleShipLoop(i, () => playerData.activeKeys, false);
-            } else {
-                // ship is npc ship if autoPilot is not enabled
-                this.handleShipLoop(i, () => ship.activeKeys, true);
-            }
+        } else if ([EServerType.AI_NODE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
+            // handle GLOBAL -> AI, GLOBAL -> PHYSICS messages
         }
 
-        // remove destroyed ships
-        for (const destroyedShip of destroyedShips) {
-            const playerIndex = this.playerData.findIndex(p => p.shipId === destroyedShip.id);
-            if (playerIndex >= 0) {
-                const player = this.playerData[playerIndex];
-                player.shipId = "";
-                const message: IDeathMessage = {
-                    messageType: EMessageType.DEATH
-                };
-                this.outgoingMessages.push([player.id, message]);
-            }
-            const index = this.ships.findIndex(s => s === destroyedShip);
-            if (index >= 0) {
-                this.ships.splice(index, 1);
-                this.voronoiTerrain.removeShip(destroyedShip);
-            }
-        }
+        // global state
+        // fetch physics
+        // fetch ai
+        // send faction
 
-        // update collision acceleration structures
-        for (const ship of this.ships) {
-            this.voronoiShips.addItem(ship);
-        }
-        for (const ship of this.ships) {
-            this.voronoiTerrain.updateShip(ship);
-        }
-        for (const cannonBall of this.cannonBalls) {
-            this.voronoiTerrain.updateCannonBall(cannonBall);
-        }
-        for (const crate of this.crates) {
-            this.voronoiTerrain.updateCrate(crate);
-        }
+        // ai
+        // fetch crates
+        // fetch cannon balls
+        // fetch ships
+        // fetch planets
+        // send keys
+        // send playerData
+        // send orders
 
-        for (const ship of this.ships) {
-            // handle detecting ships to shoot at
-            if (!ship.fireControl.targetShipId || ship.fireControl.retargetCoolDown) {
-                // get a list of nearby ships
-                const shipPosition = ship.position.clone().rotateVector([0, 0, 1]);
-                const nearByShips = Array.from(this.voronoiShips.listItems(shipPosition));
-                const nearByEnemyShips: Ship[] = [];
-                const nearByFriendlyShips: Ship[] = [];
-                for (const nearByShip of nearByShips) {
-                    if (VoronoiGraph.angularDistance(
-                        nearByShip.position.clone().rotateVector([0, 0, 1]),
-                        shipPosition,
-                        this.worldScale
-                    ) < Game.PROJECTILE_DETECTION_RANGE) {
-                        if (!(nearByShip.faction && ship.faction && nearByShip.faction.id === ship.faction.id)) {
-                            nearByEnemyShips.push(nearByShip);
-                        } else {
-                            nearByFriendlyShips.push(nearByShip);
-                        }
-                    }
-                }
-
-                // find closest target
-                let closestTarget: Ship | null = null;
-                let closestDistance: number | null = null;
-                // also count the number of cannons
-                let numEnemyCannons: number = 0;
-                let numFriendlyCannons: number = 0;
-                for (const nearByEnemyShip of nearByEnemyShips) {
-                    const distance = VoronoiGraph.angularDistance(
-                        shipPosition,
-                        nearByEnemyShip.position.clone().rotateVector([0, 0, 1]),
-                        this.worldScale
-                    );
-                    if (!closestDistance || distance < closestDistance) {
-                        closestDistance = distance;
-                        closestTarget = nearByEnemyShip;
-                    }
-
-                    const shipData = SHIP_DATA.find(s => s.shipType === nearByEnemyShip.shipType);
-                    if (!shipData) {
-                        throw new Error("Could not find ship type");
-                    }
-                    numEnemyCannons += shipData.cannons.numCannons;
-                }
-                for (const nearByFriendlyShip of nearByFriendlyShips) {
-                    const shipData = SHIP_DATA.find(s => s.shipType === nearByFriendlyShip.shipType);
-                    if (!shipData) {
-                        throw new Error("Could not find ship type");
-                    }
-                    numFriendlyCannons += shipData.cannons.numCannons;
-                }
-
-                // set closest target
-                if (closestTarget) {
-                    ship.fireControl.targetShipId = closestTarget.id;
-                    if (!this.demoAttackingShipId || +this.lastDemoAttackingShipTime + 30 * 1000 < +new Date()) {
-                        this.demoAttackingShipId = ship.id;
-                        this.lastDemoAttackingShipTime = new Date();
-                    }
-                }
-
-                // if too many ships, cancel order and stop attacking
-                const currentShipData = SHIP_DATA.find(s => s.shipType === ship.shipType);
-                if (!currentShipData) {
-                    throw new Error("Could not find ship type");
-                }
-                if (numEnemyCannons > (numFriendlyCannons + currentShipData.cannons.numCannons) * 1.5 && ship.hasPirateOrder()) {
-                    for (const order of ship.orders) {
-                        order.cancelOrder(numEnemyCannons);
-                        ship.fireControl.isAttacking = false;
-                    }
-                }
-            }
-        }
-
-        // handle planet loop
-        for (const planet of this.planets) {
-            planet.handlePlanetLoop();
-        }
-
-        // handle AI factions
-        for (const faction of Object.values(this.factions)) {
-            faction.handleFactionLoop();
-        }
+        // physics
+        // fetch playerData
+        // fetch keys
+        // fetch orders
+        // send cannonballs
+        // send crates
+        // send planets
+        // send ships
     }
 
     /**

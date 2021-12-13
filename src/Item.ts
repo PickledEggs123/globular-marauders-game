@@ -1,4 +1,4 @@
-import {ICameraState, ICollidable, IExpirable, IExpirableTicks} from "./Interface";
+import {ICameraState, ICollidable, IExpirableTicks} from "./Interface";
 import Quaternion from "quaternion";
 import {EFaction} from "./Ship";
 import {EResourceType, ICargoItem} from "./Resource";
@@ -119,18 +119,6 @@ export class Crate implements ICameraState, ICargoItem, IExpirableTicks, ICollid
         this.sourcePlanetId = sourcePlanetId;
         this.amount = amount;
     }
-}
-
-export class SmokeCloud implements ICameraState, IExpirable {
-    public id: string = "";
-    public color: string = "grey";
-    public position: Quaternion = Quaternion.ONE;
-    public positionVelocity: Quaternion = Quaternion.ONE;
-    public orientation: Quaternion = Quaternion.ONE;
-    public orientationVelocity: Quaternion = Quaternion.ONE;
-    public size: number = 1;
-    public created: Date = new Date(Date.now());
-    public expires: Date = new Date(Date.now() + 10000);
 }
 
 export interface ISerializedCannonBall {

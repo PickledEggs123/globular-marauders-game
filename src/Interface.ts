@@ -1,10 +1,81 @@
 import Quaternion from "quaternion";
 import {PathFinder} from "./Graph";
-import {EFaction} from "./Ship";
+import {EFaction, EShipType} from "./Ship";
 import {Planet} from "./Planet";
-import {Crate} from "./Item";
+import {Crate, ISerializedCannonBall, ISerializedQuaternion} from "./Item";
 import {Game} from "./Game";
 import {EResourceType} from "./Resource";
+
+/**
+ * The different server types which will affect how the server loop will execute.
+ */
+export enum EServerType {
+    // the game is a traditional single process server instance, useful for arcade style gameplay and unit testing
+    STANDALONE = "STANDALONE",
+    // the game is a load balancing instance which spreads players among a set of AI_NODES
+    LOAD_BALANCER = "LOAD_BALANCER",
+    // the game is an AI node which read physics and global state information and make AutoPilot behaviors,
+    // or a player can input keyboard keys manually to perform actions
+    AI_NODE = "AI_CLIENT",
+    // the game is a slice of the world, responsible for movement and collisions within it's sector/kingdom
+    // it will output to AI nodes and Global State nodes.
+    PHYSICS_NODE = "PHYSICS_NODE",
+    // the game is an aggregate and summary of all physics node information. This makes this node excellent at
+    // large strategic faction planning and score keeping.
+    GLOBAL_STATE_NODE = "GLOBAL_STATE_NODE"
+}
+
+export enum EShardMessageType {
+    SPAWN_SHIP = "SPAWN_SHIP",
+    SPAWN_SHIP_RESULT = "SPAWN_SHIP_RESULT",
+    SHIP_STATE = "SHIP_STATE",
+}
+
+/**
+ * A message from one shard to another shard.
+ */
+export interface IShardMessage {
+    shardMessageType: EShardMessageType;
+}
+
+export interface ISpawnShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.SPAWN_SHIP;
+    shipType: EShipType;
+    planetId: string;
+    playerId: string;
+}
+
+export interface ISpawnResultShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.SPAWN_SHIP_RESULT;
+    playerId: string;
+    shipId: string;
+}
+
+export interface IShipStateShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.SHIP_STATE;
+    playerId: string;
+    position: ISerializedQuaternion;
+    positionVelocity: ISerializedQuaternion;
+    orientation: ISerializedQuaternion;
+    orientationVelocity: ISerializedQuaternion;
+    newCannonBalls: ISerializedCannonBall[];
+}
+
+/**
+ * A list item containing information about each shard. Used by the shards for peer to peer communication.
+ */
+export interface IShardListItem {
+    name: string;
+    type: EServerType;
+    kingdomIndex: number | undefined;
+}
+
+/**
+ * A message containing a list of shards, used to periodically update the shards.
+ */
+export interface IRegisterShardMessage extends IShardMessage {
+    shardList: IShardListItem[];
+}
 
 export interface IExpirableTicks {
     life: number;
