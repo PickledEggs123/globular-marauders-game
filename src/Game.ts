@@ -8,9 +8,13 @@ import {
     IAIPlayerDataStateShardMessage,
     ICameraState,
     ICollidable,
+    IDeathShardMessage,
     IDirectedMarketTrade,
     IExpirableTicks,
+    IFetchOrderResultShardMessage,
+    IFetchOrderShardMessage,
     IGlobalStateShardMessage,
+    IPhysicsDataStateShardMessage,
     IShardListItem,
     IShardMessage,
     IShipStateShardMessage,
@@ -57,6 +61,7 @@ export interface IPlayerData {
     activeKeys: string[];
     moneyAccount: MoneyAccount;
     autoPilotEnabled: boolean;
+    aiNodeName: string | undefined;
 }
 
 /**
@@ -197,6 +202,9 @@ export class Game {
     public isTestMode: boolean = false;
     public serverType: EServerType = EServerType.STANDALONE;
     public physicsKingdomIndex: number | undefined = undefined;
+    public aiNodeName: string | undefined = undefined;
+    public fetchingOrder: Set<string> = new Set<string>();
+    public monitoredShips: string[] = [];
     public shardList: IShardListItem[] = [];
     public outgoingShardMessages: Array<[string, IShardMessage]> = [];
     public incomingShardMessages: Array<[string, IShardMessage]> = [];
@@ -1051,6 +1059,30 @@ export class Game {
                                 player.shipId = shipId;
                                 break;
                             }
+                            case EShardMessageType.FETCH_ORDER_RESULT: {
+                                const {
+                                    order,
+                                    shipId
+                                } = message as IFetchOrderResultShardMessage;
+                                const ship = this.ships.find(s => s.id === shipId);
+                                if (!ship) {
+                                    continue;
+                                }
+                                ship.orders.push(Order.deserialize(this, ship, order));
+                                this.fetchingOrder.delete(ship.id);
+                                break;
+                            }
+                            case EShardMessageType.DEATH: {
+                                const {
+                                    playerId
+                                } = message as IDeathShardMessage;
+                                const player = this.playerData.find(p => p.id === playerId);
+                                if (!player) {
+                                    continue;
+                                }
+                                player.shipId = "";
+                                break;
+                            }
                         }
                         break;
                     }
@@ -1141,37 +1173,114 @@ export class Game {
                 break;
             }
             case EServerType.AI_NODE: {
-                // send player data to correct physics node
-                for (const playerData of this.playerData) {
-                    const ship = playerData.shipId && this.ships.find(s => s.id === playerData.shipId);
-                    if (ship) {
-                        const playerDataUpdateMessage: IAIPlayerDataStateShardMessage = {
-                            shardMessageType: EShardMessageType.AI_PLAYER_DATA_STATE,
-                            playerData,
-                            orders: ship.orders.map(o => o.serialize()),
-                            pathFinding: ship.pathFinding.serialize(),
-                            fireControl: ship.fireControl.serialize()
-                        };
+                const physicsNodeMessages = new Map<number, IAIPlayerDataStateShardMessage>();
+                const globalNodeMessage: IAIPlayerDataStateShardMessage = {
+                    shardMessageType: EShardMessageType.AI_PLAYER_DATA_STATE,
+                    playerData: [],
+                    ships: []
+                };
 
+                // send player data to correct physics node
+                for (const shipId of this.monitoredShips) {
+                    const ship = this.ships.find(s => s.id === shipId);
+                    const playerData = this.playerData.find(p => p.shipId === shipId);
+                    if (ship) {
                         // send to physics node
                         const planet = this.voronoiTerrain.getNearestPlanet(ship.position.rotateVector([0, 0, 1]));
                         const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                        const physicsNode = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
-                        if (physicsNode) {
-                            this.outgoingShardMessages.push([physicsNode.name, playerDataUpdateMessage]);
+                        if (!physicsNodeMessages.has(kingdomIndex)) {
+                            physicsNodeMessages.set(kingdomIndex, {
+                                shardMessageType: EShardMessageType.AI_PLAYER_DATA_STATE,
+                                playerData: [],
+                                ships: []
+                            });
                         }
+                        if (playerData) {
+                            physicsNodeMessages.get(kingdomIndex).playerData.push(playerData);
+                        }
+                        physicsNodeMessages.get(kingdomIndex).ships.push({
+                            orders: ship.orders.map(s => s.serialize()),
+                            shipKeys: [...ship.activeKeys],
+                            pathFinding: ship.pathFinding.serialize(),
+                            fireControl: ship.fireControl.serialize(),
+                        });
 
                         // send to global node
-                        const globalNode = this.shardList.find(s => s.type === EServerType.GLOBAL_STATE_NODE);
-                        if (globalNode) {
-                            this.outgoingShardMessages.push([globalNode.name, playerDataUpdateMessage]);
+                        if (playerData) {
+                            globalNodeMessage.playerData.push(playerData);
                         }
+                        globalNodeMessage.ships.push({
+                            orders: ship.orders.map(s => s.serialize()),
+                            shipKeys: [...ship.activeKeys],
+                            pathFinding: ship.pathFinding.serialize(),
+                            fireControl: ship.fireControl.serialize(),
+                        });
                     }
                 }
                 break;
             }
             case EServerType.PHYSICS_NODE: {
-                // TODO: physics should send messages to AI and Global State
+                const ships: Ship[] = [];
+                const cannonBalls: CannonBall[] = [];
+                const crates: Crate[] = [];
+                const planets: Planet[] = [];
+
+                // detect objects within the domain
+                for (const ship of this.ships) {
+                    const planet = this.voronoiTerrain.getNearestPlanet(ship.position.rotateVector([0, 0, 1]));
+                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                    if (kingdomIndex !== this.physicsKingdomIndex) {
+                        continue;
+                    }
+
+                    ships.push(ship);
+                }
+                for (const cannonBall of this.cannonBalls) {
+                    const planet = this.voronoiTerrain.getNearestPlanet(cannonBall.position.rotateVector([0, 0, 1]));
+                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                    if (kingdomIndex !== this.physicsKingdomIndex) {
+                        continue;
+                    }
+
+                    cannonBalls.push(cannonBall);
+                }
+                for (const crate of this.crates) {
+                    const planet = this.voronoiTerrain.getNearestPlanet(crate.position.rotateVector([0, 0, 1]));
+                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                    if (kingdomIndex !== this.physicsKingdomIndex) {
+                        continue;
+                    }
+
+                    crates.push(crate);
+                }
+                for (const planet of this.planets) {
+                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                    if (kingdomIndex !== this.physicsKingdomIndex) {
+                        continue;
+                    }
+
+                    planets.push(planet);
+                }
+
+                const physicsSyncFrameMessage: IPhysicsDataStateShardMessage = {
+                    shardMessageType: EShardMessageType.PHYSICS_DATA_STATE,
+                    ships: ships.map(s => s.serialize()),
+                    cannonBalls: cannonBalls.map(c => c.serialize()),
+                    crates: crates.map(c => c.serialize()),
+                    planets: planets.map(p => p.serialize()),
+                };
+
+                for (const shard of this.shardList) {
+                    if (shard.type === EServerType.PHYSICS_NODE) {
+                        // update neighbor physics shard
+                        const kingdom = this.voronoiTerrain.kingdoms[this.physicsKingdomIndex];
+                        if (kingdom.neighborKingdoms.map(k => this.voronoiTerrain.kingdoms.indexOf(k)).includes(shard.kingdomIndex)) {
+                            this.outgoingShardMessages.push([shard.name, physicsSyncFrameMessage]);
+                        }
+                    } else if (shard.type === EServerType.AI_NODE || shard.type === EServerType.GLOBAL_STATE_NODE) {
+                        this.outgoingShardMessages.push([shard.name, physicsSyncFrameMessage]);
+                    }
+                }
                 break;
             }
         }
@@ -1208,6 +1317,7 @@ export class Game {
                                 activeKeys: [],
                                 moneyAccount: new MoneyAccount(2000),
                                 autoPilotEnabled: true,
+                                aiNodeName: this.aiNodeName
                             });
                         }
                     } else if (message.messageType === EMessageType.CHOOSE_FACTION) {
@@ -1474,6 +1584,7 @@ export class Game {
             }
         }
 
+        // DONE - should be converted into SHARD FORMAT
         // handle AI, must send messages back to physics since physics is the source of truth
         // handle AI movement, ship movement and orders
         // - Physics send ship health updates
@@ -1517,7 +1628,6 @@ export class Game {
                 // handle ship orders
                 // handle automatic piracy orders
                 if ([EServerType.STANDALONE, EServerType.AI_NODE].includes(this.serverType)) {
-                    // TODO: Analyze this
                     const hasPiracyOrder: boolean = ship.hasPirateOrder();
                     const hasPirateCargo: boolean = ship.hasPirateCargo();
                     if (!hasPiracyOrder && hasPirateCargo && ship.faction) {
@@ -1528,12 +1638,23 @@ export class Game {
                     // get new orders from faction
                     if (ship.orders.length === 0) {
                         if (ship.planet) {
-                            ship.orders.push(ship.planet.getOrder(ship));
+                            if ([EServerType.STANDALONE].includes(this.serverType)) {
+                                ship.orders.push(ship.planet.getOrder(ship));
+                            } else if ([EServerType.AI_NODE].includes(this.serverType) && !this.fetchingOrder.has(ship.id)) {
+                                // note that the AI node needs to remember this message was sent due to network lag
+                                this.fetchingOrder.add(ship.id);
+                                const fetchOrderMessage: IFetchOrderShardMessage = {
+                                    shardMessageType: EShardMessageType.FETCH_ORDER,
+                                    shipId: ship.id
+                                };
+                                const kingdomIndex = ship.planet.county.duchy.kingdom.terrain.kingdoms.indexOf(ship.planet.county.duchy.kingdom);
+                                const physicsNode = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                this.outgoingShardMessages.push([physicsNode.name, fetchOrderMessage]);
+                            }
                         }
                     }
                 }
-                if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
-                    // TODO: STUDY
+                if ([EServerType.STANDALONE, EServerType.AI_NODE].includes(this.serverType)) {
                     // handle first priority order
                     const shipOrder = ship.orders[0];
                     if (shipOrder) {
@@ -1541,13 +1662,14 @@ export class Game {
                     }
                 }
 
-                // TODO: Analyze this
-                if (ship.fireControl.targetShipId) {
-                    // handle firing at ships
-                    ship.fireControl.fireControlLoop();
+                if ([EServerType.STANDALONE, EServerType.AI_NODE].includes(this.serverType)) {
+                    if (ship.fireControl.targetShipId) {
+                        // handle firing at ships
+                        ship.fireControl.fireControlLoop();
+                    }
+                    // handle pathfinding
+                    ship.pathFinding.pathFindingLoop(ship.fireControl.isAttacking);
                 }
-                // handle pathfinding
-                ship.pathFinding.pathFindingLoop(ship.fireControl.isAttacking);
 
                 if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
                     const playerData = this.playerData.find(d => d.shipId === ship.id);
@@ -1565,14 +1687,22 @@ export class Game {
             if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
                 for (const destroyedShip of destroyedShips) {
                     const playerIndex = this.playerData.findIndex(p => p.shipId === destroyedShip.id);
-                    // TODO: SEND BACK TO AI NODE
                     if (playerIndex >= 0) {
-                        const player = this.playerData[playerIndex];
-                        player.shipId = "";
-                        const message: IDeathMessage = {
-                            messageType: EMessageType.DEATH
-                        };
-                        this.outgoingMessages.push([player.id, message]);
+                        if ([EServerType.STANDALONE].includes(this.serverType)) {
+                            const player = this.playerData[playerIndex];
+                            player.shipId = "";
+                            const message: IDeathMessage = {
+                                messageType: EMessageType.DEATH
+                            };
+                            this.outgoingMessages.push([player.id, message]);
+                        } else if ([EServerType.PHYSICS_NODE].includes(this.serverType)) {
+                            const aiNodeName = this.playerData[playerIndex].aiNodeName;
+                            const message: IDeathShardMessage = {
+                                shardMessageType: EShardMessageType.DEATH,
+                                playerId: this.playerData[playerIndex].id
+                            };
+                            this.outgoingShardMessages.push([aiNodeName, message]);
+                        }
                     }
                     const index = this.ships.findIndex(s => s === destroyedShip);
                     if (index >= 0) {
@@ -1724,10 +1854,10 @@ export class Game {
         // fetch playerData
         // fetch keys
         // fetch orders
-        // send cannonballs
-        // send crates
-        // send planets
-        // send ships
+        // send cannonballs     - DONE
+        // send crates          - DONE
+        // send planets         - DONE
+        // send ships           - DONE
     }
 
     /**

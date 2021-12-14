@@ -1,8 +1,8 @@
 import Quaternion from "quaternion";
 import {ISerializedPathFinder, PathFinder} from "./Graph";
-import {EFaction, EShipType, ISerializedFireControl} from "./Ship";
-import {Planet} from "./Planet";
-import {Crate, ISerializedCannonBall, ISerializedQuaternion} from "./Item";
+import {EFaction, EShipType, ISerializedFireControl, ISerializedShip} from "./Ship";
+import {ISerializedPlanet, Planet} from "./Planet";
+import {Crate, ISerializedCannonBall, ISerializedCrate, ISerializedQuaternion} from "./Item";
 import {Game, IGameSyncFrameDelta, IPlayerData} from "./Game";
 import {EResourceType} from "./Resource";
 import {ISerializedFaction} from "./Faction";
@@ -30,10 +30,13 @@ export enum EServerType {
 export enum EShardMessageType {
     GLOBAL_STATE = "GLOBAL_STATE",
     AI_PLAYER_DATA_STATE = "AI_PLAYER_DATA_STATE",
+    PHYSICS_DATA_STATE = "PHYSICS_DATA_STATE",
     SPAWN_SHIP = "SPAWN_SHIP",
     SPAWN_SHIP_RESULT = "SPAWN_SHIP_RESULT",
+    FETCH_ORDER = "FETCH_ORDER",
+    FETCH_ORDER_RESULT = "FETCH_ORDER_RESULT",
     SHIP_STATE = "SHIP_STATE",
-    DESTROY_SHIP = "DESTROY_SHIP",
+    DEATH = "DEATH",
 }
 
 /**
@@ -50,10 +53,21 @@ export interface IGlobalStateShardMessage extends IShardMessage {
 
 export interface IAIPlayerDataStateShardMessage extends IShardMessage {
     shardMessageType: EShardMessageType.AI_PLAYER_DATA_STATE;
-    playerData: IPlayerData;
-    orders: ISerializedOrder[];
-    pathFinding: ISerializedPathFinder;
-    fireControl: ISerializedFireControl;
+    playerData: IPlayerData[];
+    ships: Array<{
+        shipKeys: string[];
+        orders: ISerializedOrder[];
+        pathFinding: ISerializedPathFinder;
+        fireControl: ISerializedFireControl;
+    }>;
+}
+
+export interface IPhysicsDataStateShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.PHYSICS_DATA_STATE;
+    planets: ISerializedPlanet[];
+    ships: ISerializedShip[];
+    cannonBalls: ISerializedCannonBall[];
+    crates: ISerializedCrate[];
 }
 
 export interface ISpawnShardMessage extends IShardMessage {
@@ -69,6 +83,17 @@ export interface ISpawnResultShardMessage extends IShardMessage {
     shipId: string;
 }
 
+export interface IFetchOrderShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.FETCH_ORDER;
+    shipId: string;
+}
+
+export interface IFetchOrderResultShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.FETCH_ORDER_RESULT;
+    shipId: string;
+    order: ISerializedOrder;
+}
+
 export interface IShipStateShardMessage extends IShardMessage {
     shardMessageType: EShardMessageType.SHIP_STATE;
     playerId: string;
@@ -79,10 +104,11 @@ export interface IShipStateShardMessage extends IShardMessage {
     newCannonBalls: ISerializedCannonBall[];
 }
 
-export interface IDestroyShipShardMessage extends IShardMessage {
-    shardMessageType: EShardMessageType.DESTROY_SHIP;
-    shipId: string;
+export interface IDeathShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.DEATH;
+    playerId: string;
 }
+
 
 /**
  * A list item containing information about each shard. Used by the shards for peer to peer communication.
@@ -91,6 +117,7 @@ export interface IShardListItem {
     name: string;
     type: EServerType;
     kingdomIndex: number | undefined;
+    aiNodeName: string | undefined;
 }
 
 /**
