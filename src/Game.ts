@@ -820,12 +820,6 @@ export class Game {
             if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * Game.VELOCITY_STEP / this.worldScale) {
                 cameraPositionVelocity = Quaternion.ONE;
             }
-
-            // get smoke cloud parameters
-            const engineBackwardsPointInitial = rotation.rotateVector([0, 0, 1]);
-            engineBackwardsPointInitial[2] = 0;
-            const engineBackwardsPoint = DelaunayGraph.normalize(engineBackwardsPointInitial);
-            const engineBackwards = Quaternion.fromBetweenVectors([0, 0, 1], engineBackwardsPoint).pow(Game.VELOCITY_STEP / this.worldScale);
         }
 
         // handle main cannons
