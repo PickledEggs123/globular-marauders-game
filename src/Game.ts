@@ -22,7 +22,16 @@ import {
     ISpawnShardMessage,
     MoneyAccount
 } from "./Interface";
-import {EFaction, EShipType, ISerializedShip, PHYSICS_SCALE, Ship, SHIP_DATA} from "./Ship";
+import {
+    EFaction,
+    EShipType,
+    FireControl,
+    ISerializedFireControl,
+    ISerializedShip,
+    PHYSICS_SCALE,
+    Ship,
+    SHIP_DATA
+} from "./Ship";
 import {ISerializedVoronoiTerrain, VoronoiCounty, VoronoiKingdom, VoronoiTerrain, VoronoiTree} from "./VoronoiTree";
 import {Faction, ISerializedFaction, LuxuryBuff} from "./Faction";
 import {
@@ -40,14 +49,14 @@ import {
     DelaunayTile,
     DelaunayTriangle,
     ICellData,
-    IDrawableTile,
-    ITessellatedTriangle,
+    IDrawableTile, ISerializedPathFinder,
+    ITessellatedTriangle, PathFinder,
     PathingNode,
     VoronoiCell,
     VoronoiGraph
 } from "./Graph";
 import {IHitTest} from "./Intersection";
-import {EOrderType, Order} from "./Order";
+import {EOrderType, ISerializedOrder, Order} from "./Order";
 
 /**
  * A list of player specific data for the server to store.
@@ -1027,11 +1036,114 @@ export class Game {
      * ------------------------------------------------------------------------
      */
 
+    private loadGlobalStateMessage(message: IGlobalStateShardMessage) {
+        Game.syncNetworkMap(
+            this.factions,
+            message.factions,
+            (v: ISerializedFaction) => Faction.deserialize(this, v),
+            (s: Faction, v: ISerializedFaction) => s.deserializeUpdate(v)
+        );
+    }
+
+    private aiPlayerDataCombined: {
+        playerData: IPlayerData[],
+        ships: Array<{
+            shipId: string,
+            shipKeys: string[],
+            orders: ISerializedOrder[],
+            pathFinding: ISerializedPathFinder,
+            fireControl: ISerializedFireControl
+        }>
+    } = {
+        playerData: [],
+        ships: []
+    };
+    private readyLoadAIPlayerDataStateMessage(message: IAIPlayerDataStateShardMessage) {
+        // add data to the frame
+        this.aiPlayerDataCombined.playerData.push(...message.playerData);
+        this.aiPlayerDataCombined.ships.push(...message.ships);
+    }
+    private loadAIPlayerDataStateMessage() {
+        // apply data to game state
+        Game.syncNetworkArray(
+            this.playerData,
+            this.computeSyncDelta(this.playerData, this.aiPlayerDataCombined.playerData, true),
+            (o) => o,
+            (o, d) => {
+                Object.apply(o, [o, d]);
+            }
+        );
+        for (const item of this.aiPlayerDataCombined.ships) {
+            const ship = this.ships.find(s => s.id === item.shipId);
+            if (ship) {
+                ship.activeKeys.splice(0, ship.activeKeys.length, ...item.shipKeys);
+                ship.orders.splice(0, ship.orders.length, ...item.orders.map(o => Order.deserialize(this, ship, o)));
+                ship.pathFinding = PathFinder.deserialize(ship, item.pathFinding);
+                ship.fireControl = FireControl.deserialize(this, ship, item.fireControl);
+            }
+        }
+
+        // clear old data to reset frame
+        this.aiPlayerDataCombined.playerData = [];
+        this.aiPlayerDataCombined.ships = [];
+    }
+
+    private physicsDataCombined: {
+        ships: ISerializedShip[],
+        cannonBalls: ISerializedCannonBall[],
+        crates: ISerializedCrate[],
+        planets: ISerializedPlanet[]
+    } = {
+        ships: [],
+        cannonBalls: [],
+        crates: [],
+        planets: []
+    };
+    private readyLoadPhysicsDataStateMessage(message: IPhysicsDataStateShardMessage) {
+        // add data to the frame
+        this.physicsDataCombined.ships.push(...message.ships);
+        this.physicsDataCombined.cannonBalls.push(...message.cannonBalls);
+        this.physicsDataCombined.crates.push(...message.crates);
+        this.physicsDataCombined.planets.push(...message.planets);
+    }
+    private loadPhysicsDataStateMessages() {
+        // apply data to game state
+        Game.syncNetworkArray(
+            this.ships,
+            this.computeSyncDelta(this.ships, this.physicsDataCombined.ships.map(s => Ship.deserialize(this, s)), true),
+            (o) => o,
+            (o, d) => o.deserializeUpdate(d.serialize())
+        );
+        Game.syncNetworkArray(
+            this.cannonBalls,
+            this.computeSyncDelta(this.cannonBalls, this.physicsDataCombined.cannonBalls.map(s => CannonBall.deserialize(s)), true),
+            (o) => o,
+            (o, d) => o.deserializeUpdate(d.serialize())
+        );
+        Game.syncNetworkArray(
+            this.crates,
+            this.computeSyncDelta(this.crates, this.physicsDataCombined.crates.map(s => Crate.deserialize(s)), true),
+            (o) => o,
+            (o, d) => o.deserializeUpdate(d.serialize())
+        );
+        for (const item of this.physicsDataCombined.planets) {
+            const planet = this.planets.find(p => p.id === item.id);
+            if (planet) {
+                planet.deserializeUpdate(item);
+            }
+        }
+
+        // clear the frame
+        this.physicsDataCombined.ships = [];
+        this.physicsDataCombined.cannonBalls = [];
+        this.physicsDataCombined.crates = [];
+        this.physicsDataCombined.planets = [];
+    }
+
     /**
      * Handle the data loading functions of a server shard.
      */
     public handleServerShardPreLoop() {
-        // TODO: add state message parsing for GLOBAL STATE, AI, and Physics
         while (true) {
             const item = this.incomingShardMessages.shift();
             if (item) {
@@ -1042,7 +1154,16 @@ export class Game {
                         break;
                     }
                     case EServerType.GLOBAL_STATE_NODE: {
-
+                        switch (message.shardMessageType) {
+                            case EShardMessageType.AI_PLAYER_DATA_STATE: {
+                                this.readyLoadAIPlayerDataStateMessage(message as IAIPlayerDataStateShardMessage);
+                                break;
+                            }
+                            case EShardMessageType.PHYSICS_DATA_STATE: {
+                                this.readyLoadPhysicsDataStateMessage(message as IPhysicsDataStateShardMessage);
+                                break;
+                            }
+                        }
                         break;
                     }
                     case EServerType.AI_NODE: {
@@ -1081,6 +1202,14 @@ export class Game {
                                     continue;
                                 }
                                 player.shipId = "";
+                                break;
+                            }
+                            case EShardMessageType.GLOBAL_STATE: {
+                                this.loadGlobalStateMessage(message as IGlobalStateShardMessage);
+                                break;
+                            }
+                            case EShardMessageType.PHYSICS_DATA_STATE: {
+                                this.readyLoadPhysicsDataStateMessage(message as IPhysicsDataStateShardMessage);
                                 break;
                             }
                         }
@@ -1137,6 +1266,18 @@ export class Game {
                                 }
                                 break;
                             }
+                            case EShardMessageType.GLOBAL_STATE: {
+                                this.loadGlobalStateMessage(message as IGlobalStateShardMessage);
+                                break;
+                            }
+                            case EShardMessageType.AI_PLAYER_DATA_STATE: {
+                                this.readyLoadAIPlayerDataStateMessage(message as IAIPlayerDataStateShardMessage);
+                                break;
+                            }
+                            case EShardMessageType.PHYSICS_DATA_STATE: {
+                                this.readyLoadPhysicsDataStateMessage(message as IPhysicsDataStateShardMessage);
+                                break;
+                            }
                         }
                         break;
                     }
@@ -1145,6 +1286,8 @@ export class Game {
                 break;
             }
         }
+        this.loadPhysicsDataStateMessages();
+        this.loadAIPlayerDataStateMessage();
     }
 
     /**
@@ -1199,6 +1342,7 @@ export class Game {
                             physicsNodeMessages.get(kingdomIndex).playerData.push(playerData);
                         }
                         physicsNodeMessages.get(kingdomIndex).ships.push({
+                            shipId: ship.id,
                             orders: ship.orders.map(s => s.serialize()),
                             shipKeys: [...ship.activeKeys],
                             pathFinding: ship.pathFinding.serialize(),
@@ -1210,11 +1354,21 @@ export class Game {
                             globalNodeMessage.playerData.push(playerData);
                         }
                         globalNodeMessage.ships.push({
+                            shipId: ship.id,
                             orders: ship.orders.map(s => s.serialize()),
                             shipKeys: [...ship.activeKeys],
                             pathFinding: ship.pathFinding.serialize(),
                             fireControl: ship.fireControl.serialize(),
                         });
+                    }
+                }
+
+                // send data to each server
+                for (const shard of this.shardList) {
+                    if (shard.type === EServerType.GLOBAL_STATE_NODE) {
+                        this.outgoingShardMessages.push([shard.name, globalNodeMessage]);
+                    } else if (shard.type === EServerType.PHYSICS_NODE && physicsNodeMessages.has(shard.kingdomIndex)) {
+                        this.outgoingShardMessages.push([shard.name, physicsNodeMessages.get(shard.kingdomIndex)]);
                     }
                 }
                 break;
@@ -1837,27 +1991,28 @@ export class Game {
         }
 
         // global state
-        // fetch physics
-        // fetch ai
+        // fetch physics        - DONE
+        // fetch ai             - DONE
         // send faction         - DONE
 
         // ai
-        // fetch crates
-        // fetch cannon balls
-        // fetch ships
-        // fetch planets
+        // fetch crates         - DONE
+        // fetch cannon balls   - DONE
+        // fetch ships          - DONE
+        // fetch planets        - DONE
         // send keys            - DONE
         // send playerData      - DONE
         // send orders          - DONE
 
         // physics
-        // fetch playerData
-        // fetch keys
-        // fetch orders
+        // fetch playerData     - DONE
+        // fetch keys           - DONE
+        // fetch orders         - DONE
         // send cannonballs     - DONE
         // send crates          - DONE
         // send planets         - DONE
         // send ships           - DONE
+        this.handleServerShardPostLoop();
     }
 
     /**

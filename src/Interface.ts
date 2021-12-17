@@ -55,6 +55,7 @@ export interface IAIPlayerDataStateShardMessage extends IShardMessage {
     shardMessageType: EShardMessageType.AI_PLAYER_DATA_STATE;
     playerData: IPlayerData[];
     ships: Array<{
+        shipId: string;
         shipKeys: string[];
         orders: ISerializedOrder[];
         pathFinding: ISerializedPathFinder;
