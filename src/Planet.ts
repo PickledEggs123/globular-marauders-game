@@ -1,11 +1,11 @@
 import {
     EDirectedMarketTradeDirection, EServerType,
-    ESettlementLevel,
+    ESettlementLevel, EShardMessageType,
     ICameraState,
     ICurrency,
     IDirectedMarketTrade,
     IExplorationGraphData,
-    ISerializedMoneyAccount,
+    ISerializedMoneyAccount, IShardMessage, ISpawnAiShardMessage,
     ITradeDeal,
     MoneyAccount
 } from "./Interface";
@@ -1677,7 +1677,7 @@ export class Market {
         }
 
         // compute a directed edge graph of the trades
-        if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE]) {
+        if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(instance.serverType)) {
             for (let i = 0; i < instance.planets.length; i++) {
                 for (let j = i + 1; j < instance.planets.length; j++) {
                     const a = instance.planets[i];
@@ -1762,34 +1762,34 @@ export interface ISerializedPlanet {
     pathingNode: ISerializedPathingNode<DelaunayGraph<Planet>> | null;
     
     naturalResources: EResourceType[];
-    // producedResources: IResourceExported[];
-    // importedResources: ICargoItem[];
-    // manufacturedResources: IResourceProduced[];
-    // resources: Array<IResourceExported>;
-    // marketResources: Array<IResourceExported>;
-    // feudalObligationResources: Array<IResourceExported>;
-    // feudalObligationResourceCycle: number;
-    // bestProfitableTrades: Array<[EResourceType, number, Planet]>;
-    // possibleTradeDeals: Array<ITradeDeal>;
-    // registeredTradeDeals: Array<ITradeDeal>;
-    // registeredMarketResources: Array<[Ship, IResourceExported]>;
-    // availableMarketResources: Array<IResourceExported>;
+    producedResources: IResourceExported[];
+    importedResources: ICargoItem[];
+    manufacturedResources: IResourceProduced[];
+    resources: Array<IResourceExported>;
+    marketResources: Array<IResourceExported>;
+    feudalObligationResources: Array<IResourceExported>;
+    feudalObligationResourceCycle: number;
+    bestProfitableTrades: Array<[EResourceType, number, Planet]>;
+    possibleTradeDeals: Array<ITradeDeal>;
+    registeredTradeDeals: Array<ITradeDeal>;
+    registeredMarketResources: Array<[Ship, IResourceExported]>;
+    availableMarketResources: Array<IResourceExported>;
 
-    // wood: number;
-    // woodConstruction: number;
-    // iron: number;
-    // ironConstruction: number;
-    // coal: number;
-    // coalConstruction: number;
-    // cannons: number;
-    // cannonades: number;
+    wood: number;
+    woodConstruction: number;
+    iron: number;
+    ironConstruction: number;
+    coal: number;
+    coalConstruction: number;
+    cannons: number;
+    cannonades: number;
 
-    // feudalGovernment: ISerializedFeudalGovernment;
-    // economySystem: ISerializedPlanetaryEconomySystem;
-    // currencySystem: ISerializedPlanetaryCurrencySystem;
-    // moneyAccount: ISerializedPlanetaryMoneyAccount;
+    feudalGovernment: ISerializedFeudalGovernment;
+    economySystem: ISerializedPlanetaryEconomySystem;
+    currencySystem: ISerializedPlanetaryCurrencySystem;
+    moneyAccount: ISerializedPlanetaryMoneyAccount;
 
-    // buildings: ISerializedBuilding[];
+    buildings: ISerializedBuilding[];
 }
 export class Planet implements ICameraState {
     public instance: Game;
@@ -1977,34 +1977,34 @@ export class Planet implements ICameraState {
             pathingNode: this.pathingNode ? this.pathingNode.serialize() : null,
 
             naturalResources: this.naturalResources,
-            // producedResources: this.producedResources,
-            // importedResources: this.importedResources,
-            // manufacturedResources: this.manufacturedResources,
-            // resources: this.resources,
-            // marketResources: this.marketResources,
-            // feudalObligationResources: this.feudalObligationResources,
-            // feudalObligationResourceCycle: this.feudalObligationResourceCycle,
-            // bestProfitableTrades: this.bestProfitableTrades,
-            // possibleTradeDeals: this.possibleTradeDeals,
-            // registeredTradeDeals: this.registeredTradeDeals,
-            // registeredMarketResources: this.registeredMarketResources,
-            // availableMarketResources: this.availableMarketResources,
+            producedResources: this.producedResources,
+            importedResources: this.importedResources,
+            manufacturedResources: this.manufacturedResources,
+            resources: this.resources,
+            marketResources: this.marketResources,
+            feudalObligationResources: this.feudalObligationResources,
+            feudalObligationResourceCycle: this.feudalObligationResourceCycle,
+            bestProfitableTrades: this.bestProfitableTrades,
+            possibleTradeDeals: this.possibleTradeDeals,
+            registeredTradeDeals: this.registeredTradeDeals,
+            registeredMarketResources: this.registeredMarketResources,
+            availableMarketResources: this.availableMarketResources,
 
-            // wood: this.wood,
-            // woodConstruction: this.woodConstruction,
-            // iron: this.iron,
-            // ironConstruction: this.ironConstruction,
-            // coal: this.coal,
-            // coalConstruction: this.coalConstruction,
-            // cannons: this.cannons,
-            // cannonades: this.cannonades,
+            wood: this.wood,
+            woodConstruction: this.woodConstruction,
+            iron: this.iron,
+            ironConstruction: this.ironConstruction,
+            coal: this.coal,
+            coalConstruction: this.coalConstruction,
+            cannons: this.cannons,
+            cannonades: this.cannonades,
 
-            // feudalGovernment: this.feudalGovernment ? this.feudalGovernment.serialize() : null,
-            // economySystem: this.economySystem ? this.economySystem.serialize() : null,
-            // currencySystem: this.currencySystem ? this.currencySystem.serialize() : null,
-            // moneyAccount: this.moneyAccount ? this.moneyAccount.serialize() : null,
+            feudalGovernment: this.feudalGovernment ? this.feudalGovernment.serialize() : null,
+            economySystem: this.economySystem ? this.economySystem.serialize() : null,
+            currencySystem: this.currencySystem ? this.currencySystem.serialize() : null,
+            moneyAccount: this.moneyAccount ? this.moneyAccount.serialize() : null,
 
-            // buildings: this.buildings.map(b => b.serialize()),
+            buildings: this.buildings.map(b => b.serialize()),
         };
     }
 
@@ -2029,62 +2029,62 @@ export class Planet implements ICameraState {
         }
 
         this.naturalResources = data.naturalResources;
-        // this.producedResources = data.producedResources;
-        // this.importedResources = data.importedResources;
-        // this.manufacturedResources = data.manufacturedResources;
-        // this.resources = data.resources;
-        // this.marketResources = data.marketResources;
-        // this.feudalObligationResources = data.feudalObligationResources;
-        // this.feudalObligationResourceCycle = data.feudalObligationResourceCycle;
-        // this.bestProfitableTrades = data.bestProfitableTrades;
-        // this.possibleTradeDeals = data.possibleTradeDeals;
-        // this.registeredTradeDeals = data.registeredTradeDeals;
-        // this.registeredMarketResources = data.registeredMarketResources;
-        // this.availableMarketResources = data.availableMarketResources;
+        this.producedResources = data.producedResources;
+        this.importedResources = data.importedResources;
+        this.manufacturedResources = data.manufacturedResources;
+        this.resources = data.resources;
+        this.marketResources = data.marketResources;
+        this.feudalObligationResources = data.feudalObligationResources;
+        this.feudalObligationResourceCycle = data.feudalObligationResourceCycle;
+        this.bestProfitableTrades = data.bestProfitableTrades;
+        this.possibleTradeDeals = data.possibleTradeDeals;
+        this.registeredTradeDeals = data.registeredTradeDeals;
+        this.registeredMarketResources = data.registeredMarketResources;
+        this.availableMarketResources = data.availableMarketResources;
 
-        // this.wood = data.wood;
-        // this.woodConstruction = data.woodConstruction;
-        // this.iron = data.iron;
-        // this.ironConstruction = data.ironConstruction;
-        // this.coal = data.coal;
-        // this.coalConstruction = data.coalConstruction;
-        // this.cannons = data.cannons;
-        // this.cannonades = data.cannonades;
+        this.wood = data.wood;
+        this.woodConstruction = data.woodConstruction;
+        this.iron = data.iron;
+        this.ironConstruction = data.ironConstruction;
+        this.coal = data.coal;
+        this.coalConstruction = data.coalConstruction;
+        this.cannons = data.cannons;
+        this.cannonades = data.cannonades;
 
-        // if (this.feudalGovernment && !data.feudalGovernment) {
-        //     this.feudalGovernment = null;
-        // } else if (this.feudalGovernment && data.feudalGovernment) {
-        //     this.feudalGovernment.deserializeUpdate(data.feudalGovernment);
-        // } else if (!this.feudalGovernment && data.feudalGovernment) {
-        //     this.feudalGovernment = FeudalGovernment.deserialize(this, data.feudalGovernment);
-        // }
-        // if (this.economySystem && !data.economySystem) {
-        //     this.economySystem = null;
-        // } else if (this.economySystem && data.economySystem) {
-        //     this.economySystem.deserializeUpdate(data.economySystem);
-        // } else if (!this.economySystem && data.economySystem) {
-        //     this.economySystem = PlanetaryEconomySystem.deserialize(this.instance, data.economySystem);
-        // }
-        // if (this.currencySystem && !data.currencySystem) {
-        //     this.currencySystem = null;
-        // } else if (this.currencySystem && data.currencySystem) {
-        //     this.currencySystem.deserializeUpdate(data.currencySystem);
-        // } else if (!this.currencySystem && data.currencySystem) {
-        //     this.currencySystem = PlanetaryCurrencySystem.deserialize(data.currencySystem);
-        // }
-        // if (this.moneyAccount && !data.moneyAccount) {
-        //     this.moneyAccount = null;
-        // } else if (this.moneyAccount && data.moneyAccount) {
-        //     this.moneyAccount.deserializeUpdate(data.moneyAccount);
-        // } else if (!this.moneyAccount && data.moneyAccount) {
-        //     this.moneyAccount = PlanetaryMoneyAccount.deserialize(this.instance, this, data.moneyAccount);
-        // }
+        if (this.feudalGovernment && !data.feudalGovernment) {
+            this.feudalGovernment = null;
+        } else if (this.feudalGovernment && data.feudalGovernment) {
+            this.feudalGovernment.deserializeUpdate(data.feudalGovernment);
+        } else if (!this.feudalGovernment && data.feudalGovernment) {
+            this.feudalGovernment = FeudalGovernment.deserialize(this, data.feudalGovernment);
+        }
+        if (this.economySystem && !data.economySystem) {
+            this.economySystem = null;
+        } else if (this.economySystem && data.economySystem) {
+            this.economySystem.deserializeUpdate(data.economySystem);
+        } else if (!this.economySystem && data.economySystem) {
+            this.economySystem = PlanetaryEconomySystem.deserialize(this.instance, data.economySystem);
+        }
+        if (this.currencySystem && !data.currencySystem) {
+            this.currencySystem = null;
+        } else if (this.currencySystem && data.currencySystem) {
+            this.currencySystem.deserializeUpdate(data.currencySystem);
+        } else if (!this.currencySystem && data.currencySystem) {
+            this.currencySystem = PlanetaryCurrencySystem.deserialize(data.currencySystem);
+        }
+        if (this.moneyAccount && !data.moneyAccount) {
+            this.moneyAccount = null;
+        } else if (this.moneyAccount && data.moneyAccount) {
+            this.moneyAccount.deserializeUpdate(data.moneyAccount);
+        } else if (!this.moneyAccount && data.moneyAccount) {
+            this.moneyAccount = PlanetaryMoneyAccount.deserialize(this.instance, this, data.moneyAccount);
+        }
 
-        // if (this.buildings.length === data.buildings.length) {
-        //     this.buildings.forEach((b, i) => b.deserializeUpdate(data.buildings[i]));
-        // } else {
-        //     this.buildings = data.buildings.map(b => Building.deserializeBuilding(this.instance, this, b));
-        // }
+        if (this.buildings.length === data.buildings.length) {
+            this.buildings.forEach((b, i) => b.deserializeUpdate(data.buildings[i]));
+        } else {
+            this.buildings = data.buildings.map(b => Building.deserializeBuilding(this.instance, this, b));
+        }
     }
 
     public static deserialize(instance: Game, county: VoronoiCounty, data: ISerializedPlanet): Planet {
@@ -3167,7 +3167,20 @@ export class Planet implements ICameraState {
             this.moneyAccount &&
             this.moneyAccount.cash.hasEnough(this.shipyard.quoteShip(nextShipTypeToBuild, true))
         ) {
-            this.spawnShip(this.moneyAccount.cash, nextShipTypeToBuild, true);
+            if ([EServerType.STANDALONE].includes(this.instance.serverType)) {
+                this.spawnShip(this.moneyAccount.cash, nextShipTypeToBuild, true);
+            } else if ([EServerType.PHYSICS_NODE].includes(this.instance.serverType) && !this.instance.spawningPlanets.has(this.id)) {
+                const loadBalancer = this.instance.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+                if (loadBalancer) {
+                    const spawnAiShipMessage: ISpawnAiShardMessage = {
+                        shardMessageType: EShardMessageType.SPAWN_AI_SHIP,
+                        planetId: this.id,
+                        shipType: nextShipTypeToBuild
+                    };
+                    this.instance.outgoingShardMessages.push([loadBalancer.name, spawnAiShipMessage]);
+                    this.instance.spawningPlanets.add(this.id);
+                }
+            }
         }
 
         // handle the luxury buffs from trading

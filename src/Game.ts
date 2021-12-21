@@ -6,6 +6,7 @@ import {
     EServerType,
     EShardMessageType,
     IAIPlayerDataStateShardMessage,
+    IAiShardCountItem,
     ICameraState,
     ICollidable,
     IDeathShardMessage,
@@ -18,6 +19,8 @@ import {
     IShardListItem,
     IShardMessage,
     IShipStateShardMessage,
+    ISpawnAiResultShardMessage,
+    ISpawnAiShardMessage,
     ISpawnResultShardMessage,
     ISpawnShardMessage,
     MoneyAccount
@@ -49,8 +52,10 @@ import {
     DelaunayTile,
     DelaunayTriangle,
     ICellData,
-    IDrawableTile, ISerializedPathFinder,
-    ITessellatedTriangle, PathFinder,
+    IDrawableTile,
+    ISerializedPathFinder,
+    ITessellatedTriangle,
+    PathFinder,
     PathingNode,
     VoronoiCell,
     VoronoiGraph
@@ -213,8 +218,11 @@ export class Game {
     public physicsKingdomIndex: number | undefined = undefined;
     public aiNodeName: string | undefined = undefined;
     public fetchingOrder: Set<string> = new Set<string>();
+    public spawningPlanets: Set<string> = new Set<string>();
     public monitoredShips: string[] = [];
     public shardList: IShardListItem[] = [];
+    public shardName?: string;
+    public aiShardCount: IAiShardCountItem[] = [];
     public outgoingShardMessages: Array<[string, IShardMessage]> = [];
     public incomingShardMessages: Array<[string, IShardMessage]> = [];
 
@@ -298,9 +306,9 @@ export class Game {
         }
         return hash;
     };
-    private computeSyncDelta<T extends {id: string}>(oldData: T[], newData: T[], canUpdate: boolean): IGameSyncFrameDelta<T> {
-        const oldHashes: [string, number, number][] = oldData.map((i, index) => [i.id, index, this.hashCode(JSON.stringify(i))]);
-        const newHashes: [string, number, number][] = newData.map((i, index) => [i.id, index, this.hashCode(JSON.stringify(i))]);
+    private computeSyncDelta<T extends {id: string, serialize?() }>(oldData: T[], newData: T[], canUpdate: boolean): IGameSyncFrameDelta<T> {
+        const oldHashes: [string, number, number][] = oldData.map((i, index) => [i.id, index, this.hashCode(JSON.stringify(i.serialize ? i.serialize() : i))]);
+        const newHashes: [string, number, number][] = newData.map((i, index) => [i.id, index, this.hashCode(JSON.stringify(i.serialize ? i.serialize() : i))]);
 
         const create: T[] = [];
         const update: T[] = [];
@@ -438,6 +446,7 @@ export class Game {
         }
 
         this.voronoiTerrain = VoronoiTerrain.deserialize(this, data.voronoiTerrain);
+        this.planets = Array.from(this.voronoiTerrain.getPlanets());
 
         Game.syncNetworkArray(
             this.ships, {
@@ -1033,9 +1042,9 @@ export class Game {
     private loadGlobalStateMessage(message: IGlobalStateShardMessage) {
         Game.syncNetworkMap(
             this.factions,
-            message.factions,
-            (v: ISerializedFaction) => Faction.deserialize(this, v),
-            (s: Faction, v: ISerializedFaction) => s.deserializeUpdate(v)
+            this.computeSyncDelta(Object.values(this.factions), message.factions.map(f => Faction.deserialize(this, f)), true),
+            (v: Faction) => v,
+            (s: Faction, v: Faction) => s.deserializeUpdate(v.serialize())
         );
     }
 
@@ -1144,7 +1153,25 @@ export class Game {
                 const [fromShardName, message] = item;
                 switch (this.serverType) {
                     case EServerType.LOAD_BALANCER: {
-
+                        switch (message.shardMessageType) {
+                            case EShardMessageType.SPAWN_AI_SHIP: {
+                                // forward message to the best AI node
+                                const bestShardCount = this.aiShardCount.sort((a, b) => a.numAI - b.numAI)[0];
+                                const aiShard = this.shardList.find(s => s.name === bestShardCount.name);
+                                this.outgoingShardMessages.push([aiShard.name, message]);
+                                bestShardCount.numAI += 1;
+                                break;
+                            }
+                            case EShardMessageType.SPAWN_SHIP: {
+                                // forward message to the best AI node
+                                const bestShardCount = this.aiShardCount.sort((a, b) => a.numAI - b.numAI)[0];
+                                const aiShard = this.shardList.find(s => s.name === bestShardCount.name);
+                                this.outgoingShardMessages.push([aiShard.name, message]);
+                                bestShardCount.numAI += 1;
+                                bestShardCount.numPlayers += 1;
+                                break;
+                            }
+                        }
                         break;
                     }
                     case EServerType.GLOBAL_STATE_NODE: {
@@ -1162,6 +1189,31 @@ export class Game {
                     }
                     case EServerType.AI_NODE: {
                         switch (message.shardMessageType) {
+                            case EShardMessageType.SPAWN_AI_SHIP: {
+                                const {
+                                    planetId
+                                } = message as ISpawnAiShardMessage;
+                                const planet = this.planets.find(p => p.id === planetId);
+                                if (planet) {
+                                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                                    const physicsNode = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                    if (physicsNode) {
+                                        this.outgoingShardMessages.push([physicsNode.name, message]);
+                                    }
+                                }
+                                break;
+                            }
+                            case EShardMessageType.SPAWN_AI_SHIP_RESULT: {
+                                const {
+                                    shipId
+                                } = message as ISpawnAiResultShardMessage;
+                                this.monitoredShips.push(shipId);
+                                const loadBalancer = this.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+                                if (loadBalancer) {
+                                    this.outgoingShardMessages.push([loadBalancer.name, message]);
+                                }
+                                break;
+                            }
                             case EShardMessageType.SPAWN_SHIP_RESULT: {
                                 const {
                                     playerId,
@@ -1172,6 +1224,11 @@ export class Game {
                                     continue;
                                 }
                                 player.shipId = shipId;
+                                this.monitoredShips.push(shipId);
+                                const loadBalancer = this.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+                                if (loadBalancer) {
+                                    this.outgoingShardMessages.push([loadBalancer.name, message]);
+                                }
                                 break;
                             }
                             case EShardMessageType.FETCH_ORDER_RESULT: {
@@ -1211,6 +1268,23 @@ export class Game {
                     }
                     case EServerType.PHYSICS_NODE: {
                         switch (message.shardMessageType) {
+                            case EShardMessageType.SPAWN_AI_SHIP: {
+                                const spawnMessage = message as ISpawnAiShardMessage;
+                                const {
+                                    planetId,
+                                    shipType
+                                } = spawnMessage;
+                                const planet = this.planets.find(p => p.id === planetId);
+                                const ship = planet.spawnShip(planet.moneyAccount.cash, shipType, true);
+
+                                const spawnAiShipResultMessage: ISpawnAiResultShardMessage = {
+                                    shardMessageType: EShardMessageType.SPAWN_AI_SHIP_RESULT,
+                                    shipId: ship.id
+                                };
+                                this.outgoingShardMessages.push([fromShardName, spawnAiShipResultMessage]);
+                                this.spawningPlanets.delete(planetId);
+                                break;
+                            }
                             case EShardMessageType.SPAWN_SHIP: {
                                 const spawnMessage = message as ISpawnShardMessage;
                                 const {
@@ -1296,11 +1370,7 @@ export class Game {
                 // give everyone a copy of the global faction state
                 const globalStateMessage: IGlobalStateShardMessage = {
                     shardMessageType: EShardMessageType.GLOBAL_STATE,
-                    factions: {
-                        create: [],
-                        update: Object.values(this.factions).map(f => f.serialize()),
-                        remove: []
-                    }
+                    factions: Object.values(this.factions).map(f => f.serialize())
                 };
                 for (const shard of this.shardList) {
                     if ([EServerType.AI_NODE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
@@ -1511,15 +1581,14 @@ export class Game {
                                 const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType);
                                 player.shipId = playerShip.id;
                             } else if ([EServerType.AI_NODE].includes(this.serverType)) {
-                                const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                                const kingdomPhysicsNode = this.shardList.find(p => p.type === EServerType.PHYSICS_NODE && p.kingdomIndex === kingdomIndex);
+                                const loadBalancer = this.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
                                 const spawnShipMessage: ISpawnShardMessage = {
                                     shardMessageType: EShardMessageType.SPAWN_SHIP,
                                     shipType,
                                     planetId,
                                     playerId: player.id
                                 };
-                                this.outgoingShardMessages.push([kingdomPhysicsNode.name, spawnShipMessage]);
+                                this.outgoingShardMessages.push([loadBalancer.name, spawnShipMessage]);
                             }
                         }
                     } if (message.messageType === EMessageType.AUTOPILOT) {

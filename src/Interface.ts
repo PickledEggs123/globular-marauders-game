@@ -18,7 +18,7 @@ export enum EServerType {
     LOAD_BALANCER = "LOAD_BALANCER",
     // the game is an AI node which read physics and global state information and make AutoPilot behaviors,
     // or a player can input keyboard keys manually to perform actions
-    AI_NODE = "AI_CLIENT",
+    AI_NODE = "AI_NODE",
     // the game is a slice of the world, responsible for movement and collisions within it's sector/kingdom
     // it will output to AI nodes and Global State nodes.
     PHYSICS_NODE = "PHYSICS_NODE",
@@ -33,6 +33,8 @@ export enum EShardMessageType {
     PHYSICS_DATA_STATE = "PHYSICS_DATA_STATE",
     SPAWN_SHIP = "SPAWN_SHIP",
     SPAWN_SHIP_RESULT = "SPAWN_SHIP_RESULT",
+    SPAWN_AI_SHIP = "SPAWN_AI_SHIP",
+    SPAWN_AI_SHIP_RESULT = "SPAWN_AI_SHIP_RESULT",
     FETCH_ORDER = "FETCH_ORDER",
     FETCH_ORDER_RESULT = "FETCH_ORDER_RESULT",
     SHIP_STATE = "SHIP_STATE",
@@ -48,7 +50,7 @@ export interface IShardMessage {
 
 export interface IGlobalStateShardMessage extends IShardMessage {
     shardMessageType: EShardMessageType.GLOBAL_STATE;
-    factions: IGameSyncFrameDelta<ISerializedFaction>;
+    factions: ISerializedFaction[];
 }
 
 export interface IAIPlayerDataStateShardMessage extends IShardMessage {
@@ -81,6 +83,17 @@ export interface ISpawnShardMessage extends IShardMessage {
 export interface ISpawnResultShardMessage extends IShardMessage {
     shardMessageType: EShardMessageType.SPAWN_SHIP_RESULT;
     playerId: string;
+    shipId: string;
+}
+
+export interface ISpawnAiShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.SPAWN_AI_SHIP;
+    shipType: EShipType;
+    planetId: string;
+}
+
+export interface ISpawnAiResultShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.SPAWN_AI_SHIP_RESULT;
     shipId: string;
 }
 
@@ -117,8 +130,17 @@ export interface IDeathShardMessage extends IShardMessage {
 export interface IShardListItem {
     name: string;
     type: EServerType;
-    kingdomIndex: number | undefined;
-    aiNodeName: string | undefined;
+    kingdomIndex?: number;
+    aiNodeName?: string;
+}
+
+/**
+ * A list of players and AI per AI shard.
+ */
+export interface IAiShardCountItem {
+    name: string;
+    numPlayers: number;
+    numAI: number;
 }
 
 /**

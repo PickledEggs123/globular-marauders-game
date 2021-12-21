@@ -1176,8 +1176,10 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
     public generateTerrain(data?: ISerializedVoronoiTerrain) {
         this.nodes = this.createRootNodes(this, data ? data.voronoiCells : undefined);
         this.kingdoms = this.nodes.map(n => new VoronoiKingdom(n.app, n.voronoiCell, n.level, n.parent, this, this.getPlanetId, this.getStarId));
-        for (const kingdom of this.kingdoms) {
-            kingdom.neighborKingdoms = kingdom.neighbors.map(n => n as VoronoiKingdom);
+        for (let i = 0; i < this.kingdoms.length; i++) {
+            const node = this.nodes[i];
+            const kingdom = this.kingdoms[i];
+            kingdom.neighborKingdoms = node.voronoiCell.neighborIndices.map(idx => this.kingdoms[idx]);
         }
         for (let i = 0; i < this.kingdoms.length; i++) {
             const kingdom = this.kingdoms[i];
