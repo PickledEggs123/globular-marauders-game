@@ -9,7 +9,14 @@ import {
     IShardListItem
 } from "../src/Interface";
 import {expect} from "chai";
-import {EMessageType, IChooseFactionMessage, IChoosePlanetMessage, IJoinMessage, ISpawnMessage} from "../src/Game";
+import {
+    EMessageType,
+    IChooseFactionMessage,
+    IChoosePlanetMessage,
+    IJoinMessage,
+    IJoinResultMessage,
+    ISpawnMessage
+} from "../src/Game";
 import {EFaction} from "../src/Ship";
 
 describe("shard tests", () => {
@@ -55,7 +62,7 @@ describe("shard tests", () => {
             loadBalancerShard.aiShardCount.push({
                 name: aiShard.aiNodeName,
                 numAI: 0,
-                numPlayers: 0
+                players: []
             });
         }
         // physics shards
@@ -109,6 +116,7 @@ describe("shard tests", () => {
                     for (const [to, message] of shard.outgoingShardMessages) {
                         shardMap.get(to).incomingShardMessages.push([shard.shardName, message]);
                     }
+                    shard.outgoingMessages.splice(0, shard.outgoingMessages.length);
                     shard.outgoingShardMessages.splice(0, shard.outgoingShardMessages.length);
                 }
             }
@@ -159,6 +167,7 @@ describe("shard tests", () => {
                             }
                         }
                     }
+                    shard.outgoingMessages.splice(0, shard.outgoingMessages.length);
                     shard.outgoingShardMessages.splice(0, shard.outgoingShardMessages.length);
                 }
             }
@@ -190,13 +199,14 @@ describe("shard tests", () => {
                                     ships: shard.ships.filter(isInKingdom).map(s => s.serialize()),
                                     cannonBalls: shard.cannonBalls.filter(isInKingdom).map(c => c.serialize()),
                                     crates: shard.crates.filter(isInKingdom).map(c => c.serialize()),
-                                    planets: shard.planets.filter(isInKingdom).map(p => p.serialize())
+                                    planets: shard.planets.filter(isInKingdom).map(p => p.serializeFull())
                                 };
                                 expect(message).to.deep.equal(expectedMessage, "Expected a message containing all Physics Data.");
                                 sentPhysicsMessage = true;
                             }
                         }
                     }
+                    shard.outgoingMessages.splice(0, shard.outgoingMessages.length);
                     shard.outgoingShardMessages.splice(0, shard.outgoingShardMessages.length);
                 }
             }
@@ -228,6 +238,7 @@ describe("shard tests", () => {
                             }
                         }
                     }
+                    shard.outgoingMessages.splice(0, shard.outgoingMessages.length);
                     shard.outgoingShardMessages.splice(0, shard.outgoingShardMessages.length);
                 }
             }
@@ -237,8 +248,8 @@ describe("shard tests", () => {
             it(`should travel between two kingdoms: try ${trial + 1}`, function () {
                 this.timeout(5 * 60 * 1000);
 
-                const { shards, shardMap, aiShards } = setupShards();
-                const networkGame = aiShards[0];
+                const { shards, shardMap, loadBalancerShard } = setupShards();
+                let networkGame: Game = loadBalancerShard;
                 const runGameLoop = () => {
                     for (const shard of shards) {
                         shard.handleServerLoop();
@@ -247,7 +258,18 @@ describe("shard tests", () => {
                         for (const [to, message] of shard.outgoingShardMessages) {
                             shardMap.get(to).incomingShardMessages.push([shard.shardName, message]);
                         }
+                        for (const [, message] of shard.outgoingMessages) {
+                            if (message.messageType === EMessageType.JOIN_RESULT) {
+                                const joinResultMessage = message as IJoinResultMessage;
+                                const shardName = joinResultMessage.shardName;
+                                const shard = shardMap.get(shardName);
+                                expect(shard).to.not.be.undefined;
+                                networkGame = shard;
+                                break;
+                            }
+                        }
                         shard.outgoingShardMessages.splice(0, shard.outgoingShardMessages.length);
+                        shard.outgoingMessages.splice(0, shard.outgoingShardMessages.length);
                     }
                 };
 
@@ -256,6 +278,11 @@ describe("shard tests", () => {
                     messageType: EMessageType.JOIN,
                     name: "test"
                 };
+                loadBalancerShard.incomingMessages.push(["test", loginMessage]);
+                runGameLoop();
+                runGameLoop();
+                runGameLoop();
+                loadBalancerShard.outgoingMessages.splice(0, loadBalancerShard.outgoingMessages.length);
                 networkGame.incomingMessages.push(["test", loginMessage]);
                 runGameLoop();
                 runGameLoop();
@@ -302,7 +329,7 @@ describe("shard tests", () => {
                 const dutchHomeWorld = networkGame.planets.find(s => s.id === networkGame.factions[EFaction.DUTCH].homeWorldPlanetId);
                 const neighborKingdom = dutchHomeWorld.county.duchy.kingdom.neighborKingdoms[0];
                 const neighborKingdomPlanet = neighborKingdom.duchies[0].counties[0].planet;
-                for (let i = 0; i < 60 * 10; i++) {
+                for (let i = 0; i < 10 * 60 * 10; i++) {
                     if (!setMission) {
                         if (networkGame.playerData[0] && networkGame.playerData[0].shipId) {
                             const ship = networkGame.ships.find(s => s.id === networkGame.playerData[0].shipId);

@@ -1,7 +1,7 @@
 /**
  * The direction of the market trade node/edge.
  */
-import {ISerializedPlanet, Market, Planet, Star} from "./Planet";
+import {ISerializedPlanet, ISerializedPlanetFull, Market, Planet, Star} from "./Planet";
 import {
     EServerType,
     EShardMessageType,
@@ -101,6 +101,7 @@ export interface ISpawnLocation {
  */
 export enum EMessageType {
     JOIN = "JOIN",
+    JOIN_RESULT = "JOIN_RESULT",
     CHOOSE_FACTION = "CHOOSE_FACTION",
     CHOOSE_PLANET = "CHOOSE_PLANET",
     SPAWN = "SPAWN",
@@ -116,6 +117,11 @@ export interface IMessage {
 export interface IJoinMessage extends IMessage {
     messageType: EMessageType.JOIN;
     name: string;
+}
+
+export interface IJoinResultMessage extends IMessage {
+    messageType: EMessageType.JOIN_RESULT;
+    shardName: string;
 }
 
 export interface IChooseFactionMessage extends IMessage {
@@ -1096,7 +1102,7 @@ export class Game {
         ships: ISerializedShip[],
         cannonBalls: ISerializedCannonBall[],
         crates: ISerializedCrate[],
-        planets: ISerializedPlanet[]
+        planets: ISerializedPlanetFull[]
     } = {
         ships: [],
         cannonBalls: [],
@@ -1133,7 +1139,7 @@ export class Game {
         for (const item of this.physicsDataCombined.planets) {
             const planet = this.planets.find(p => p.id === item.id);
             if (planet) {
-                planet.deserializeUpdate(item);
+                planet.deserializeUpdateFull(item);
             }
         }
 
@@ -1165,11 +1171,10 @@ export class Game {
                             }
                             case EShardMessageType.SPAWN_SHIP: {
                                 // forward message to the best AI node
-                                const bestShardCount = this.aiShardCount.sort((a, b) => a.numPlayers - b.numPlayers)[0];
+                                const bestShardCount = this.aiShardCount.find(s => s.players.includes((message as ISpawnShardMessage).playerId));
                                 const aiShard = this.shardList.find(s => s.name === bestShardCount.name);
                                 this.outgoingShardMessages.push([aiShard.name, message]);
                                 bestShardCount.numAI += 1;
-                                bestShardCount.numPlayers += 1;
                                 break;
                             }
                         }
@@ -1518,7 +1523,7 @@ export class Game {
                     const planet = this.voronoiTerrain.getNearestPlanet(c.position.rotateVector([0, 0, 1]));
                     return this.voronoiTerrain.kingdoms.indexOf(planet.county.duchy.kingdom) === this.physicsKingdomIndex;
                 };
-                const isUpdatable = (c: ICameraState): boolean => isInKingdom(c) || (this.updatingIds.has(c.id) && this.updatingIds.get(c.id) <= 2);
+                const isUpdatable = (c: ICameraState): boolean => isInKingdom(c) || (this.updatingIds.has(c.id) && this.updatingIds.get(c.id) <= 5);
                 for (const ship of this.ships) {
                     if (!isUpdatable(ship)) {
                         continue;
@@ -1538,7 +1543,8 @@ export class Game {
                     crates.push(crate);
                 }
                 for (const planet of this.planets) {
-                    if (!isInKingdom(planet)) {
+                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                    if (kingdomIndex !== this.physicsKingdomIndex) {
                         continue;
                     }
                     planets.push(planet);
@@ -1549,7 +1555,7 @@ export class Game {
                     ships: ships.map(s => s.serialize()),
                     cannonBalls: cannonBalls.map(c => c.serialize()),
                     crates: crates.map(c => c.serialize()),
-                    planets: planets.map(p => p.serialize()),
+                    planets: planets.map(p => p.serializeFull()),
                 };
 
                 for (const shard of this.shardList) {
@@ -1709,6 +1715,30 @@ export class Game {
                     }
                 } else {
                     // no more messages, continue
+                    break;
+                }
+            }
+        } else if ([EServerType.LOAD_BALANCER].includes(this.serverType)) {
+            while (true) {
+                const item = this.incomingMessages.shift();
+                if (item) {
+                    const [playerId, message] = item;
+                    switch (message.messageType) {
+                        case EMessageType.JOIN: {
+                            // forward message to the best AI node
+                            const bestShardCount = this.aiShardCount.sort((a, b) => a.players.length - b.players.length)[0];
+                            const aiShard = this.shardList.find(s => s.name === bestShardCount.name);
+                            bestShardCount.numAI += 1;
+                            bestShardCount.players.push(playerId);
+                            const joinResultMessage: IJoinResultMessage = {
+                                messageType: EMessageType.JOIN_RESULT,
+                                shardName: aiShard.name
+                            };
+                            this.outgoingMessages.push([playerId, joinResultMessage]);
+                            break;
+                        }
+                    }
+                } else {
                     break;
                 }
             }

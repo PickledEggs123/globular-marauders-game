@@ -1755,12 +1755,29 @@ export interface ISerializedPlanet {
     orientationVelocity: ISerializedQuaternion;
     color: string;
     size: number;
-    
+
     settlementProgress: number;
     settlementLevel: ESettlementLevel;
-    
+
     pathingNode: ISerializedPathingNode<DelaunayGraph<Planet>> | null;
-    
+
+    naturalResources: EResourceType[];
+}
+
+export interface ISerializedPlanetFull {
+    id: string;
+    position: ISerializedQuaternion;
+    positionVelocity: ISerializedQuaternion;
+    orientation: ISerializedQuaternion;
+    orientationVelocity: ISerializedQuaternion;
+    color: string;
+    size: number;
+
+    settlementProgress: number;
+    settlementLevel: ESettlementLevel;
+
+    pathingNode: ISerializedPathingNode<DelaunayGraph<Planet>> | null;
+
     naturalResources: EResourceType[];
     producedResources: IResourceExported[];
     importedResources: ICargoItem[];
@@ -1977,6 +1994,54 @@ export class Planet implements ICameraState {
             pathingNode: this.pathingNode ? this.pathingNode.serialize() : null,
 
             naturalResources: this.naturalResources,
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedPlanet) {
+        this.id = data.id;
+        this.position = DeserializeQuaternion(data.position);
+        this.positionVelocity = DeserializeQuaternion(data.positionVelocity);
+        this.orientation = DeserializeQuaternion(data.orientation);
+        this.orientationVelocity = DeserializeQuaternion(data.orientationVelocity);
+        this.color = data.color;
+        this.size = data.size;
+
+        this.settlementProgress = data.settlementProgress;
+        this.settlementLevel = data.settlementLevel;
+
+        if (this.pathingNode && !data.pathingNode) {
+            this.pathingNode = null;
+        } else if (this.pathingNode && data.pathingNode) {
+            this.pathingNode.deserializeUpdate(data.pathingNode);
+        } else if (!this.pathingNode && data.pathingNode) {
+            this.pathingNode = PathingNode.deserialize<any>(this.instance, data.pathingNode);
+        }
+
+        this.naturalResources = data.naturalResources;
+    }
+
+    public static deserialize(instance: Game, county: VoronoiCounty, data: ISerializedPlanet): Planet {
+        const item = new Planet(instance, county);
+        item.deserializeUpdate(data);
+        return item;
+    }
+
+    public serializeFull(): ISerializedPlanetFull {
+        return {
+            id: this.id,
+            position: SerializeQuaternion(this.position),
+            positionVelocity: SerializeQuaternion(this.positionVelocity),
+            orientation: SerializeQuaternion(this.orientation),
+            orientationVelocity: SerializeQuaternion(this.orientationVelocity),
+            color: this.color,
+            size: this.size,
+
+            settlementProgress: this.settlementProgress,
+            settlementLevel: this.settlementLevel,
+
+            pathingNode: this.pathingNode ? this.pathingNode.serialize() : null,
+
+            naturalResources: this.naturalResources,
             producedResources: this.producedResources,
             importedResources: this.importedResources,
             manufacturedResources: this.manufacturedResources,
@@ -2008,7 +2073,7 @@ export class Planet implements ICameraState {
         };
     }
 
-    public deserializeUpdate(data: ISerializedPlanet) {
+    public deserializeUpdateFull(data: ISerializedPlanetFull) {
         this.id = data.id;
         this.position = DeserializeQuaternion(data.position);
         this.positionVelocity = DeserializeQuaternion(data.positionVelocity);
@@ -2087,7 +2152,7 @@ export class Planet implements ICameraState {
         }
     }
 
-    public static deserialize(instance: Game, county: VoronoiCounty, data: ISerializedPlanet): Planet {
+    public static deserializeFull(instance: Game, county: VoronoiCounty, data: ISerializedPlanetFull): Planet {
         const item = new Planet(instance, county);
         item.deserializeUpdate(data);
         return item;

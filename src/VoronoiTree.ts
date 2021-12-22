@@ -1,7 +1,7 @@
 import {ICameraState} from "./Interface";
 import {DelaunayGraph, VoronoiCell, VoronoiGraph} from "./Graph";
 import Quaternion from "quaternion";
-import {ISerializedPlanet, ISerializedStar, Planet, Star} from "./Planet";
+import {ISerializedPlanet, ISerializedPlanetFull, ISerializedStar, Planet, Star} from "./Planet";
 import {Faction} from "./Faction";
 import {Game, IGameSyncFrame, IPlayerData} from "./Game";
 import {EFaction, Ship} from "./Ship";
@@ -680,7 +680,7 @@ export class FeudalGovernment {
 
 export interface ISerializedVoronoiCounty {
     faction: EFaction | null;
-    planet: ISerializedPlanet | null;
+    planet: ISerializedPlanetFull | null;
     capital: number | null;
 }
 
@@ -701,7 +701,7 @@ export class VoronoiCounty extends VoronoiTreeNode<ICameraState> {
     public serialize(): ISerializedVoronoiCounty {
         return {
             faction: this.faction ? this.faction.id : null,
-            planet: this.planet ? this.planet.serialize() : null,
+            planet: this.planet ? this.planet.serializeFull() : null,
             capital: this.planet ? 0 : null
         };
     }
@@ -711,9 +711,9 @@ export class VoronoiCounty extends VoronoiTreeNode<ICameraState> {
 
         // update planet;
         if (this.planet === null && data.planet) {
-            this.planet = Planet.deserialize(this.app, this, data.planet);
+            this.planet = Planet.deserializeFull(this.app, this, data.planet);
         } else if (this.planet && data.planet) {
-            this.planet.deserializeUpdate(data.planet);
+            this.planet.deserializeUpdateFull(data.planet);
         } else if (this.planet && data.planet === null) {
             this.planet = null;
         }

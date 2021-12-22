@@ -1,7 +1,7 @@
 import Quaternion from "quaternion";
 import {ISerializedPathFinder, PathFinder} from "./Graph";
 import {EFaction, EShipType, ISerializedFireControl, ISerializedShip} from "./Ship";
-import {ISerializedPlanet, Planet} from "./Planet";
+import {ISerializedPlanet, ISerializedPlanetFull, Planet} from "./Planet";
 import {Crate, ISerializedCannonBall, ISerializedCrate, ISerializedQuaternion} from "./Item";
 import {Game, IGameSyncFrameDelta, IPlayerData} from "./Game";
 import {EResourceType} from "./Resource";
@@ -67,7 +67,7 @@ export interface IAIPlayerDataStateShardMessage extends IShardMessage {
 
 export interface IPhysicsDataStateShardMessage extends IShardMessage {
     shardMessageType: EShardMessageType.PHYSICS_DATA_STATE;
-    planets: ISerializedPlanet[];
+    planets: ISerializedPlanetFull[];
     ships: ISerializedShip[];
     cannonBalls: ISerializedCannonBall[];
     crates: ISerializedCrate[];
@@ -139,7 +139,7 @@ export interface IShardListItem {
  */
 export interface IAiShardCountItem {
     name: string;
-    numPlayers: number;
+    players: string[];
     numAI: number;
 }
 
