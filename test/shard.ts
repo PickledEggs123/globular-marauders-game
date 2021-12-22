@@ -9,6 +9,8 @@ import {
     IShardListItem
 } from "../src/Interface";
 import {expect} from "chai";
+import {EMessageType, IChooseFactionMessage, IChoosePlanetMessage, IJoinMessage, ISpawnMessage} from "../src/Game";
+import {EFaction} from "../src/Ship";
 
 describe("shard tests", () => {
     const setupShards = () => {
@@ -99,7 +101,7 @@ describe("shard tests", () => {
             const { shards, shardMap, loadBalancerShard, aiShards } = setupShards();
 
             // run shards for 1 minute
-            for (let i = 0; i < 60 * 10; i++) {
+            for (let i = 0; i < 10; i++) {
                 for (const shard of shards) {
                     shard.handleServerLoop();
                 }
@@ -131,7 +133,7 @@ describe("shard tests", () => {
 
             // run shards for 1 minute
             let sentAiMessage: boolean = false;
-            for (let i = 0; i < 60 * 10; i++) {
+            for (let i = 0; i < 10; i++) {
                 for (const shard of shards) {
                     shard.handleServerLoop();
                 }
@@ -169,7 +171,7 @@ describe("shard tests", () => {
 
             // run shards for 1 minute
             let sentPhysicsMessage: boolean = false;
-            for (let i = 0; i < 60 * 10; i++) {
+            for (let i = 0; i < 10; i++) {
                 for (const shard of shards) {
                     shard.handleServerLoop();
                 }
@@ -207,7 +209,7 @@ describe("shard tests", () => {
 
             // run shards for 1 minute
             let sentGlobalMessage: boolean = false;
-            for (let i = 0; i < 60 * 10; i++) {
+            for (let i = 0; i < 10; i++) {
                 for (const shard of shards) {
                     shard.handleServerLoop();
                 }
@@ -230,6 +232,98 @@ describe("shard tests", () => {
                 }
             }
             expect(sentGlobalMessage).to.be.true;
+        });
+        it("should travel between two capitals", function () {
+            this.timeout(5 * 60 * 1000);
+
+            const { shards, shardMap, aiShards } = setupShards();
+            const networkGame = aiShards[0];
+            const runGameLoop = () => {
+                for (const shard of shards) {
+                    shard.handleServerLoop();
+                }
+                for (const shard of shards) {
+                    for (const [to, message] of shard.outgoingShardMessages) {
+                        shardMap.get(to).incomingShardMessages.push([shard.shardName, message]);
+                    }
+                    shard.outgoingShardMessages.splice(0, shard.outgoingShardMessages.length);
+                }
+            };
+
+            // pick name
+            const loginMessage: IJoinMessage = {
+                messageType: EMessageType.JOIN,
+                name: "test"
+            };
+            networkGame.incomingMessages.push(["test", loginMessage]);
+            runGameLoop();
+            runGameLoop();
+            runGameLoop();
+            const playerData = networkGame.playerData[0];
+            expect(playerData).not.equal(undefined);
+
+            // pick faction
+            const factionMessage: IChooseFactionMessage = {
+                messageType: EMessageType.CHOOSE_FACTION,
+                factionId: EFaction.DUTCH
+            };
+            networkGame.incomingMessages.push(["test", factionMessage]);
+            runGameLoop();
+            runGameLoop();
+            runGameLoop();
+
+            // pick planet
+            const planetId = networkGame.getSpawnPlanets(playerData)[0].planetId;
+            const planetMessage: IChoosePlanetMessage = {
+                messageType: EMessageType.CHOOSE_PLANET,
+                planetId
+            };
+            networkGame.incomingMessages.push(["test", planetMessage]);
+            runGameLoop();
+            runGameLoop();
+            runGameLoop();
+
+            // pick ship
+            const shipType = networkGame.getSpawnLocations(playerData)[0].shipType;
+            const spawn: ISpawnMessage = {
+                messageType: EMessageType.SPAWN,
+                planetId,
+                shipType
+            };
+            networkGame.incomingMessages.push(["test", spawn]);
+            runGameLoop();
+            runGameLoop();
+            runGameLoop();
+
+            // run shards for 1 minute
+            let setMission: boolean = false;
+            let nearEnglishWorld: boolean = false;
+            const dutchHomeWorld = networkGame.planets.find(s => s.id === networkGame.factions[EFaction.DUTCH].homeWorldPlanetId);
+            const neighborKingdom = dutchHomeWorld.county.duchy.kingdom.neighborKingdoms[0];
+            const neighborKingdomPlanet = neighborKingdom.duchies[0].counties[0].planet;
+            for (let i = 0; i < 10 * 60 * 10; i++) {
+                if (!setMission) {
+                    if (networkGame.playerData[0] && networkGame.playerData[0].shipId) {
+                        const ship = networkGame.ships.find(s => s.id === networkGame.playerData[0].shipId);
+                        if (ship && neighborKingdomPlanet) {
+                            ship.pathFinding.points.unshift(neighborKingdomPlanet.position.rotateVector([0, 0, 1]));
+                            setMission = true;
+                        }
+                    }
+                } else if (!nearEnglishWorld) {
+                    const ship = networkGame.ships.find(s => s.id === networkGame.playerData[0].shipId);
+                    if (ship && neighborKingdomPlanet) {
+                        const nearestPlanet = networkGame.voronoiTerrain.getNearestPlanet(ship.position.rotateVector([0, 0, 1]));
+                        if (nearestPlanet === neighborKingdomPlanet) {
+                            nearEnglishWorld = true;
+                            break;
+                        }
+                    }
+                }
+                runGameLoop();
+            }
+            expect(setMission).to.be.true;
+            expect(nearEnglishWorld).to.be.true;
         });
     });
 });

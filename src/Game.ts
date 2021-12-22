@@ -1164,7 +1164,7 @@ export class Game {
                             }
                             case EShardMessageType.SPAWN_SHIP: {
                                 // forward message to the best AI node
-                                const bestShardCount = this.aiShardCount.sort((a, b) => a.numAI - b.numAI)[0];
+                                const bestShardCount = this.aiShardCount.sort((a, b) => a.numPlayers - b.numPlayers)[0];
                                 const aiShard = this.shardList.find(s => s.name === bestShardCount.name);
                                 this.outgoingShardMessages.push([aiShard.name, message]);
                                 bestShardCount.numAI += 1;
@@ -1211,6 +1211,20 @@ export class Game {
                                 const loadBalancer = this.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
                                 if (loadBalancer) {
                                     this.outgoingShardMessages.push([loadBalancer.name, message]);
+                                }
+                                break;
+                            }
+                            case EShardMessageType.SPAWN_SHIP: {
+                                const {
+                                    planetId
+                                } = message as ISpawnShardMessage;
+                                const planet = this.planets.find(p => p.id === planetId);
+                                if (planet) {
+                                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                                    const physicsNode = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                    if (physicsNode) {
+                                        this.outgoingShardMessages.push([physicsNode.name, message]);
+                                    }
                                 }
                                 break;
                             }
@@ -1354,8 +1368,29 @@ export class Game {
                 break;
             }
         }
-        this.loadPhysicsDataStateMessages();
-        this.loadAIPlayerDataStateMessage();
+        switch (this.serverType) {
+            case EServerType.GLOBAL_STATE_NODE: {
+                this.loadPhysicsDataStateMessages();
+                this.loadAIPlayerDataStateMessage();
+                break;
+            }
+            case EServerType.AI_NODE: {
+                this.loadPhysicsDataStateMessages();
+                break;
+            }
+            case EServerType.PHYSICS_NODE: {
+                const isInKingdom = (c: ICameraState): boolean => {
+                    const planet = this.voronoiTerrain.getNearestPlanet(c.position.rotateVector([0, 0, 1]));
+                    return this.voronoiTerrain.kingdoms.indexOf(planet.county.duchy.kingdom) === this.physicsKingdomIndex;
+                };
+                this.physicsDataCombined.ships.push(...this.ships.filter(isInKingdom).map(s => s.serialize()));
+                this.physicsDataCombined.crates.push(...this.crates.filter(isInKingdom).map(s => s.serialize()));
+                this.physicsDataCombined.cannonBalls.push(...this.cannonBalls.filter(isInKingdom).map(s => s.serialize()));
+                this.loadPhysicsDataStateMessages();
+                this.loadAIPlayerDataStateMessage();
+                break;
+            }
+        }
     }
 
     /**
@@ -1373,7 +1408,7 @@ export class Game {
                     factions: Object.values(this.factions).map(f => f.serialize())
                 };
                 for (const shard of this.shardList) {
-                    if ([EServerType.AI_NODE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
+                    if ([EServerType.AI_NODE, EServerType.PHYSICS_NODE].includes(shard.type)) {
                         this.outgoingShardMessages.push([shard.name, globalStateMessage]);
                     }
                 }
@@ -1387,10 +1422,23 @@ export class Game {
                     ships: []
                 };
 
-                // send player data to correct physics node
+                // send player data to all physics nodes
+                for (const playerData of this.playerData) {
+                    for (let kingdomIndex = 0; kingdomIndex < this.voronoiTerrain.kingdoms.length; kingdomIndex++) {
+                        if (!physicsNodeMessages.has(kingdomIndex)) {
+                            physicsNodeMessages.set(kingdomIndex, {
+                                shardMessageType: EShardMessageType.AI_PLAYER_DATA_STATE,
+                                playerData: [],
+                                ships: []
+                            });
+                        }
+                        physicsNodeMessages.get(kingdomIndex).playerData.push(playerData);
+                    }
+                    globalNodeMessage.playerData.push(playerData);
+                }
+                // send ship data to correct physics node
                 for (const shipId of this.monitoredShips) {
                     const ship = this.ships.find(s => s.id === shipId);
-                    const playerData = this.playerData.find(p => p.shipId === shipId);
                     if (ship) {
                         // send to physics node
                         const planet = this.voronoiTerrain.getNearestPlanet(ship.position.rotateVector([0, 0, 1]));
@@ -1402,9 +1450,6 @@ export class Game {
                                 ships: []
                             });
                         }
-                        if (playerData) {
-                            physicsNodeMessages.get(kingdomIndex).playerData.push(playerData);
-                        }
                         physicsNodeMessages.get(kingdomIndex).ships.push({
                             shipId: ship.id,
                             orders: ship.orders.map(s => s.serialize()),
@@ -1414,9 +1459,6 @@ export class Game {
                         });
 
                         // send to global node
-                        if (playerData) {
-                            globalNodeMessage.playerData.push(playerData);
-                        }
                         globalNodeMessage.ships.push({
                             shipId: ship.id,
                             orders: ship.orders.map(s => s.serialize()),
