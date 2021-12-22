@@ -5,7 +5,7 @@ import {
     ICurrency,
     IDirectedMarketTrade,
     IExplorationGraphData,
-    ISerializedMoneyAccount, IShardMessage, ISpawnAiShardMessage,
+    ISerializedMoneyAccount, ISpawnAiShardMessage,
     ITradeDeal,
     MoneyAccount
 } from "./Interface";

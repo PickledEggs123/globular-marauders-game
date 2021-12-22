@@ -219,6 +219,7 @@ export class Game {
     public aiNodeName: string | undefined = undefined;
     public fetchingOrder: Set<string> = new Set<string>();
     public spawningPlanets: Set<string> = new Set<string>();
+    public updatingIds: Map<string, number> = new Map<string, number>();
     public monitoredShips: string[] = [];
     public shardList: IShardListItem[] = [];
     public shardName?: string;
@@ -1383,9 +1384,36 @@ export class Game {
                     const planet = this.voronoiTerrain.getNearestPlanet(c.position.rotateVector([0, 0, 1]));
                     return this.voronoiTerrain.kingdoms.indexOf(planet.county.duchy.kingdom) === this.physicsKingdomIndex;
                 };
-                this.physicsDataCombined.ships.push(...this.ships.filter(isInKingdom).map(s => s.serialize()));
-                this.physicsDataCombined.crates.push(...this.crates.filter(isInKingdom).map(s => s.serialize()));
-                this.physicsDataCombined.cannonBalls.push(...this.cannonBalls.filter(isInKingdom).map(s => s.serialize()));
+
+                // update ships for at least one second after leaving the node
+                for (const [key, value] of [...this.updatingIds.entries()]) {
+                    if (value < 10) {
+                        this.updatingIds.set(key, value + 1);
+                    } else {
+                        this.updatingIds.delete(key);
+                    }
+                }
+                for (const ship of this.ships) {
+                    if (isInKingdom(ship)) {
+                        this.updatingIds.set(ship.id, 0);
+                    }
+                }
+                for (const crate of this.crates) {
+                    if (isInKingdom(crate)) {
+                        this.updatingIds.set(crate.id, 0);
+                    }
+                }
+                for (const cannonBall of this.cannonBalls) {
+                    if (isInKingdom(cannonBall)) {
+                        this.updatingIds.set(cannonBall.id, 0);
+                    }
+                }
+
+                // add current ships to the list of ships to load
+                const isUpdated = (c: ICameraState): boolean => isInKingdom(c) || this.updatingIds.has(c.id);
+                this.physicsDataCombined.ships.unshift(...this.ships.filter(isUpdated).map(s => s.serialize()));
+                this.physicsDataCombined.crates.unshift(...this.crates.filter(isUpdated).map(s => s.serialize()));
+                this.physicsDataCombined.cannonBalls.unshift(...this.cannonBalls.filter(isUpdated).map(s => s.serialize()));
                 this.loadPhysicsDataStateMessages();
                 this.loadAIPlayerDataStateMessage();
                 break;
@@ -1486,39 +1514,33 @@ export class Game {
                 const planets: Planet[] = [];
 
                 // detect objects within the domain
+                const isInKingdom = (c: ICameraState): boolean => {
+                    const planet = this.voronoiTerrain.getNearestPlanet(c.position.rotateVector([0, 0, 1]));
+                    return this.voronoiTerrain.kingdoms.indexOf(planet.county.duchy.kingdom) === this.physicsKingdomIndex;
+                };
+                const isUpdatable = (c: ICameraState): boolean => isInKingdom(c) || (this.updatingIds.has(c.id) && this.updatingIds.get(c.id) <= 2);
                 for (const ship of this.ships) {
-                    const planet = this.voronoiTerrain.getNearestPlanet(ship.position.rotateVector([0, 0, 1]));
-                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                    if (kingdomIndex !== this.physicsKingdomIndex) {
+                    if (!isUpdatable(ship)) {
                         continue;
                     }
-
                     ships.push(ship);
                 }
                 for (const cannonBall of this.cannonBalls) {
-                    const planet = this.voronoiTerrain.getNearestPlanet(cannonBall.position.rotateVector([0, 0, 1]));
-                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                    if (kingdomIndex !== this.physicsKingdomIndex) {
+                    if (!isUpdatable(cannonBall)) {
                         continue;
                     }
-
                     cannonBalls.push(cannonBall);
                 }
                 for (const crate of this.crates) {
-                    const planet = this.voronoiTerrain.getNearestPlanet(crate.position.rotateVector([0, 0, 1]));
-                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                    if (kingdomIndex !== this.physicsKingdomIndex) {
+                    if (!isUpdatable(crate)) {
                         continue;
                     }
-
                     crates.push(crate);
                 }
                 for (const planet of this.planets) {
-                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                    if (kingdomIndex !== this.physicsKingdomIndex) {
+                    if (!isInKingdom(planet)) {
                         continue;
                     }
-
                     planets.push(planet);
                 }
 
