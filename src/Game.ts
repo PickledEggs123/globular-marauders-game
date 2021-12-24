@@ -1055,35 +1055,29 @@ export class Game {
         );
     }
 
-    private aiPlayerDataCombined: {
-        playerData: IPlayerData[],
-        ships: Array<{
-            shipId: string,
-            shipKeys: string[],
-            orders: ISerializedOrder[],
-            pathFinding: ISerializedPathFinder,
-            fireControl: ISerializedFireControl
-        }>
-    } = {
-        playerData: [],
-        ships: []
-    };
-    private readyLoadAIPlayerDataStateMessage(message: IAIPlayerDataStateShardMessage) {
+    private aiPlayerDataCombined: Map<string, [number, IAIPlayerDataStateShardMessage]> = new Map<string, [number, IAIPlayerDataStateShardMessage]>();
+    private readyLoadAIPlayerDataStateMessage(shardName: string, message: IAIPlayerDataStateShardMessage) {
         // add data to the frame
-        this.aiPlayerDataCombined.playerData.push(...message.playerData);
-        this.aiPlayerDataCombined.ships.push(...message.ships);
+        this.aiPlayerDataCombined.set(shardName, [0, message]);
     }
     private loadAIPlayerDataStateMessage() {
         // apply data to game state
+        const sortedData = [...this.aiPlayerDataCombined.values()].sort(([a], [b]) => a - b).map(([,m]) => m);
         Game.syncNetworkArray(
             this.playerData,
-            this.computeSyncDelta(this.playerData, this.aiPlayerDataCombined.playerData, true),
+            this.computeSyncDelta(this.playerData, sortedData.reduce((acc, m) => [...acc, ...m.playerData], [] as IPlayerData[]), true),
             (o) => o,
             (o, d) => {
                 Object.apply(o, [o, d]);
             }
         );
-        for (const item of this.aiPlayerDataCombined.ships) {
+        for (const item of sortedData.reduce((acc, m) => [...acc, ...m.ships], [] as Array<{
+            shipId: string;
+            shipKeys: string[];
+            orders: ISerializedOrder[];
+            pathFinding: ISerializedPathFinder;
+            fireControl: ISerializedFireControl;
+        }>)) {
             const ship = this.ships.find(s => s.id === item.shipId);
             if (ship) {
                 ship.activeKeys.splice(0, ship.activeKeys.length, ...item.shipKeys);
@@ -1094,49 +1088,67 @@ export class Game {
         }
 
         // clear old data to reset frame
-        this.aiPlayerDataCombined.playerData = [];
-        this.aiPlayerDataCombined.ships = [];
+        for (const [key, [tick, message]] of [...this.aiPlayerDataCombined.entries()]) {
+            if (tick > 10) {
+                this.aiPlayerDataCombined.delete(key);
+            } else {
+                this.aiPlayerDataCombined.set(key, [tick + 1, message]);
+            }
+        }
     }
 
-    private physicsDataCombined: {
-        ships: ISerializedShip[],
-        cannonBalls: ISerializedCannonBall[],
-        crates: ISerializedCrate[],
-        planets: ISerializedPlanetFull[]
-    } = {
-        ships: [],
-        cannonBalls: [],
-        crates: [],
-        planets: []
-    };
-    private readyLoadPhysicsDataStateMessage(message: IPhysicsDataStateShardMessage) {
+    private physicsDataCombined: Map<string, [number, IPhysicsDataStateShardMessage]> = new Map<string, [number, IPhysicsDataStateShardMessage]>();
+    private readyLoadPhysicsDataStateMessage(shardName: string, message: IPhysicsDataStateShardMessage) {
         // add data to the frame
-        this.physicsDataCombined.ships.push(...message.ships);
-        this.physicsDataCombined.cannonBalls.push(...message.cannonBalls);
-        this.physicsDataCombined.crates.push(...message.crates);
-        this.physicsDataCombined.planets.push(...message.planets);
+        this.physicsDataCombined.set(shardName, [0, message]);
     }
     private loadPhysicsDataStateMessages() {
         // apply data to game state
+        const sortedData = [...this.physicsDataCombined.values()].sort(([a], [b]) => a - b).map(([,m]) => m);
+        const replaceFirstInstance = <T>(c: [boolean, string, T][]): T[] => {
+            const items: Map<string, T> = new Map<string, T>();
+            for (const item of c) {
+                if (items.has(item[1])) {
+                    if (!item[0]) {
+                        // not transferring, override
+                        items.set(item[1], item[2]);
+                    }
+                } else {
+                    // does not exist, fill
+                    items.set(item[1], item[2]);
+                }
+            }
+            return [...items.values()];
+        };
+        const ships = replaceFirstInstance(
+            sortedData.reduce((acc, m) => [...acc, ...m.ships.map(i => [m.transferIds.includes(i.id), i.id, i] as [boolean, string, ISerializedShip])], [] as [boolean, string, ISerializedShip][])
+        ).map(s => Ship.deserialize(this, s));
+        const cannonBalls = replaceFirstInstance(
+            sortedData.reduce((acc, m) => [...acc, ...m.cannonBalls.map(i => [m.transferIds.includes(i.id), i.id, i] as [boolean, string, ISerializedCannonBall])], [] as [boolean, string, ISerializedCannonBall][])
+        ).map(s => CannonBall.deserialize(s));
+        const crates = replaceFirstInstance(
+            sortedData.reduce((acc, m) => [...acc, ...m.crates.map(i => [m.transferIds.includes(i.id), i.id, i] as [boolean, string, ISerializedCrate])], [] as [boolean, string, ISerializedCrate][])
+        ).map(s => Crate.deserialize(s));
+
         Game.syncNetworkArray(
             this.ships,
-            this.computeSyncDelta(this.ships, this.physicsDataCombined.ships.map(s => Ship.deserialize(this, s)), true),
+            this.computeSyncDelta(this.ships, ships, true),
             (o) => o,
             (o, d) => o.deserializeUpdate(d.serialize())
         );
         Game.syncNetworkArray(
             this.cannonBalls,
-            this.computeSyncDelta(this.cannonBalls, this.physicsDataCombined.cannonBalls.map(s => CannonBall.deserialize(s)), true),
+            this.computeSyncDelta(this.cannonBalls, cannonBalls, true),
             (o) => o,
             (o, d) => o.deserializeUpdate(d.serialize())
         );
         Game.syncNetworkArray(
             this.crates,
-            this.computeSyncDelta(this.crates, this.physicsDataCombined.crates.map(s => Crate.deserialize(s)), true),
+            this.computeSyncDelta(this.crates, crates, true),
             (o) => o,
             (o, d) => o.deserializeUpdate(d.serialize())
         );
-        for (const item of this.physicsDataCombined.planets) {
+        for (const item of sortedData.reduce((acc, m) => [...acc, ...m.planets], [] as ISerializedPlanetFull[])) {
             const planet = this.planets.find(p => p.id === item.id);
             if (planet) {
                 planet.deserializeUpdateFull(item);
@@ -1144,10 +1156,13 @@ export class Game {
         }
 
         // clear the frame
-        this.physicsDataCombined.ships = [];
-        this.physicsDataCombined.cannonBalls = [];
-        this.physicsDataCombined.crates = [];
-        this.physicsDataCombined.planets = [];
+        for (const [key, [tick, message]] of [...this.physicsDataCombined.entries()]) {
+            if (tick > 10) {
+                this.physicsDataCombined.delete(key);
+            } else {
+                this.physicsDataCombined.set(key, [tick + 1, message]);
+            }
+        }
     }
 
     /**
@@ -1183,11 +1198,11 @@ export class Game {
                     case EServerType.GLOBAL_STATE_NODE: {
                         switch (message.shardMessageType) {
                             case EShardMessageType.AI_PLAYER_DATA_STATE: {
-                                this.readyLoadAIPlayerDataStateMessage(message as IAIPlayerDataStateShardMessage);
+                                this.readyLoadAIPlayerDataStateMessage(fromShardName, message as IAIPlayerDataStateShardMessage);
                                 break;
                             }
                             case EShardMessageType.PHYSICS_DATA_STATE: {
-                                this.readyLoadPhysicsDataStateMessage(message as IPhysicsDataStateShardMessage);
+                                this.readyLoadPhysicsDataStateMessage(fromShardName, message as IPhysicsDataStateShardMessage);
                                 break;
                             }
                         }
@@ -1280,7 +1295,7 @@ export class Game {
                                 break;
                             }
                             case EShardMessageType.PHYSICS_DATA_STATE: {
-                                this.readyLoadPhysicsDataStateMessage(message as IPhysicsDataStateShardMessage);
+                                this.readyLoadPhysicsDataStateMessage(fromShardName, message as IPhysicsDataStateShardMessage);
                                 break;
                             }
                         }
@@ -1359,11 +1374,11 @@ export class Game {
                                 break;
                             }
                             case EShardMessageType.AI_PLAYER_DATA_STATE: {
-                                this.readyLoadAIPlayerDataStateMessage(message as IAIPlayerDataStateShardMessage);
+                                this.readyLoadAIPlayerDataStateMessage(fromShardName, message as IAIPlayerDataStateShardMessage);
                                 break;
                             }
                             case EShardMessageType.PHYSICS_DATA_STATE: {
-                                this.readyLoadPhysicsDataStateMessage(message as IPhysicsDataStateShardMessage);
+                                this.readyLoadPhysicsDataStateMessage(fromShardName, message as IPhysicsDataStateShardMessage);
                                 break;
                             }
                         }
@@ -1416,9 +1431,19 @@ export class Game {
 
                 // add current ships to the list of ships to load
                 const isUpdated = (c: ICameraState): boolean => isInKingdom(c) || this.updatingIds.has(c.id);
-                this.physicsDataCombined.ships.unshift(...this.ships.filter(isUpdated).map(s => s.serialize()));
-                this.physicsDataCombined.crates.unshift(...this.crates.filter(isUpdated).map(s => s.serialize()));
-                this.physicsDataCombined.cannonBalls.unshift(...this.cannonBalls.filter(isUpdated).map(s => s.serialize()));
+                this.physicsDataCombined.set(this.shardName, [-1, {
+                    shardMessageType: EShardMessageType.PHYSICS_DATA_STATE,
+                    planets: [],
+                    ships: this.ships.filter(isUpdated).map(s => s.serialize()),
+                    crates: this.crates.filter(isUpdated).map(s => s.serialize()),
+                    cannonBalls: this.cannonBalls.filter(isUpdated).map(s => s.serialize()),
+                    transferIds: [...this.updatingIds.entries()].reduce((acc, [key, value]) => {
+                        if (value > 0) {
+                            acc.push(key);
+                        }
+                        return acc;
+                    }, [] as string[])
+                }]);
                 this.loadPhysicsDataStateMessages();
                 this.loadAIPlayerDataStateMessage();
                 break;
@@ -1517,30 +1542,40 @@ export class Game {
                 const cannonBalls: CannonBall[] = [];
                 const crates: Crate[] = [];
                 const planets: Planet[] = [];
+                const transferIds: string[] = [];
 
                 // detect objects within the domain
                 const isInKingdom = (c: ICameraState): boolean => {
                     const planet = this.voronoiTerrain.getNearestPlanet(c.position.rotateVector([0, 0, 1]));
                     return this.voronoiTerrain.kingdoms.indexOf(planet.county.duchy.kingdom) === this.physicsKingdomIndex;
                 };
-                const isUpdatable = (c: ICameraState): boolean => isInKingdom(c) || (this.updatingIds.has(c.id) && this.updatingIds.get(c.id) <= 5);
+                const isUpdatable = (c: ICameraState): boolean => isInKingdom(c) || this.updatingIds.has(c.id);
                 for (const ship of this.ships) {
                     if (!isUpdatable(ship)) {
                         continue;
                     }
                     ships.push(ship);
+                    if (!isInKingdom(ship)) {
+                        transferIds.push(ship.id);
+                    }
                 }
                 for (const cannonBall of this.cannonBalls) {
                     if (!isUpdatable(cannonBall)) {
                         continue;
                     }
                     cannonBalls.push(cannonBall);
+                    if (!isInKingdom(cannonBall)) {
+                        transferIds.push(cannonBall.id);
+                    }
                 }
                 for (const crate of this.crates) {
                     if (!isUpdatable(crate)) {
                         continue;
                     }
                     crates.push(crate);
+                    if (!isInKingdom(crate)) {
+                        transferIds.push(crate.id);
+                    }
                 }
                 for (const planet of this.planets) {
                     const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
@@ -1556,6 +1591,12 @@ export class Game {
                     cannonBalls: cannonBalls.map(c => c.serialize()),
                     crates: crates.map(c => c.serialize()),
                     planets: planets.map(p => p.serializeFull()),
+                    transferIds: [...this.updatingIds.entries()].reduce((acc, [key, value]) => {
+                        if (value > 0) {
+                            acc.push(key);
+                        }
+                        return acc;
+                    }, [] as string[]),
                 };
 
                 for (const shard of this.shardList) {

@@ -71,6 +71,7 @@ export interface IPhysicsDataStateShardMessage extends IShardMessage {
     ships: ISerializedShip[];
     cannonBalls: ISerializedCannonBall[];
     crates: ISerializedCrate[];
+    transferIds: string[];
 }
 
 export interface ISpawnShardMessage extends IShardMessage {
