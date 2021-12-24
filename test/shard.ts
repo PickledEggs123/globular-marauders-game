@@ -331,7 +331,7 @@ describe("shard tests", () => {
                     }
                 }
             };
-            for (let i = 0; i < 2 * 60 * 10; i++) {
+            for (let i = 0; i < 3 * 60 * 10; i++) {
                 if (!setMission) {
                     if (networkGame.playerData[0] && networkGame.playerData[0].shipId) {
                         const ship = networkGame.ships.find(s => s.id === networkGame.playerData[0].shipId);
