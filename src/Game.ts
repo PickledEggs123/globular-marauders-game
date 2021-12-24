@@ -220,6 +220,7 @@ export class Game {
     public incomingMessages: Array<[string, IMessage]> = [];
     public outgoingMessages: Array<[string, IMessage]> = [];
     public isTestMode: boolean = false;
+    public spawnAiShips: boolean = true;
     public serverType: EServerType = EServerType.STANDALONE;
     public physicsKingdomIndex: number | undefined = undefined;
     public aiNodeName: string | undefined = undefined;

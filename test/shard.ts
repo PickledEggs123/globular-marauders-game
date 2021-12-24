@@ -6,7 +6,8 @@ import {
     ICameraState,
     IGlobalStateShardMessage,
     IPhysicsDataStateShardMessage,
-    IShardListItem, IShardMessage
+    IShardListItem,
+    IShardMessage
 } from "../src/Interface";
 import {expect} from "chai";
 import {
@@ -22,7 +23,7 @@ import {EFaction} from "../src/Ship";
 describe("shard tests", () => {
     let networkGame: Game | null = null;
     let randomShardOrder: boolean = false;
-    const setupShards = () => {
+    const setupShards = (hideAiShips: boolean) => {
         // setup shards
         const shardList: IShardListItem[] = [];
         const shardMap: Map<string, Game> = new Map<string, Game>();
@@ -31,6 +32,7 @@ describe("shard tests", () => {
         const loadBalancerShard = new Game();
         loadBalancerShard.serverType = EServerType.LOAD_BALANCER;
         loadBalancerShard.shardName = "load-balancer";
+        loadBalancerShard.spawnAiShips = !hideAiShips;
         loadBalancerShard.initializeGame();
         const gameInitializationFrame = loadBalancerShard.getInitializationFrame();
         shardList.push({
@@ -42,6 +44,7 @@ describe("shard tests", () => {
         const globalShard = new Game();
         globalShard.serverType = EServerType.GLOBAL_STATE_NODE;
         globalShard.shardName = "global-state";
+        globalShard.spawnAiShips = !hideAiShips;
         shardList.push({
             type: EServerType.GLOBAL_STATE_NODE,
             name: globalShard.shardName
@@ -54,6 +57,7 @@ describe("shard tests", () => {
             aiShard.serverType = EServerType.AI_NODE;
             aiShard.shardName = `ai-${i}`;
             aiShard.aiNodeName = aiShard.shardName;
+            aiShard.spawnAiShips = !hideAiShips;
             aiShards.push(aiShard);
             shardList.push({
                 type: EServerType.AI_NODE,
@@ -74,6 +78,7 @@ describe("shard tests", () => {
             physicsShard.serverType = EServerType.PHYSICS_NODE;
             physicsShard.shardName = `physics-kingdom-${i}`;
             physicsShard.physicsKingdomIndex = i;
+            physicsShard.spawnAiShips = !hideAiShips;
             physicsShards.push(physicsShard);
             shardList.push({
                 type: EServerType.PHYSICS_NODE,
@@ -103,7 +108,7 @@ describe("shard tests", () => {
             shards, workerShards, loadBalancerShard, globalShard, aiShards, physicsShards, shardMap
         };
     }
-    const runGameLoop = (shards: Game[], shardMap: Map<string, Game>, verifyGameLoop?: (shard: Game, message: IShardMessage) => void) => {
+    const runGameLoop = (shards: Game[], shardMap: Map<string, Game>, verifyGameLoop?: (shard: Game, to: string, message: IShardMessage) => void) => {
         const shardOrder = randomShardOrder ? [...shards].sort(() => Math.random() > 0.5 ? 1 : -1) : [...shards];
         if (randomShardOrder) {
             // add CPU tick skips for random order to simulate out of order and skipping execution
@@ -118,7 +123,7 @@ describe("shard tests", () => {
             for (const [to, message] of shard.outgoingShardMessages) {
                 shardMap.get(to).incomingShardMessages.push([shard.shardName, message]);
                 if (verifyGameLoop) {
-                    verifyGameLoop(shard, message);
+                    verifyGameLoop(shard, to, message);
                 }
             }
             for (const [, message] of shard.outgoingMessages) {
@@ -193,7 +198,7 @@ describe("shard tests", () => {
         it("should spread AI across AI nodes via load balancer", function () {
             this.timeout(5 * 60 * 1000);
 
-            const { shards, shardMap, loadBalancerShard, aiShards } = setupShards();
+            const { shards, shardMap, loadBalancerShard, aiShards } = setupShards(false);
 
             // run shards for 1 minute
             for (let i = 0; i < 10; i++) {
@@ -216,11 +221,11 @@ describe("shard tests", () => {
         it("each AI node should send data", function () {
             this.timeout(5 * 60 * 1000);
 
-            const { shards, shardMap } = setupShards();
+            const { shards, shardMap } = setupShards(false);
 
             // run shards for 1 minute
             let sentAiMessage: boolean = false;
-            const verifyGameLoop = (shard: Game, message: IShardMessage) => {
+            const verifyGameLoop = (shard: Game, to: string, message: IShardMessage) => {
                 if (shard.serverType === EServerType.AI_NODE) {
                     if (message.shardMessageType === EShardMessageType.AI_PLAYER_DATA_STATE) {
                         const expectedMessage: IAIPlayerDataStateShardMessage = {
@@ -247,11 +252,11 @@ describe("shard tests", () => {
         it("each Physics node should send data", function () {
             this.timeout(5 * 60 * 1000);
 
-            const { shards, shardMap } = setupShards();
+            const { shards, shardMap } = setupShards(false);
 
             // run shards for 1 minute
             let sentPhysicsMessage: boolean = false;
-            const verifyGameLoop = (shard: Game, message: IShardMessage) => {
+            const verifyGameLoop = (shard: Game, to: string, message: IShardMessage) => {
                 if (shard.serverType === EServerType.PHYSICS_NODE) {
                     const isInKingdom = (c: ICameraState): boolean => {
                         const planet = shard.voronoiTerrain.getNearestPlanet(c.position.rotateVector([0, 0, 1]));
@@ -279,11 +284,11 @@ describe("shard tests", () => {
         it("each Global State node should send data", function () {
             this.timeout(5 * 60 * 1000);
 
-            const { shards, shardMap } = setupShards();
+            const { shards, shardMap } = setupShards(false);
 
             // run shards for 1 minute
             let sentGlobalMessage: boolean = false;
-            const verifyGameLoop = (shard: Game, message: IShardMessage) => {
+            const verifyGameLoop = (shard: Game, to: string, message: IShardMessage) => {
                 if (shard.serverType === EServerType.GLOBAL_STATE_NODE) {
                     if (message.shardMessageType === EShardMessageType.GLOBAL_STATE) {
                         const expectedMessage: IGlobalStateShardMessage = {
@@ -300,64 +305,64 @@ describe("shard tests", () => {
             }
             expect(sentGlobalMessage).to.be.true;
         });
+        const testPhysicsNodeTravel = function () {
+            this.timeout(5 * 60 * 1000);
+
+            const { shards, shardMap, loadBalancerShard } = setupShards(true);
+            loginShard(shards, shardMap, loadBalancerShard);
+
+            // run shards for 1 minute
+            let setMission: boolean = false;
+            let nearEnglishWorld: boolean = false;
+            const dutchHomeWorld = networkGame.planets.find(s => s.id === networkGame.factions[EFaction.DUTCH].homeWorldPlanetId);
+            const dutchKingdom = dutchHomeWorld.county.duchy.kingdom;
+            const neighborKingdom = dutchKingdom.neighborKingdoms[0];
+            const neighborKingdomPlanet = neighborKingdom.duchies[0].counties[0].planet;
+            let shipCount: Map<string, number> = new Map<string, number>();
+            const verifyGameLoop = (shard: Game, to: string, message: IShardMessage) => {
+                if (message.shardMessageType === EShardMessageType.PHYSICS_DATA_STATE && to === networkGame.shardName) {
+                    const {ships} = message as IPhysicsDataStateShardMessage;
+                    for (const ship of ships) {
+                        if (shipCount.has(ship.id)) {
+                            shipCount.set(ship.id, shipCount.get(ship.id) + 1);
+                        } else {
+                            shipCount.set(ship.id, 1);
+                        }
+                    }
+                }
+            };
+            for (let i = 0; i < 2 * 60 * 10; i++) {
+                if (!setMission) {
+                    if (networkGame.playerData[0] && networkGame.playerData[0].shipId) {
+                        const ship = networkGame.ships.find(s => s.id === networkGame.playerData[0].shipId);
+                        if (ship && neighborKingdomPlanet) {
+                            ship.pathFinding.points.unshift(neighborKingdomPlanet.position.rotateVector([0, 0, 1]));
+                            setMission = true;
+                        }
+                    }
+                } else if (!nearEnglishWorld) {
+                    const ship = networkGame.ships.find(s => s.id === networkGame.playerData[0].shipId);
+                    expect(ship).to.not.be.undefined;
+                    expect(neighborKingdomPlanet).to.not.be.undefined;
+                    if (ship && neighborKingdomPlanet) {
+                        const nearestPlanet = networkGame.voronoiTerrain.getNearestPlanet(ship.position.rotateVector([0, 0, 1]));
+                        if (nearestPlanet === neighborKingdomPlanet) {
+                            nearEnglishWorld = true;
+                        }
+                    }
+                } else {
+                    break;
+                }
+                runGameLoop(shards, shardMap, verifyGameLoop);
+                expect(shipCount.size).to.lessThanOrEqual(1);
+                shipCount = new Map<string, number>();
+            }
+            expect(setMission).to.be.true;
+            expect(nearEnglishWorld).to.be.true;
+        };
         describe("traveling between physics shards (normal order)", () => {
             for (let trial = 0; trial < 100; trial++) {
-                it(`try ${trial + 1}`, function () {
-                    this.timeout(5 * 60 * 1000);
-
-                    const { shards, shardMap, loadBalancerShard } = setupShards();
-                    loginShard(shards, shardMap, loadBalancerShard);
-
-                    // run shards for 1 minute
-                    let setMission: boolean = false;
-                    let nearEnglishWorld: boolean = false;
-                    const dutchHomeWorld = networkGame.planets.find(s => s.id === networkGame.factions[EFaction.DUTCH].homeWorldPlanetId);
-                    const neighborKingdom = dutchHomeWorld.county.duchy.kingdom.neighborKingdoms[0];
-                    const neighborKingdomPlanet = neighborKingdom.duchies[0].counties[0].planet;
-                    let shipCount: Map<string, number> = new Map<string, number>();
-                    const verifyGameLoop = (shard: Game, message: IShardMessage) => {
-                        if (shard.serverType === EServerType.AI_NODE && shard === networkGame) {
-                            if (message.shardMessageType === EShardMessageType.PHYSICS_DATA_STATE) {
-                                for (const ship of (message as IPhysicsDataStateShardMessage).ships) {
-                                    if (shipCount.has(ship.id)) {
-                                        shipCount.set(ship.id, shipCount.get(ship.id) + 1);
-                                    } else {
-                                        shipCount.set(ship.id, 1);
-                                    }
-                                }
-                            }
-                        }
-                    };
-                    for (let i = 0; i < 2 * 60 * 10; i++) {
-                        if (!setMission) {
-                            if (networkGame.playerData[0] && networkGame.playerData[0].shipId) {
-                                const ship = networkGame.ships.find(s => s.id === networkGame.playerData[0].shipId);
-                                if (ship && neighborKingdomPlanet) {
-                                    ship.pathFinding.points.unshift(neighborKingdomPlanet.position.rotateVector([0, 0, 1]));
-                                    setMission = true;
-                                }
-                            }
-                        } else if (!nearEnglishWorld) {
-                            const ship = networkGame.ships.find(s => s.id === networkGame.playerData[0].shipId);
-                            expect(ship).to.not.be.undefined;
-                            expect(neighborKingdomPlanet).to.not.be.undefined;
-                            if (ship && neighborKingdomPlanet) {
-                                const nearestPlanet = networkGame.voronoiTerrain.getNearestPlanet(ship.position.rotateVector([0, 0, 1]));
-                                if (nearestPlanet === neighborKingdomPlanet) {
-                                    nearEnglishWorld = true;
-                                    break;
-                                }
-                            }
-                        }
-                        runGameLoop(shards, shardMap, verifyGameLoop);
-                        for (const value of shipCount.values()) {
-                            expect(value).to.be.lessThanOrEqual(2);
-                        }
-                        shipCount = new Map<string, number>();
-                    }
-                    expect(setMission).to.be.true;
-                    expect(nearEnglishWorld).to.be.true;
-                });
+                it(`try ${trial + 1}`, testPhysicsNodeTravel);
             }
         });
         describe("traveling between physics shards (random order)", () => {
@@ -368,62 +373,7 @@ describe("shard tests", () => {
                 randomShardOrder = false;
             });
             for (let trial = 0; trial < 100; trial++) {
-                it(`try ${trial + 1}`, function () {
-                    this.timeout(5 * 60 * 1000);
-
-                    const { shards, shardMap, loadBalancerShard } = setupShards();
-                    loginShard(shards, shardMap, loadBalancerShard);
-
-                    // run shards for 1 minute
-                    let setMission: boolean = false;
-                    let nearEnglishWorld: boolean = false;
-                    const dutchHomeWorld = networkGame.planets.find(s => s.id === networkGame.factions[EFaction.DUTCH].homeWorldPlanetId);
-                    const neighborKingdom = dutchHomeWorld.county.duchy.kingdom.neighborKingdoms[0];
-                    const neighborKingdomPlanet = neighborKingdom.duchies[0].counties[0].planet;
-                    let shipCount: Map<string, number> = new Map<string, number>();
-                    const verifyGameLoop = (shard: Game, message: IShardMessage) => {
-                        if (shard.serverType === EServerType.AI_NODE && shard === networkGame) {
-                            if (message.shardMessageType === EShardMessageType.PHYSICS_DATA_STATE) {
-                                for (const ship of (message as IPhysicsDataStateShardMessage).ships) {
-                                    if (shipCount.has(ship.id)) {
-                                        shipCount.set(ship.id, shipCount.get(ship.id) + 1);
-                                    } else {
-                                        shipCount.set(ship.id, 1);
-                                    }
-                                }
-                            }
-                        }
-                    };
-                    for (let i = 0; i < 2 * 60 * 10; i++) {
-                        if (!setMission) {
-                            if (networkGame.playerData[0] && networkGame.playerData[0].shipId) {
-                                const ship = networkGame.ships.find(s => s.id === networkGame.playerData[0].shipId);
-                                if (ship && neighborKingdomPlanet) {
-                                    ship.pathFinding.points.unshift(neighborKingdomPlanet.position.rotateVector([0, 0, 1]));
-                                    setMission = true;
-                                }
-                            }
-                        } else if (!nearEnglishWorld) {
-                            const ship = networkGame.ships.find(s => s.id === networkGame.playerData[0].shipId);
-                            expect(ship).to.not.be.undefined;
-                            expect(neighborKingdomPlanet).to.not.be.undefined;
-                            if (ship && neighborKingdomPlanet) {
-                                const nearestPlanet = networkGame.voronoiTerrain.getNearestPlanet(ship.position.rotateVector([0, 0, 1]));
-                                if (nearestPlanet === neighborKingdomPlanet) {
-                                    nearEnglishWorld = true;
-                                    break;
-                                }
-                            }
-                        }
-                        runGameLoop(shards, shardMap, verifyGameLoop);
-                        for (const value of shipCount.values()) {
-                            expect(value).to.be.lessThanOrEqual(2);
-                        }
-                        shipCount = new Map<string, number>();
-                    }
-                    expect(setMission).to.be.true;
-                    expect(nearEnglishWorld).to.be.true;
-                });
+                it(`try ${trial + 1}`, testPhysicsNodeTravel);
             }
         });
     });
