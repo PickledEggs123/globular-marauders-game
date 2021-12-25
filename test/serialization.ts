@@ -44,7 +44,7 @@ describe("network serialization", () => {
         expect(a).to.deep.equal(b);
     });
     it("CannonBall", () => {
-        const a = new CannonBall(EFaction.DUTCH);
+        const a = new CannonBall(EFaction.DUTCH, "test");
         const b = CannonBall.deserialize(a.serialize());
         expect(a.serialize()).to.deep.equal(b.serialize());
         expect(a).to.deep.equal(b);

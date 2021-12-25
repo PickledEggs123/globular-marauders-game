@@ -31,6 +31,7 @@ export enum EShardMessageType {
     GLOBAL_STATE = "GLOBAL_STATE",
     AI_PLAYER_DATA_STATE = "AI_PLAYER_DATA_STATE",
     PHYSICS_DATA_STATE = "PHYSICS_DATA_STATE",
+    DAMAGE_SCORE = "DAMAGE_SCORE",
     SPAWN_SHIP = "SPAWN_SHIP",
     SPAWN_SHIP_RESULT = "SPAWN_SHIP_RESULT",
     SPAWN_AI_SHIP = "SPAWN_AI_SHIP",
@@ -51,6 +52,7 @@ export interface IShardMessage {
 export interface IGlobalStateShardMessage extends IShardMessage {
     shardMessageType: EShardMessageType.GLOBAL_STATE;
     factions: ISerializedFaction[];
+    scoreBoard: IScoreBoard;
 }
 
 export interface IAIPlayerDataStateShardMessage extends IShardMessage {
@@ -72,6 +74,13 @@ export interface IPhysicsDataStateShardMessage extends IShardMessage {
     cannonBalls: ISerializedCannonBall[];
     crates: ISerializedCrate[];
     transferIds: string[];
+}
+
+export interface IDamageScoreShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.DAMAGE_SCORE;
+    playerId: string;
+    name: string;
+    damage: number;
 }
 
 export interface ISpawnShardMessage extends IShardMessage {
@@ -145,11 +154,121 @@ export interface IAiShardCountItem {
 }
 
 /**
- * A message containing a list of shards, used to periodically update the shards.
+ * Top player damage in the world. Based on how many cannon balls of damage they have done. This is the amount of
+ * health damage a player has caused.
+ *
+ * Easy, just count the number of damage done.
  */
-export interface IRegisterShardMessage extends IShardMessage {
-    shardList: IShardListItem[];
+export interface IScoreBoardDamageItem {
+    playerId: string;
+    name: string;
+    damage: number;
 }
+
+
+/**
+ * Top player piracy, looting, in the world. Based on how many crates they pirated. Killing a small trading ship like
+ * a cutter then stealing it's cargo is considered piracy. Returning pirated cargo will reward you with cash.
+ *
+ * Easy, just count the number of cargo looted.
+ */
+export interface IScoreBoardLootItem {
+    playerId: string;
+    name: string;
+    count: number;
+}
+
+/**
+ * Top player money, in the world. Based on how much money they have. The player will receive money through:
+ * - looting piracy
+ * - completing missions
+ * - investing in real estate on planets
+ *
+ * Easy, just count the amount of cash on a player.
+ *
+ * Difficult, create planet real estate:
+ * - A list of buildings you can build on a planet which will provide income:
+ *     - Housing
+ *     - Manufacturing
+ *     - Retail
+ *     - Hospitality
+ *     - Shipyard
+ *     - Forestry
+ * - When a faction captures a planet, all real estate will lose their owners and will be auctioned off.
+ *
+ * - Screen to make new or buy used
+ * - Screen to auction
+ *
+ * Easy, create planet investment fund with predictable price movements.
+ */
+export interface IScoreBoardMoneyItem {
+    playerId: string;
+    name: string;
+    amount: number;
+}
+
+/**
+ * Top player land, in the world. Based on how many planets they own. Very rich players or honorable players will have
+ * the option of purchasing an entire planet and collecting it's tax revenue. They will then have the option to choose
+ * economic policy such as battle march (small planet with lots of weapons), free city (small planet with lots of trade),
+ * or other economic policies. Owning land will also give a title to players:
+ * - 1 planet - Count
+ * - 2 planets - Baron
+ * - 3 planets - Duke
+ * - 2 Duchies - Arch Duke
+ * - 3 Duchies - King
+ * - 2 Kingdoms - Emperor
+ *
+ * Medium, many steps and UI screens:
+ * - Player field in Feudal Government
+ * - Player Titles in PLayer Data
+ * - Player visit Feudal Realm to pick Policy and tax rate
+ * - Player visit Capital to buy or sell Feudal Land.
+ */
+export interface IScoreBoardLandItem {
+    playerId: string;
+    name: string;
+    amount: number;
+}
+
+/**
+ * Top player bounty hunter in the world. Based on how many pirates they have killed. Players who kill a ship of a faction
+ * will be placed on a bounty list for 30 minutes. Killing a player on the bounty list will give a bounty reward and
+ * increase this score.
+ *
+ * Medium, killing a ship of an empire will put you on their bounty list for 30 minutes, killing a pirate will give bounty.
+ */
+export interface IScoreBoardBountyItem {
+    playerId: string;
+    name: string;
+    count: number;
+}
+
+/**
+ * Top player captain in the world. Based on how many planets they have captured during an invasion. Signing up for
+ * an invasion at a planet then killing all ships in an area and capturing a planet will reward 1 point.
+ *
+ * Difficult, an invasion is a faction event which players can opt into that will allow the capturing of enemy planets.
+ * 1. Kill all enemy ships,
+ * 2. Sit on planet for 5 minutes and wait for counter invasion.
+ */
+export interface IScoreBoardCaptureItem {
+    playerId: string;
+    name: string;
+    count: number;
+}
+
+/**
+ * The game will have a score board to encourage players to keep playing.
+ */
+export interface IScoreBoard {
+    damage: IScoreBoardDamageItem[];
+    loot: IScoreBoardLootItem[];
+    money: IScoreBoardMoneyItem[];
+    land: IScoreBoardLandItem[];
+    bounty: IScoreBoardBountyItem[];
+    capture: IScoreBoardCaptureItem[];
+};
 
 export interface IExpirableTicks {
     life: number;

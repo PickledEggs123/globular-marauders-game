@@ -293,7 +293,8 @@ describe("shard tests", () => {
                     if (message.shardMessageType === EShardMessageType.GLOBAL_STATE) {
                         const expectedMessage: IGlobalStateShardMessage = {
                             shardMessageType: EShardMessageType.GLOBAL_STATE,
-                            factions: Object.values(shard.factions).map(f => f.serialize())
+                            factions: Object.values(shard.factions).map(f => f.serialize()),
+                            scoreBoard: shard.scoreBoard,
                         };
                         expect(message).to.deep.equal(expectedMessage, "Expected a message with Faction Data");
                         sentGlobalMessage = true;

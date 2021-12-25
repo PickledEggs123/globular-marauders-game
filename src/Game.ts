@@ -8,7 +8,7 @@ import {
     IAIPlayerDataStateShardMessage,
     IAiShardCountItem,
     ICameraState,
-    ICollidable,
+    ICollidable, IDamageScoreShardMessage,
     IDeathShardMessage,
     IDirectedMarketTrade,
     IExpirableTicks,
@@ -16,6 +16,7 @@ import {
     IFetchOrderShardMessage,
     IGlobalStateShardMessage,
     IPhysicsDataStateShardMessage,
+    IScoreBoard,
     IShardListItem,
     IShardMessage,
     IShipStateShardMessage,
@@ -233,6 +234,14 @@ export class Game {
     public aiShardCount: IAiShardCountItem[] = [];
     public outgoingShardMessages: Array<[string, IShardMessage]> = [];
     public incomingShardMessages: Array<[string, IShardMessage]> = [];
+    public scoreBoard: IScoreBoard = {
+        damage: [],
+        loot: [],
+        money: [],
+        land: [],
+        bounty: [],
+        capture: []
+    };
 
     /**
      * Velocity step size of ships.
@@ -859,7 +868,7 @@ export class Game {
                 const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
 
                 // create a cannon ball
-                const cannonBall = new CannonBall(faction.id);
+                const cannonBall = new CannonBall(faction.id, this.ships[shipIndex].id);
                 cannonBall.id = `${cameraId}-${Math.floor(Math.random() * 100000000)}`;
                 cannonBall.position = cameraPosition.clone();
                 cannonBall.positionVelocity = fireVelocity.clone();
@@ -905,7 +914,7 @@ export class Game {
                 }
 
                 // create a cannon ball
-                const cannonBall = new CannonBall(faction.id);
+                const cannonBall = new CannonBall(faction.id, this.ships[shipIndex].id);
                 cannonBall.id = `${cameraId}-${Math.floor(Math.random() * 100000000)}`;
                 cannonBall.position = cameraPosition.clone();
                 cannonBall.positionVelocity = fireVelocity.clone();
@@ -1054,6 +1063,7 @@ export class Game {
             (v: Faction) => v,
             (s: Faction, v: Faction) => s.deserializeUpdate(v.serialize())
         );
+        this.scoreBoard = message.scoreBoard;
     }
 
     private aiPlayerDataCombined: Map<string, [number, IAIPlayerDataStateShardMessage]> = new Map<string, [number, IAIPlayerDataStateShardMessage]>();
@@ -1198,6 +1208,26 @@ export class Game {
                     }
                     case EServerType.GLOBAL_STATE_NODE: {
                         switch (message.shardMessageType) {
+                            case EShardMessageType.DAMAGE_SCORE: {
+                                const {
+                                    playerId,
+                                    name,
+                                    damage
+                                } = message as IDamageScoreShardMessage;
+
+                                const item = this.scoreBoard.damage.find(i => i.playerId === playerId);
+                                if (item) {
+                                    item.damage += damage;
+                                } else {
+                                    this.scoreBoard.damage.push({
+                                        playerId,
+                                        name,
+                                        damage
+                                    });
+                                }
+                                this.scoreBoard.damage.sort((a, b) => b.damage - a.damage);
+                                break;
+                            }
                             case EShardMessageType.AI_PLAYER_DATA_STATE: {
                                 this.readyLoadAIPlayerDataStateMessage(fromShardName, message as IAIPlayerDataStateShardMessage);
                                 break;
@@ -1464,7 +1494,8 @@ export class Game {
                 // give everyone a copy of the global faction state
                 const globalStateMessage: IGlobalStateShardMessage = {
                     shardMessageType: EShardMessageType.GLOBAL_STATE,
-                    factions: Object.values(this.factions).map(f => f.serialize())
+                    factions: Object.values(this.factions).map(f => f.serialize()),
+                    scoreBoard: this.scoreBoard,
                 };
                 for (const shard of this.shardList) {
                     if ([EServerType.AI_NODE, EServerType.PHYSICS_NODE].includes(shard.type)) {

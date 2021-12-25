@@ -133,6 +133,7 @@ export interface ISerializedCannonBall {
     maxLive: number;
     life: number;
     factionId: EFaction | null;
+    shipId: string;
 }
 
 export class CannonBall implements ICameraState, IExpirableTicks, ICollidable {
@@ -150,6 +151,10 @@ export class CannonBall implements ICameraState, IExpirableTicks, ICollidable {
      * Cannon balls have a faction, to avoid team killing teammates.
      */
     public factionId: EFaction | null;
+    /**
+     * Cannon balls have a ship id to record damage scores per player.
+     */
+    public shipId: string;
 
     public serialize(): ISerializedCannonBall {
         return {
@@ -164,6 +169,7 @@ export class CannonBall implements ICameraState, IExpirableTicks, ICollidable {
             maxLive: this.maxLife,
             life: this.life,
             factionId: this.factionId,
+            shipId: this.shipId,
         };
     }
 
@@ -179,15 +185,17 @@ export class CannonBall implements ICameraState, IExpirableTicks, ICollidable {
         this.maxLife = data.maxLive;
         this.life = data.life;
         this.factionId = data.factionId;
+        this.shipId = data.shipId;
     }
 
     public static deserialize(data: ISerializedCannonBall): CannonBall {
-        const item = new CannonBall(data.factionId);
+        const item = new CannonBall(data.factionId, data.shipId);
         item.deserializeUpdate(data);
         return item;
     }
 
-    constructor(faction: EFaction) {
+    constructor(faction: EFaction, shipId: string) {
         this.factionId = faction;
+        this.shipId = shipId;
     }
 }

@@ -1,4 +1,12 @@
-import {IAutomatedShip, ICameraState, ISerializedMoneyAccount, MoneyAccount} from "./Interface";
+import {
+    EServerType,
+    EShardMessageType,
+    IAutomatedShip,
+    ICameraState, IDamageScoreShardMessage,
+    ISerializedMoneyAccount,
+    IShardMessage,
+    MoneyAccount
+} from "./Interface";
 import Quaternion from "quaternion";
 import {EResourceType, ICargoItem} from "./Resource";
 import {EOrderResult, EOrderType, ISerializedOrder, Order} from "./Order";
@@ -420,6 +428,32 @@ export class Ship implements IAutomatedShip {
         const repairTickDamage = repairDamage / this.repairTicks.length;
         for (let i = 0; i < this.repairTicks.length; i++) {
             this.repairTicks[i] += repairTickDamage;
+        }
+
+        const playerData = this.app.playerData.find(p => p.shipId === cannonBall.shipId);
+        if (playerData) {
+            if ([EServerType.STANDALONE].includes(this.app.serverType)) {
+                const item = this.app.scoreBoard.damage.find(i => i.playerId === playerData.id);
+                if (item) {
+                    item.damage += cannonBall.damage;
+                } else {
+                    this.app.scoreBoard.damage.push({
+                        playerId: playerData.id,
+                        name: playerData.name,
+                        damage: cannonBall.damage
+                    });
+                }
+                this.app.scoreBoard.damage.sort((a, b) => b.damage - a.damage);
+            } else if ([EServerType.PHYSICS_NODE].includes(this.app.serverType)) {
+                const globalScoreBoardMessage: IDamageScoreShardMessage = {
+                    shardMessageType: EShardMessageType.DAMAGE_SCORE,
+                    playerId: playerData.id,
+                    name: playerData.name,
+                    damage: cannonBall.damage
+                };
+                const globalShard = this.app.shardList.find(s => s.type === EServerType.GLOBAL_STATE_NODE);
+                this.app.outgoingShardMessages.push([globalShard.name, globalScoreBoardMessage]);
+            }
         }
     }
 
