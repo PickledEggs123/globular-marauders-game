@@ -1,7 +1,7 @@
 /**
  * The direction of the market trade node/edge.
  */
-import {ISerializedPlanet, ISerializedPlanetFull, Market, Planet, Star} from "./Planet";
+import {ISerializedPlanet, ISerializedPlanetFull, Planet} from "./Planet";
 import {
     EServerType,
     EShardMessageType,
@@ -63,6 +63,8 @@ import {
 } from "./Graph";
 import {IHitTest} from "./Intersection";
 import {EOrderType, ISerializedOrder, Order} from "./Order";
+import {Star} from "./Star";
+import {Market} from "./Market";
 
 /**
  * A list of player specific data for the server to store.
