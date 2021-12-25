@@ -4,7 +4,7 @@ import {
     ICameraState,
     ICurrency,
     IDirectedMarketTrade,
-    IExplorationGraphData,
+    IExplorationGraphData, ILootScoreShardMessage,
     ISerializedMoneyAccount, ISpawnAiShardMessage,
     ITradeDeal,
     MoneyAccount
@@ -3426,6 +3426,34 @@ export class Planet implements ICameraState {
             const boughtGood = ship.buyGoodFromShip(goodToTake);
             if (boughtGood && this.moneyAccount) {
                 this.applyLuxuryBuff(this.moneyAccount.cash, goodToTake, boughtGood.sourcePlanetId, boughtGood.amount);
+
+                // score loot
+                const playerData = this.instance.playerData.find(p => p.shipId === ship.id);
+                const count = boughtGood.pirated ? boughtGood.amount : 0;
+                if (playerData && count) {
+                    if ([EServerType.STANDALONE].includes(this.instance.serverType)) {
+                        const item = this.instance.scoreBoard.loot.find(i => i.playerId === playerData.id);
+                        if (item) {
+                            item.count += count;
+                        } else {
+                            this.instance.scoreBoard.loot.push({
+                                playerId: playerData.id,
+                                name: playerData.name,
+                                count
+                            });
+                        }
+                        this.instance.scoreBoard.damage.sort((a, b) => b.damage - a.damage);
+                    } else if ([EServerType.PHYSICS_NODE].includes(this.instance.serverType)) {
+                        const globalScoreBoardMessage: ILootScoreShardMessage = {
+                            shardMessageType: EShardMessageType.LOOT_SCORE,
+                            playerId: playerData.id,
+                            name: playerData.name,
+                            count
+                        };
+                        const globalShard = this.instance.shardList.find(s => s.type === EServerType.GLOBAL_STATE_NODE);
+                        this.instance.outgoingShardMessages.push([globalShard.name, globalScoreBoardMessage]);
+                    }
+                }
             }
         }
         for (let i = 0; i < goodsToOffer.length; i++) {

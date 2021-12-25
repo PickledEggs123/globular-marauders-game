@@ -1,9 +1,9 @@
 import Quaternion from "quaternion";
 import {ISerializedPathFinder, PathFinder} from "./Graph";
 import {EFaction, EShipType, ISerializedFireControl, ISerializedShip} from "./Ship";
-import {ISerializedPlanet, ISerializedPlanetFull, Planet} from "./Planet";
+import {ISerializedPlanetFull, Planet} from "./Planet";
 import {Crate, ISerializedCannonBall, ISerializedCrate, ISerializedQuaternion} from "./Item";
-import {Game, IGameSyncFrameDelta, IPlayerData} from "./Game";
+import {Game, IPlayerData} from "./Game";
 import {EResourceType} from "./Resource";
 import {ISerializedFaction} from "./Faction";
 import {ISerializedOrder} from "./Order";
@@ -32,6 +32,7 @@ export enum EShardMessageType {
     AI_PLAYER_DATA_STATE = "AI_PLAYER_DATA_STATE",
     PHYSICS_DATA_STATE = "PHYSICS_DATA_STATE",
     DAMAGE_SCORE = "DAMAGE_SCORE",
+    LOOT_SCORE = "LOOT_SCORE",
     SPAWN_SHIP = "SPAWN_SHIP",
     SPAWN_SHIP_RESULT = "SPAWN_SHIP_RESULT",
     SPAWN_AI_SHIP = "SPAWN_AI_SHIP",
@@ -81,6 +82,13 @@ export interface IDamageScoreShardMessage extends IShardMessage {
     playerId: string;
     name: string;
     damage: number;
+}
+
+export interface ILootScoreShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.LOOT_SCORE;
+    playerId: string;
+    name: string;
+    count: number;
 }
 
 export interface ISpawnShardMessage extends IShardMessage {
@@ -268,7 +276,7 @@ export interface IScoreBoard {
     land: IScoreBoardLandItem[];
     bounty: IScoreBoardBountyItem[];
     capture: IScoreBoardCaptureItem[];
-};
+}
 
 export interface IExpirableTicks {
     life: number;

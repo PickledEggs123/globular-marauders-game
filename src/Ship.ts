@@ -430,6 +430,7 @@ export class Ship implements IAutomatedShip {
             this.repairTicks[i] += repairTickDamage;
         }
 
+        // score damage
         const playerData = this.app.playerData.find(p => p.shipId === cannonBall.shipId);
         if (playerData) {
             if ([EServerType.STANDALONE].includes(this.app.serverType)) {

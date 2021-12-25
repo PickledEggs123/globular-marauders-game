@@ -1349,6 +1349,7 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
             crates: crates.map(c => c.serialize()),
             planets: planets.map(p => p.serialize()),
             factions: factions.map(f => f.serialize()),
+            scoreBoard: [{id: "a", ...this.app.scoreBoard}],
         });
     }
 }

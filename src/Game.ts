@@ -14,9 +14,9 @@ import {
     IExpirableTicks,
     IFetchOrderResultShardMessage,
     IFetchOrderShardMessage,
-    IGlobalStateShardMessage,
+    IGlobalStateShardMessage, ILootScoreShardMessage,
     IPhysicsDataStateShardMessage,
-    IScoreBoard,
+    IScoreBoard, IScoreBoardMoneyItem,
     IShardListItem,
     IShardMessage,
     IShipStateShardMessage,
@@ -188,6 +188,7 @@ export interface IGameSyncFrame {
     crates: IGameSyncFrameDelta<ISerializedCrate>;
     planets: IGameSyncFrameDelta<ISerializedPlanet>;
     factions: IGameSyncFrameDelta<ISerializedFaction>;
+    scoreBoard: IGameSyncFrameDelta<IScoreBoard & {id: string}>;
 }
 
 /**
@@ -200,6 +201,7 @@ export interface IPlayerSyncState {
     crates: ISerializedCrate[];
     planets: ISerializedPlanet[];
     factions: ISerializedFaction[];
+    scoreBoard: (IScoreBoard & {id: string})[];
 }
 
 export class Game {
@@ -362,6 +364,7 @@ export class Game {
             cannonBalls: this.computeSyncDelta(oldState.cannonBalls, newState.cannonBalls, false),
             planets: this.computeSyncDelta(oldState.planets, newState.planets, true),
             factions: this.computeSyncDelta(oldState.factions, newState.factions, true),
+            scoreBoard: this.computeSyncDelta(oldState.scoreBoard, newState.scoreBoard, true),
         };
 
         this.playerSyncState.splice(this.playerSyncState.indexOf(oldState), 1, newState);
@@ -381,7 +384,8 @@ export class Game {
                 planets: [],
                 ships: [],
                 crates: [],
-                cannonBalls: []
+                cannonBalls: [],
+                scoreBoard: [],
             };
         }
 
@@ -529,6 +533,10 @@ export class Game {
             (v: ISerializedFaction) => Faction.deserialize(this, v),
             (s: Faction, v: ISerializedFaction) => s.deserializeUpdate(v)
         );
+        const scoreBoardData = data.scoreBoard.create[0] ?? data.scoreBoard.update[0];
+        if (scoreBoardData) {
+            this.scoreBoard = scoreBoardData;
+        }
     }
 
     public getSpawnPlanets(playerData: IPlayerData): ISpawnPlanet[] {
@@ -1226,6 +1234,26 @@ export class Game {
                                     });
                                 }
                                 this.scoreBoard.damage.sort((a, b) => b.damage - a.damage);
+                                break;
+                            }
+                            case EShardMessageType.LOOT_SCORE: {
+                                const {
+                                    playerId,
+                                    name,
+                                    count
+                                } = message as ILootScoreShardMessage;
+
+                                const item = this.scoreBoard.loot.find(i => i.playerId === playerId);
+                                if (item) {
+                                    item.count += count;
+                                } else {
+                                    this.scoreBoard.loot.push({
+                                        playerId,
+                                        name,
+                                        count
+                                    });
+                                }
+                                this.scoreBoard.loot.sort((a, b) => b.count - a.count);
                                 break;
                             }
                             case EShardMessageType.AI_PLAYER_DATA_STATE: {
@@ -2218,30 +2246,24 @@ export class Game {
             for (const faction of Object.values(this.factions)) {
                 faction.handleFactionLoop();
             }
+
+            // handle player scores
+            const scoreMoneyAccount = (playerData: IPlayerData): IScoreBoardMoneyItem => {
+                let amount = 0;
+                for (const currency of playerData.moneyAccount.currencies) {
+                    if (currency.currencyId === "GOLD") {
+                        amount += currency.amount * 1000;
+                    }
+                }
+
+                return {
+                    playerId: playerData.id,
+                    name: playerData.name,
+                    amount
+                };
+            };
+            this.scoreBoard.money = this.playerData.map(scoreMoneyAccount).sort((a, b) => b.amount - a.amount);
         }
-
-        // global state
-        // fetch physics        - DONE
-        // fetch ai             - DONE
-        // send faction         - DONE
-
-        // ai
-        // fetch crates         - DONE
-        // fetch cannon balls   - DONE
-        // fetch ships          - DONE
-        // fetch planets        - DONE
-        // send keys            - DONE
-        // send playerData      - DONE
-        // send orders          - DONE
-
-        // physics
-        // fetch playerData     - DONE
-        // fetch keys           - DONE
-        // fetch orders         - DONE
-        // send cannonballs     - DONE
-        // send crates          - DONE
-        // send planets         - DONE
-        // send ships           - DONE
         this.handleServerShardPostLoop();
     }
 
