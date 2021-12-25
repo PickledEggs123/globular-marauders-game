@@ -2,7 +2,7 @@ import {
     EServerType,
     ESettlementLevel,
     EShardMessageType,
-    ICameraState,
+    ICameraState, ICurrency,
     IExplorationGraphData,
     ILootScoreShardMessage,
     ISpawnAiShardMessage,
@@ -113,6 +113,14 @@ export interface ISerializedPlanetFull {
 
     buildings: ISerializedBuilding[];
 }
+
+export interface IInvestmentAccount {
+    playerId: string;
+    amount: number;
+    interestRate: number;
+    compoundingTicks: number;
+}
+
 export class Planet implements ICameraState {
     public instance: Game;
 
@@ -232,8 +240,11 @@ export class Planet implements ICameraState {
     // a list of buildings to upgrade
     public buildings: Building[];
 
-    // property used to initialize buildings
+    // property used to initialize buildings and compound investment accounts
     private numTicks: number = 0;
+
+    // players can open an investment account on the planet to generate passive income.
+    public investmentAccounts: Map<string, IInvestmentAccount> = new Map<string, IInvestmentAccount>();
 
     /**
      * The list of planet priorities for exploration.
@@ -1480,6 +1491,34 @@ export class Planet implements ICameraState {
         }
     }
 
+    public depositInvestment(playerId: string, moneyAccount: MoneyAccount, payment: ICurrency) {
+        moneyAccount.removeMoney(payment);
+        if (!this.investmentAccounts.has(playerId)) {
+            this.investmentAccounts.set(playerId, {
+                playerId,
+                amount: 0,
+                compoundingTicks: 36 * 10,
+                interestRate: 1.01
+            });
+        }
+        this.investmentAccounts.get(playerId).amount += payment.amount;
+    }
+
+    public withdrawInvestment(playerId: string, moneyAccount: MoneyAccount, payment: ICurrency) {
+        if (this.investmentAccounts.get(playerId).amount >= payment.amount) {
+            if (!this.investmentAccounts.has(playerId)) {
+                this.investmentAccounts.set(playerId, {
+                    playerId,
+                    amount: 0,
+                    compoundingTicks: 36 * 10,
+                    interestRate: 1.01
+                });
+            }
+            this.investmentAccounts.get(playerId).amount -= payment.amount;
+            moneyAccount.addMoney(payment);
+        }
+    }
+
     public handlePlanetLoop() {
         if (this.settlementLevel < ESettlementLevel.OUTPOST) {
             // planets smaller than colonies do nothing
@@ -1566,6 +1605,13 @@ export class Planet implements ICameraState {
         }
         for (const expiredLuxuryBuff of expiredLuxuryBuffs) {
             expiredLuxuryBuff.remove();
+        }
+
+        // handle player investment accounts
+        for (const [key, value] of [...this.investmentAccounts.entries()]) {
+            if (this.numTicks % value.compoundingTicks === 0) {
+                value.amount = Math.ceil(value.amount * value.interestRate);
+            }
         }
 
         // handle enemy presence loop

@@ -33,6 +33,8 @@ export enum EShardMessageType {
     PHYSICS_DATA_STATE = "PHYSICS_DATA_STATE",
     DAMAGE_SCORE = "DAMAGE_SCORE",
     LOOT_SCORE = "LOOT_SCORE",
+    INVEST_DEPOSIT_AMOUNT = "INVEST_DEPOSIT_AMOUNT",
+    INVEST_WITHDRAW_AMOUNT = "INVEST_WITHDRAW_AMOUNT",
     SPAWN_SHIP = "SPAWN_SHIP",
     SPAWN_SHIP_RESULT = "SPAWN_SHIP_RESULT",
     SPAWN_AI_SHIP = "SPAWN_AI_SHIP",
@@ -89,6 +91,20 @@ export interface ILootScoreShardMessage extends IShardMessage {
     playerId: string;
     name: string;
     count: number;
+}
+
+export interface IInvestDepositShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.INVEST_DEPOSIT_AMOUNT;
+    amount: number;
+    planetId: string;
+    playerId: string;
+}
+
+export interface IInvestWithdrawShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.INVEST_WITHDRAW_AMOUNT;
+    amount: number;
+    planetId: string;
+    playerId: string;
 }
 
 export interface ISpawnShardMessage extends IShardMessage {

@@ -8,15 +8,19 @@ import {
     IAIPlayerDataStateShardMessage,
     IAiShardCountItem,
     ICameraState,
-    ICollidable, IDamageScoreShardMessage,
+    ICollidable,
+    IDamageScoreShardMessage,
     IDeathShardMessage,
     IDirectedMarketTrade,
     IExpirableTicks,
     IFetchOrderResultShardMessage,
     IFetchOrderShardMessage,
-    IGlobalStateShardMessage, ILootScoreShardMessage,
+    IGlobalStateShardMessage,
+    IInvestDepositShardMessage, IInvestWithdrawShardMessage,
+    ILootScoreShardMessage,
     IPhysicsDataStateShardMessage,
-    IScoreBoard, IScoreBoardMoneyItem,
+    IScoreBoard,
+    IScoreBoardMoneyItem,
     IShardListItem,
     IShardMessage,
     IShipStateShardMessage,
@@ -109,6 +113,8 @@ export enum EMessageType {
     CHOOSE_PLANET = "CHOOSE_PLANET",
     SPAWN = "SPAWN",
     DEATH = "DEATH",
+    INVEST_DEPOSIT = "INVEST_DEPOSIT",
+    INVEST_WITHDRAWAL = "INVEST_WITHDRAWAL",
     AUTOPILOT = "AUTOPILOT",
     SHIP_STATE = "SHIP_STATE",
 }
@@ -145,6 +151,18 @@ export interface ISpawnMessage extends IMessage {
 
 export interface IDeathMessage extends IMessage {
     messageType: EMessageType.DEATH;
+}
+
+export interface IInvestDepositMessage extends IMessage {
+    messageType: EMessageType.INVEST_DEPOSIT;
+    amount: number;
+    planetId: string;
+}
+
+export interface IInvestWithdrawalMessage extends IMessage {
+    messageType: EMessageType.INVEST_WITHDRAWAL;
+    amount: number;
+    planetId: string;
 }
 
 export interface IAutoPilotMessage extends IMessage {
@@ -1405,6 +1423,46 @@ export class Game {
                                 this.outgoingShardMessages.push([fromShardName, spawnShipResultMessage]);
                                 break;
                             }
+                            case EShardMessageType.INVEST_DEPOSIT_AMOUNT: {
+                                const investMessage = message as IInvestDepositShardMessage;
+                                const {
+                                    amount,
+                                    planetId,
+                                    playerId
+                                } = investMessage;
+                                const planet = this.planets.find(p => p.id === planetId);
+
+                                const player = this.playerData.find(p => p.id === playerId);
+                                if (!player) {
+                                    continue;
+                                }
+
+                                const payment = {currencyId: "GOLD", amount};
+                                if (planet && player && player.moneyAccount.hasEnough([payment])) {
+                                    planet.depositInvestment(playerId, player.moneyAccount, payment);
+                                }
+                                break;
+                            }
+                            case EShardMessageType.INVEST_WITHDRAW_AMOUNT: {
+                                const investMessage = message as IInvestWithdrawShardMessage;
+                                const {
+                                    amount,
+                                    planetId,
+                                    playerId
+                                } = investMessage;
+                                const planet = this.planets.find(p => p.id === planetId);
+
+                                const player = this.playerData.find(p => p.id === playerId);
+                                if (!player) {
+                                    continue;
+                                }
+
+                                const payment = {currencyId: "GOLD", amount};
+                                if (planet && player) {
+                                    planet.withdrawInvestment(playerId, player.moneyAccount, payment);
+                                }
+                                break;
+                            }
                             case EShardMessageType.SHIP_STATE: {
                                 const shipStateMessage = message as IShipStateShardMessage;
                                 const playerId = shipStateMessage.playerId;
@@ -1762,6 +1820,64 @@ export class Game {
                                     playerId: player.id
                                 };
                                 this.outgoingShardMessages.push([loadBalancer.name, spawnShipMessage]);
+                            }
+                        }
+                    } else if (message.messageType === EMessageType.INVEST_DEPOSIT) {
+                        const investMessage = message as IInvestDepositMessage;
+                        const {
+                            amount,
+                            planetId
+                        } = investMessage;
+                        const planet = this.planets.find(p => p.id === planetId);
+
+                        const player = this.playerData.find(p => p.id === playerId);
+                        if (!player) {
+                            continue;
+                        }
+
+                        const payment = {currencyId: "GOLD", amount};
+                        if (planet && player && player.moneyAccount.hasEnough([payment])) {
+                            if ([EServerType.STANDALONE].includes(this.serverType)) {
+                                planet.depositInvestment(playerId, player.moneyAccount, payment);
+                            } else if ([EServerType.AI_NODE].includes(this.serverType)) {
+                                const kingdomIndex = this.voronoiTerrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                                const physicsShard = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                const investAmountMessage: IInvestDepositShardMessage = {
+                                    shardMessageType: EShardMessageType.INVEST_DEPOSIT_AMOUNT,
+                                    amount,
+                                    planetId,
+                                    playerId: player.id
+                                };
+                                this.outgoingShardMessages.push([physicsShard.name, investAmountMessage]);
+                            }
+                        }
+                    } else if (message.messageType === EMessageType.INVEST_WITHDRAWAL) {
+                        const investMessage = message as IInvestWithdrawalMessage;
+                        const {
+                            amount,
+                            planetId
+                        } = investMessage;
+                        const planet = this.planets.find(p => p.id === planetId);
+
+                        const player = this.playerData.find(p => p.id === playerId);
+                        if (!player) {
+                            continue;
+                        }
+
+                        const payment = {currencyId: "GOLD", amount};
+                        if (planet && player) {
+                            if ([EServerType.STANDALONE].includes(this.serverType)) {
+                                planet.withdrawInvestment(playerId, player.moneyAccount, payment);
+                            } else if ([EServerType.AI_NODE].includes(this.serverType)) {
+                                const kingdomIndex = this.voronoiTerrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                                const physicsShard = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                const investAmountMessage: IInvestWithdrawShardMessage = {
+                                    shardMessageType: EShardMessageType.INVEST_WITHDRAW_AMOUNT,
+                                    amount,
+                                    planetId,
+                                    playerId: player.id
+                                };
+                                this.outgoingShardMessages.push([physicsShard.name, investAmountMessage]);
                             }
                         }
                     } if (message.messageType === EMessageType.AUTOPILOT) {
@@ -2264,7 +2380,16 @@ export class Game {
                     amount
                 };
             };
-            this.scoreBoard.money = this.playerData.map(scoreMoneyAccount).sort((a, b) => b.amount - a.amount);
+            this.scoreBoard.money = this.playerData.map(scoreMoneyAccount);
+            for (const planet of this.planets) {
+                for (const moneyScore of this.scoreBoard.money) {
+                    const investmentAccount = planet.investmentAccounts.get(moneyScore.playerId);
+                    if (investmentAccount) {
+                        moneyScore.amount += investmentAccount.amount;
+                    }
+                }
+            }
+            this.scoreBoard.money = this.scoreBoard.money.sort((a, b) => b.amount - a.amount);
         }
         this.handleServerShardPostLoop();
     }
