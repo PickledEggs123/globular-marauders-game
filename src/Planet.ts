@@ -112,6 +112,8 @@ export interface ISerializedPlanetFull {
     moneyAccount: ISerializedPlanetaryMoneyAccount;
 
     buildings: ISerializedBuilding[];
+
+    investmentAccounts: [string, IInvestmentAccount][];
 }
 
 export interface IInvestmentAccount {
@@ -386,6 +388,8 @@ export class Planet implements ICameraState {
             moneyAccount: this.moneyAccount ? this.moneyAccount.serialize() : null,
 
             buildings: this.buildings.map(b => b.serialize()),
+
+            investmentAccounts: [...this.investmentAccounts.entries()],
         };
     }
 
@@ -466,6 +470,8 @@ export class Planet implements ICameraState {
         } else {
             this.buildings = data.buildings.map(b => Building.deserializeBuilding(this.instance, this, b));
         }
+
+        this.investmentAccounts = new Map<string, IInvestmentAccount>(data.investmentAccounts);
     }
 
     public static deserializeFull(instance: Game, county: VoronoiCounty, data: ISerializedPlanetFull): Planet {

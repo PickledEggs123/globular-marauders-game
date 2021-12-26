@@ -2385,7 +2385,7 @@ export class Game {
                 for (const moneyScore of this.scoreBoard.money) {
                     const investmentAccount = planet.investmentAccounts.get(moneyScore.playerId);
                     if (investmentAccount) {
-                        moneyScore.amount += investmentAccount.amount;
+                        moneyScore.amount += investmentAccount.amount * 1000;
                     }
                 }
             }

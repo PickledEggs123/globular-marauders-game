@@ -4,7 +4,9 @@ import {
     EShardMessageType,
     IAIPlayerDataStateShardMessage,
     ICameraState,
+    IDamageScoreShardMessage,
     IGlobalStateShardMessage,
+    ILootScoreShardMessage,
     IPhysicsDataStateShardMessage,
     IShardListItem,
     IShardMessage
@@ -14,6 +16,7 @@ import {
     EMessageType,
     IChooseFactionMessage,
     IChoosePlanetMessage,
+    IInvestDepositMessage, IInvestWithdrawalMessage,
     IJoinMessage,
     IJoinResultMessage,
     ISpawnMessage
@@ -195,116 +198,255 @@ describe("shard tests", () => {
         networkGame = null;
     });
     describe("10 AI and 20 physics", () => {
-        it("should spread AI across AI nodes via load balancer", function () {
-            this.timeout(5 * 60 * 1000);
+        describe("node should send data", () => {
+            it("should spread AI across AI nodes via load balancer", function () {
+                this.timeout(5 * 60 * 1000);
 
-            const { shards, shardMap, loadBalancerShard, aiShards } = setupShards(false);
+                const { shards, shardMap, loadBalancerShard, aiShards } = setupShards(false);
 
-            // run shards for 1 minute
-            for (let i = 0; i < 10; i++) {
-                runGameLoop(shards, shardMap);
-            }
-
-            // expect AI to be spread across load balancer
-            const sumAiLoadBalanceCount = loadBalancerShard.aiShardCount.reduce((c, i) => i.numAI + c, 0);
-            for (const item of loadBalancerShard.aiShardCount) {
-                expect(item.numAI).to.lessThanOrEqual(Math.ceil(sumAiLoadBalanceCount / loadBalancerShard.aiShardCount.length), "Expected an even distribution of NPCs per AI Node.");
-            }
-            expect(loadBalancerShard.aiShardCount.some(i => i.numAI > 0)).to.be.true;
-
-            // expect AI to be inside each AI shard's memory
-            for (const aiShard of aiShards) {
-                expect(aiShard.monitoredShips.length).to.lessThanOrEqual(Math.ceil(sumAiLoadBalanceCount / aiShards.length), "Expected a even distribution of NPCs per AI Node.");
-            }
-            expect(aiShards.some(i => i.monitoredShips.length > 0)).to.be.true;
-        });
-        it("each AI node should send data", function () {
-            this.timeout(5 * 60 * 1000);
-
-            const { shards, shardMap } = setupShards(false);
-
-            // run shards for 1 minute
-            let sentAiMessage: boolean = false;
-            const verifyGameLoop = (shard: Game, to: string, message: IShardMessage) => {
-                if (shard.serverType === EServerType.AI_NODE) {
-                    if (message.shardMessageType === EShardMessageType.AI_PLAYER_DATA_STATE) {
-                        const expectedMessage: IAIPlayerDataStateShardMessage = {
-                            shardMessageType: EShardMessageType.AI_PLAYER_DATA_STATE,
-                            playerData: shard.playerData,
-                            ships: shard.ships.filter(s => shard.monitoredShips.includes(s.id)).map(s => ({
-                                shipId: s.id,
-                                shipKeys: s.activeKeys,
-                                orders: s.orders.map(o => o.serialize()),
-                                pathFinding: s.pathFinding.serialize(),
-                                fireControl: s.fireControl.serialize()
-                            }))
-                        };
-                        expect(message).to.deep.equal(expectedMessage, "Expected a message containing all NPC Data.");
-                        sentAiMessage = true;
-                    }
+                // run shards for 1 minute
+                for (let i = 0; i < 10; i++) {
+                    runGameLoop(shards, shardMap);
                 }
-            };
-            for (let i = 0; i < 10; i++) {
-                runGameLoop(shards, shardMap, verifyGameLoop);
-            }
-            expect(sentAiMessage).to.be.true;
-        });
-        it("each Physics node should send data", function () {
-            this.timeout(5 * 60 * 1000);
 
-            const { shards, shardMap } = setupShards(false);
-
-            // run shards for 1 minute
-            let sentPhysicsMessage: boolean = false;
-            const verifyGameLoop = (shard: Game, to: string, message: IShardMessage) => {
-                if (shard.serverType === EServerType.PHYSICS_NODE) {
-                    const isInKingdom = (c: ICameraState): boolean => {
-                        const planet = shard.voronoiTerrain.getNearestPlanet(c.position.rotateVector([0, 0, 1]));
-                        return shard.voronoiTerrain.kingdoms.indexOf(planet.county.duchy.kingdom) === shard.physicsKingdomIndex;
-                    };
-                    if (message.shardMessageType === EShardMessageType.PHYSICS_DATA_STATE) {
-                        const expectedMessage: IPhysicsDataStateShardMessage = {
-                            shardMessageType: EShardMessageType.PHYSICS_DATA_STATE,
-                            ships: shard.ships.filter(isInKingdom).map(s => s.serialize()),
-                            cannonBalls: shard.cannonBalls.filter(isInKingdom).map(c => c.serialize()),
-                            crates: shard.crates.filter(isInKingdom).map(c => c.serialize()),
-                            planets: shard.planets.filter(isInKingdom).map(p => p.serializeFull()),
-                            transferIds: [],
-                        };
-                        expect(message).to.deep.equal(expectedMessage, "Expected a message containing all Physics Data.");
-                        sentPhysicsMessage = true;
-                    }
+                // expect AI to be spread across load balancer
+                const sumAiLoadBalanceCount = loadBalancerShard.aiShardCount.reduce((c, i) => i.numAI + c, 0);
+                for (const item of loadBalancerShard.aiShardCount) {
+                    expect(item.numAI).to.lessThanOrEqual(Math.ceil(sumAiLoadBalanceCount / loadBalancerShard.aiShardCount.length), "Expected an even distribution of NPCs per AI Node.");
                 }
-            };
-            for (let i = 0; i < 10; i++) {
-                runGameLoop(shards, shardMap, verifyGameLoop);
-            }
-            expect(sentPhysicsMessage).to.be.true;
-        });
-        it("each Global State node should send data", function () {
-            this.timeout(5 * 60 * 1000);
+                expect(loadBalancerShard.aiShardCount.some(i => i.numAI > 0)).to.be.true;
 
-            const { shards, shardMap } = setupShards(false);
-
-            // run shards for 1 minute
-            let sentGlobalMessage: boolean = false;
-            const verifyGameLoop = (shard: Game, to: string, message: IShardMessage) => {
-                if (shard.serverType === EServerType.GLOBAL_STATE_NODE) {
-                    if (message.shardMessageType === EShardMessageType.GLOBAL_STATE) {
-                        const expectedMessage: IGlobalStateShardMessage = {
-                            shardMessageType: EShardMessageType.GLOBAL_STATE,
-                            factions: Object.values(shard.factions).map(f => f.serialize()),
-                            scoreBoard: shard.scoreBoard,
-                        };
-                        expect(message).to.deep.equal(expectedMessage, "Expected a message with Faction Data");
-                        sentGlobalMessage = true;
-                    }
+                // expect AI to be inside each AI shard's memory
+                for (const aiShard of aiShards) {
+                    expect(aiShard.monitoredShips.length).to.lessThanOrEqual(Math.ceil(sumAiLoadBalanceCount / aiShards.length), "Expected a even distribution of NPCs per AI Node.");
                 }
-            };
-            for (let i = 0; i < 10; i++) {
-                runGameLoop(shards, shardMap, verifyGameLoop);
-            }
-            expect(sentGlobalMessage).to.be.true;
+                expect(aiShards.some(i => i.monitoredShips.length > 0)).to.be.true;
+            });
+            it("each AI node should send data", function () {
+                this.timeout(5 * 60 * 1000);
+
+                const { shards, shardMap } = setupShards(false);
+
+                // run shards for 1 minute
+                let sentAiMessage: boolean = false;
+                const verifyGameLoop = (shard: Game, to: string, message: IShardMessage) => {
+                    if (shard.serverType === EServerType.AI_NODE) {
+                        if (message.shardMessageType === EShardMessageType.AI_PLAYER_DATA_STATE) {
+                            const expectedMessage: IAIPlayerDataStateShardMessage = {
+                                shardMessageType: EShardMessageType.AI_PLAYER_DATA_STATE,
+                                playerData: shard.playerData,
+                                ships: shard.ships.filter(s => shard.monitoredShips.includes(s.id)).map(s => ({
+                                    shipId: s.id,
+                                    shipKeys: s.activeKeys,
+                                    orders: s.orders.map(o => o.serialize()),
+                                    pathFinding: s.pathFinding.serialize(),
+                                    fireControl: s.fireControl.serialize()
+                                }))
+                            };
+                            expect(message).to.deep.equal(expectedMessage, "Expected a message containing all NPC Data.");
+                            sentAiMessage = true;
+                        }
+                    }
+                };
+                for (let i = 0; i < 10; i++) {
+                    runGameLoop(shards, shardMap, verifyGameLoop);
+                }
+                expect(sentAiMessage).to.be.true;
+            });
+            it("each Physics node should send data", function () {
+                this.timeout(5 * 60 * 1000);
+
+                const { shards, shardMap } = setupShards(false);
+
+                // run shards for 1 minute
+                let sentPhysicsMessage: boolean = false;
+                const verifyGameLoop = (shard: Game, to: string, message: IShardMessage) => {
+                    if (shard.serverType === EServerType.PHYSICS_NODE) {
+                        const isInKingdom = (c: ICameraState): boolean => {
+                            const planet = shard.voronoiTerrain.getNearestPlanet(c.position.rotateVector([0, 0, 1]));
+                            return shard.voronoiTerrain.kingdoms.indexOf(planet.county.duchy.kingdom) === shard.physicsKingdomIndex;
+                        };
+                        if (message.shardMessageType === EShardMessageType.PHYSICS_DATA_STATE) {
+                            const expectedMessage: IPhysicsDataStateShardMessage = {
+                                shardMessageType: EShardMessageType.PHYSICS_DATA_STATE,
+                                ships: shard.ships.filter(isInKingdom).map(s => s.serialize()),
+                                cannonBalls: shard.cannonBalls.filter(isInKingdom).map(c => c.serialize()),
+                                crates: shard.crates.filter(isInKingdom).map(c => c.serialize()),
+                                planets: shard.planets.filter(isInKingdom).map(p => p.serializeFull()),
+                                transferIds: [],
+                            };
+                            expect(message).to.deep.equal(expectedMessage, "Expected a message containing all Physics Data.");
+                            sentPhysicsMessage = true;
+                        }
+                    }
+                };
+                for (let i = 0; i < 10; i++) {
+                    runGameLoop(shards, shardMap, verifyGameLoop);
+                }
+                expect(sentPhysicsMessage).to.be.true;
+            });
+            it("each Global State node should send data", function () {
+                this.timeout(5 * 60 * 1000);
+
+                const { shards, shardMap } = setupShards(false);
+
+                // run shards for 1 minute
+                let sentGlobalMessage: boolean = false;
+                const verifyGameLoop = (shard: Game, to: string, message: IShardMessage) => {
+                    if (shard.serverType === EServerType.GLOBAL_STATE_NODE) {
+                        if (message.shardMessageType === EShardMessageType.GLOBAL_STATE) {
+                            const expectedMessage: IGlobalStateShardMessage = {
+                                shardMessageType: EShardMessageType.GLOBAL_STATE,
+                                factions: Object.values(shard.factions).map(f => f.serialize()),
+                                scoreBoard: shard.scoreBoard,
+                            };
+                            expect(message).to.deep.equal(expectedMessage, "Expected a message with Faction Data");
+                            sentGlobalMessage = true;
+                        }
+                    }
+                };
+                for (let i = 0; i < 10; i++) {
+                    runGameLoop(shards, shardMap, verifyGameLoop);
+                }
+                expect(sentGlobalMessage).to.be.true;
+            });
+        });
+        describe("score board", () => {
+            it("should add damage", function () {
+                this.timeout(5 * 60 * 1000);
+
+                const { shards, shardMap, loadBalancerShard } = setupShards(true);
+                loginShard(shards, shardMap, loadBalancerShard);
+
+                const globalShard = shards.find(s => s.serverType === EServerType.GLOBAL_STATE_NODE);
+                const damageAmount = 1000;
+                const addDamageMessage: IDamageScoreShardMessage = {
+                    shardMessageType: EShardMessageType.DAMAGE_SCORE,
+                    playerId: globalShard.playerData[0].id,
+                    name: globalShard.playerData[0].name,
+                    damage: damageAmount
+                };
+                globalShard.incomingShardMessages.push(["blah", addDamageMessage]);
+
+                for (let i = 0; i < 10; i++) {
+                    runGameLoop(shards, shardMap);
+                }
+                expect(globalShard.scoreBoard.damage).to.deep.equal([{
+                    playerId: globalShard.playerData[0].id,
+                    name: globalShard.playerData[0].name,
+                    damage: damageAmount
+                }]);
+            });
+            it("should add loot", function () {
+                this.timeout(5 * 60 * 1000);
+
+                const { shards, shardMap, loadBalancerShard } = setupShards(true);
+                loginShard(shards, shardMap, loadBalancerShard);
+
+                const globalShard = shards.find(s => s.serverType === EServerType.GLOBAL_STATE_NODE);
+                const lootAmount = 10;
+                const addDamageMessage: ILootScoreShardMessage = {
+                    shardMessageType: EShardMessageType.LOOT_SCORE,
+                    playerId: globalShard.playerData[0].id,
+                    name: globalShard.playerData[0].name,
+                    count: lootAmount
+                };
+                globalShard.incomingShardMessages.push(["blah", addDamageMessage]);
+
+                for (let i = 0; i < 10; i++) {
+                    runGameLoop(shards, shardMap);
+                }
+                expect(globalShard.scoreBoard.loot).to.deep.equal([{
+                    playerId: globalShard.playerData[0].id,
+                    name: globalShard.playerData[0].name,
+                    count: lootAmount
+                }]);
+            });
+            it("should add money", function () {
+                this.timeout(5 * 60 * 1000);
+
+                const { shards, shardMap, loadBalancerShard } = setupShards(true);
+                loginShard(shards, shardMap, loadBalancerShard);
+
+                const globalShard = shards.find(s => s.serverType === EServerType.GLOBAL_STATE_NODE);
+
+                for (let i = 0; i < 10; i++) {
+                    runGameLoop(shards, shardMap);
+                }
+                expect(globalShard.scoreBoard.money).to.deep.equal([{
+                    playerId: globalShard.playerData[0].id,
+                    name: globalShard.playerData[0].name,
+                    amount: globalShard.playerData[0].moneyAccount.currencies.find(c => c.currencyId === "GOLD").amount * 1000
+                }]);
+            });
+            it("should invest money", function () {
+                this.timeout(5 * 60 * 1000);
+
+                // setup test
+                const { shards, shardMap, loadBalancerShard } = setupShards(true);
+                loginShard(shards, shardMap, loadBalancerShard);
+                const globalShard = shards.find(s => s.serverType === EServerType.GLOBAL_STATE_NODE);
+                const dutchHomeWorldId = globalShard.factions[EFaction.DUTCH].homeWorldPlanetId;
+                const dutchHomeWorld = globalShard.planets.find(p => p.id === dutchHomeWorldId);
+
+                // get initial amount
+                for (let i = 0; i < 10; i++) {
+                    runGameLoop(shards, shardMap);
+                }
+                const initialAmount = globalShard.playerData[0].moneyAccount.currencies.find(c => c.currencyId === "GOLD").amount * 1000;
+                expect(globalShard.scoreBoard.money).to.deep.equal([{
+                    playerId: globalShard.playerData[0].id,
+                    name: globalShard.playerData[0].name,
+                    amount: initialAmount
+                }]);
+
+                // deposit 1000 into investments
+                const depositAmount = 1000;
+                const depositMessage: IInvestDepositMessage = {
+                    messageType: EMessageType.INVEST_DEPOSIT,
+                    planetId: dutchHomeWorldId,
+                    amount: depositAmount
+                };
+                networkGame.incomingMessages.push(["test", depositMessage]);
+
+                // run for 10 minutes
+                for (let i = 0; i < 10 * 60 * 10; i++) {
+                    runGameLoop(shards, shardMap);
+                }
+
+                // check final amount after 10 minutes
+                const finalAmount = (
+                    globalShard.playerData[0].moneyAccount.currencies.find(c => c.currencyId === "GOLD").amount +
+                    dutchHomeWorld.investmentAccounts.get("test").amount
+                    ) * 1000;
+                expect(globalShard.scoreBoard.money).to.deep.equal([{
+                    playerId: globalShard.playerData[0].id,
+                    name: globalShard.playerData[0].name,
+                    amount: finalAmount
+                }]);
+                expect(finalAmount).to.be.greaterThan(initialAmount);
+
+                // withdraw money
+                const withdrawalAmount = dutchHomeWorld.investmentAccounts.get("test").amount;
+                const withdrawalMessage: IInvestWithdrawalMessage = {
+                    messageType: EMessageType.INVEST_WITHDRAWAL,
+                    planetId: dutchHomeWorldId,
+                    amount: withdrawalAmount
+                };
+                networkGame.incomingMessages.push(["test", withdrawalMessage]);
+
+                // run for 1 minute
+                for (let i = 0; i < 10 * 60 * 10; i++) {
+                    runGameLoop(shards, shardMap);
+                }
+
+                // the final amount is the same
+                expect(globalShard.scoreBoard.money).to.deep.equal([{
+                    playerId: globalShard.playerData[0].id,
+                    name: globalShard.playerData[0].name,
+                    amount: finalAmount
+                }]);
+            });
         });
         const testPhysicsNodeTravel = function () {
             this.timeout(5 * 60 * 1000);
