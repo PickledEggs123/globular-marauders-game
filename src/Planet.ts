@@ -41,6 +41,7 @@ import {
 import {ISerializedPlanetaryCurrencySystem, PlanetaryCurrencySystem} from "./PlanetaryCurrencySystem";
 import {ISerializedPlanetaryMoneyAccount} from "./PlanetaryEconomyDemand";
 import {ISerializedPlanetaryEconomySystem, PlanetaryEconomySystem} from "./PlanetaryEconomySystem";
+import * as faker from "faker";
 
 export interface IResourceExported {
     resourceType: EResourceType;
@@ -134,6 +135,7 @@ export class Planet implements ICameraState {
     public orientationVelocity: Quaternion = Quaternion.ONE;
     public color: string = "blue";
     public size: number = 3;
+    public name: string;
 
     // population properties
     public settlementProgress: number = 0;
@@ -483,6 +485,9 @@ export class Planet implements ICameraState {
     constructor(instance: Game, county: VoronoiCounty) {
         this.instance = instance;
         this.county = county;
+
+        // initialize name
+        this.name = faker.address.cityName();
 
         // initialize the natural resources
         this.naturalResources = [];

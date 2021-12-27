@@ -82,11 +82,44 @@ export class LuxuryBuff {
     }
 }
 
+/**
+ * A list of which planet is owned by which player.
+ */
+export interface IFactionPlanetRoster {
+    factionId: EFaction;
+    kingdomId: string;
+    duchyId: string;
+    countyId: string;
+    playerId: string;
+}
+
+/**
+ * A pair of planetId and playerId;
+ */
+export interface IPlanetPlayerPair {
+    planetId: string;
+    playerId: string;
+}
+
+/**
+ * A list showing the imperial ranks of all faction players.
+ */
+export interface IFactionPlayerRoyalTitles {
+    counts: IPlanetPlayerPair[];
+    barons: IPlanetPlayerPair[];
+    dukes: IPlanetPlayerPair[];
+    archDukes: IPlanetPlayerPair[];
+    kings: IPlanetPlayerPair[];
+    emperors: IPlanetPlayerPair[];
+}
+
 export interface ISerializedFaction {
     id: EFaction;
     factionColor: string;
     homeWorldPlanetID: string;
     planetIds: string[];
+    factionPlanetRoster: IFactionPlanetRoster[];
+    factionPlayerRoyalTitles: IFactionPlayerRoyalTitles;
     shipIds: string[];
     shipsAvailable: Record<EShipType, number>;
 }
@@ -116,6 +149,21 @@ export class Faction {
      */
     public planetIds: string[] = [];
     /**
+     * A list of planet ids owned by players in this faction.
+     */
+    public factionPlanetRoster: IFactionPlanetRoster[] = [];
+    /**
+     * A list of player ranks by planets owned.
+     */
+    public factionPlayerRoyalTitles: IFactionPlayerRoyalTitles = {
+        counts: [],
+        barons: [],
+        dukes: [],
+        archDukes: [],
+        kings: [],
+        emperors: []
+    };
+    /**
      * A list of ship ids owned by this faction.
      */
     public shipIds: string[] = [];
@@ -134,6 +182,8 @@ export class Faction {
             factionColor: this.factionColor,
             homeWorldPlanetID: this.homeWorldPlanetId,
             planetIds: this.planetIds,
+            factionPlanetRoster: this.factionPlanetRoster,
+            factionPlayerRoyalTitles: this.factionPlayerRoyalTitles,
             shipIds: this.shipIds,
             shipsAvailable: this.shipsAvailable
         };
@@ -144,6 +194,8 @@ export class Faction {
         this.factionColor = data.factionColor;
         this.homeWorldPlanetId = data.homeWorldPlanetID;
         this.planetIds = [...data.planetIds];
+        this.factionPlanetRoster = [...data.factionPlanetRoster];
+        this.factionPlayerRoyalTitles = {...data.factionPlayerRoyalTitles};
         this.shipIds = [...data.shipIds];
         this.shipsAvailable = {...data.shipsAvailable};
     }
@@ -185,6 +237,124 @@ export class Faction {
      * Faction AI loop.
      */
     public handleFactionLoop() {
+        // recompute player titles from planets owned.
+
+        // counts
+        this.factionPlayerRoyalTitles.counts = this.factionPlanetRoster.filter(p => p.playerId !== null).map((i) => ({
+            playerId: i.playerId,
+            planetId: i.countyId,
+        }));
+
+        // baron and dukes
+        const expandedCounts = this.factionPlanetRoster.reduce((acc, i) => {
+            const oldItem = acc.find(item => item.kingdomId === i.kingdomId && item.duchyId === i.duchyId && item.playerId === i.playerId);
+            if (oldItem) {
+                oldItem.count += 1;
+            } else {
+                acc.push({
+                    kingdomId: i.kingdomId,
+                    duchyId: i.duchyId,
+                    playerId: i.playerId,
+                    count: 1,
+                });
+            }
+            return acc;
+        }, [] as Array<{kingdomId: string, duchyId: string, playerId: string, count: number}>);
+        this.factionPlayerRoyalTitles.barons = expandedCounts.filter((i) => {
+            return i.count >= 2 && i.count < 3;
+        }).map((i) => ({
+            planetId: i.duchyId,
+            playerId: i.playerId,
+        }));
+        this.factionPlayerRoyalTitles.dukes = expandedCounts.filter((i) => {
+            return i.count >= 3;
+        }).map((i) => ({
+            planetId: i.duchyId,
+            playerId: i.playerId,
+        }));
+
+        // arch dukes and kings
+        const expandedDukes = this.factionPlayerRoyalTitles.dukes.map((i) => ({
+            kingdomId: this.instance.planets.find(p => p.id === i.planetId).county.duchy.kingdom.capital.capital.capital.id,
+            duchyId: i.planetId,
+            playerId: i.playerId,
+        })).reduce((acc, i) => {
+            const oldItem = acc.find(item => item.kingdomId === i.kingdomId && item.playerId === i.playerId);
+            if (oldItem) {
+                oldItem.domainCount += 1;
+            } else {
+                acc.push({
+                    kingdomId: i.kingdomId,
+                    playerId: i.playerId,
+                    domainCount: 1
+                });
+            }
+            return acc;
+        }, [] as Array<{kingdomId: string, playerId: string, domainCount: number}>).map((i): {kingdomId: string, playerId: string, domainCount: number, capitalCount: number} => {
+            const capitalCount = this.factionPlanetRoster.filter(p => p.playerId === i.playerId && p.kingdomId === i.kingdomId).filter(p => {
+                const planet = this.instance.planets.find(pl => pl.id === p.countyId);
+                if (planet) {
+                    return planet.isDuchyCapital();
+                } else {
+                    return false;
+                }
+            }).length;
+            return {
+                kingdomId: i.kingdomId,
+                playerId: i.playerId,
+                domainCount: i.domainCount,
+                capitalCount,
+            };
+        });
+        this.factionPlayerRoyalTitles.archDukes = expandedDukes.filter((i) => {
+            return i.domainCount >= 1 && i.capitalCount >= 1 && i.capitalCount < 2;
+        }).map((i) => ({
+            planetId: i.kingdomId,
+            playerId: i.playerId,
+        }));
+        this.factionPlayerRoyalTitles.kings = expandedDukes.filter((i) => {
+            return i.domainCount >= 1 && i.capitalCount >= 2;
+        }).map((i) => ({
+            planetId: i.kingdomId,
+            playerId: i.playerId,
+        }));
+
+        // emperors
+        const expandedKings = this.factionPlayerRoyalTitles.kings.map((i) => ({
+            kingdomId: i.planetId,
+            playerId: i.playerId,
+        })).reduce((acc, i) => {
+            const oldItem = acc.find(item => item.playerId === i.playerId);
+            if (oldItem) {
+                oldItem.domainCount += 1;
+            } else {
+                acc.push({
+                    playerId: i.playerId,
+                    domainCount: 1
+                });
+            }
+            return acc;
+        }, [] as Array<{playerId: string, domainCount: number}>).map((i): {playerId: string, domainCount: number, capitalCount: number} => {
+            const capitalCount = this.factionPlanetRoster.filter(p => p.playerId === i.playerId).filter(p => {
+                const planet = this.instance.planets.find(pl => pl.id === p.countyId);
+                if (planet) {
+                    return planet.isKingdomCapital();
+                } else {
+                    return false;
+                }
+            }).length;
+            return {
+                playerId: i.playerId,
+                domainCount: i.domainCount,
+                capitalCount,
+            };
+        });
+        this.factionPlayerRoyalTitles.emperors = expandedKings.filter((i) => {
+            return i.domainCount >= 1 && i.capitalCount >= 1;
+        }).map((i) => ({
+            planetId: this.homeWorldPlanetId,
+            playerId: i.playerId,
+        }));
     }
 
     public handleShipDestroyed(ship: Ship) {
