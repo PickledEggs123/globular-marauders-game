@@ -359,7 +359,7 @@ describe("faction", () => {
                 emperors: [{
                     planetId: game.factions[factionId].homeWorldPlanetId,
                     playerId,
-                }]
+                }],
             });
         });
     });

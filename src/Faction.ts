@@ -275,7 +275,7 @@ export class Faction {
 
         // arch dukes and kings
         const expandedDukes = this.factionPlayerRoyalTitles.dukes.map((i) => ({
-            kingdomId: this.instance.planets.find(p => p.id === i.planetId).county.duchy.kingdom.capital.capital.capital.id,
+            kingdomId: this.instance.planets.find(p => p.id === i.planetId).county.duchy.kingdom?.capital?.capital?.capital.id,
             duchyId: i.planetId,
             playerId: i.playerId,
         })).reduce((acc, i) => {
@@ -294,7 +294,7 @@ export class Faction {
             const capitalCount = this.factionPlanetRoster.filter(p => p.playerId === i.playerId && p.kingdomId === i.kingdomId).filter(p => {
                 const planet = this.instance.planets.find(pl => pl.id === p.countyId);
                 if (planet) {
-                    return planet.isDuchyCapital();
+                    return planet.isDuchyCapital() || planet.isKingdomCapital();
                 } else {
                     return false;
                 }

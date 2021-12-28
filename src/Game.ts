@@ -19,7 +19,7 @@ import {
     IInvestDepositShardMessage, IInvestWithdrawShardMessage,
     ILootScoreShardMessage,
     IPhysicsDataStateShardMessage,
-    IScoreBoard,
+    IScoreBoard, IScoreBoardLandItem,
     IScoreBoardMoneyItem,
     IShardListItem,
     IShardMessage,
@@ -2390,6 +2390,46 @@ export class Game {
                 }
             }
             this.scoreBoard.money = this.scoreBoard.money.sort((a, b) => b.amount - a.amount);
+
+            // sort land ownership
+            this.scoreBoard.land = Object.values(this.factions).reduce((acc, i) => {
+                acc.push(...i.factionPlayerRoyalTitles.counts.reduce((acc2, j) => {
+                    const oldItem = acc2.find(k => k.playerId === j.playerId);
+                    // county titles are one point
+                    if (oldItem) {
+                        oldItem.amount += 1;
+                    } else {
+                        acc2.push({
+                            playerId: j.playerId,
+                            name: this.playerData.find(p => p.id === j.playerId)?.name ?? j.playerId,
+                            amount: 1,
+                        });
+                    }
+                    return acc2;
+                }, [] as IScoreBoardLandItem[]).map((j) => {
+                    // baron titles are two points
+                    j.amount += i.factionPlayerRoyalTitles.barons.filter(k => k.playerId === j.playerId).length * 2;
+                    return j;
+                }).map((j) => {
+                    // duke titles are three points
+                    j.amount += i.factionPlayerRoyalTitles.dukes.filter(k => k.playerId === j.playerId).length * 3;
+                    return j;
+                }).map((j) => {
+                    // arch duke titles are four points
+                    j.amount += i.factionPlayerRoyalTitles.archDukes.filter(k => k.playerId === j.playerId).length * 4;
+                    return j;
+                }).map((j) => {
+                    // king titles are five points
+                    j.amount += i.factionPlayerRoyalTitles.kings.filter(k => k.playerId === j.playerId).length * 5;
+                    return j;
+                }).map((j) => {
+                    // emperor titles are six points
+                    j.amount += i.factionPlayerRoyalTitles.emperors.filter(k => k.playerId === j.playerId).length * 6;
+                    return j;
+                }));
+                return acc;
+            }, [] as IScoreBoardLandItem[]);
+            this.scoreBoard.land.sort(((a, b) => b.amount - a.amount));
         }
         this.handleServerShardPostLoop();
     }
