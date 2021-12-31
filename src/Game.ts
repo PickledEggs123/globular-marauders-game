@@ -7,7 +7,7 @@ import {
     EShardMessageType,
     IAIPlayerDataStateShardMessage,
     IAiShardCountItem,
-    ICameraState,
+    ICameraState, IClaimPlanetShardMessage,
     ICollidable,
     IDamageScoreShardMessage,
     IDeathShardMessage,
@@ -16,10 +16,12 @@ import {
     IFetchOrderResultShardMessage,
     IFetchOrderShardMessage,
     IGlobalStateShardMessage,
-    IInvestDepositShardMessage, IInvestWithdrawShardMessage,
+    IInvestDepositShardMessage,
+    IInvestWithdrawShardMessage,
     ILootScoreShardMessage,
     IPhysicsDataStateShardMessage,
-    IScoreBoard, IScoreBoardLandItem,
+    IScoreBoard,
+    IScoreBoardLandItem,
     IScoreBoardMoneyItem,
     IShardListItem,
     IShardMessage,
@@ -111,6 +113,7 @@ export enum EMessageType {
     JOIN_RESULT = "JOIN_RESULT",
     CHOOSE_FACTION = "CHOOSE_FACTION",
     CHOOSE_PLANET = "CHOOSE_PLANET",
+    CLAIM_PLANET = "CLAIM_PLANET",
     SPAWN = "SPAWN",
     DEATH = "DEATH",
     INVEST_DEPOSIT = "INVEST_DEPOSIT",
@@ -141,6 +144,12 @@ export interface IChooseFactionMessage extends IMessage {
 export interface IChoosePlanetMessage extends IMessage {
     messageType: EMessageType.CHOOSE_PLANET;
     planetId: string | null;
+}
+
+export interface IClaimPlanetMessage extends IMessage {
+    messageType: EMessageType.CLAIM_PLANET;
+    planetId: string;
+    factionId: string;
 }
 
 export interface ISpawnMessage extends IMessage {
@@ -746,7 +755,7 @@ export class Game {
             const planet = this.planets.find(p => p.id === planetId);
             if (planet) {
                 planet.setAsStartingCapital();
-                planet.claim(faction);
+                planet.claim(faction, false);
             }
             if (planet && !this.isTestMode) {
                 for (let numShipsToStartWith = 0; numShipsToStartWith < 10; numShipsToStartWith++) {
@@ -1231,6 +1240,15 @@ export class Game {
                                 bestShardCount.numAI += 1;
                                 break;
                             }
+                            case EShardMessageType.CLAIM_PLANET: {
+                                // forward message to all nodes except the sender node
+                                for (const shard of this.shardList) {
+                                    if (![this.shardName, fromShardName].includes(shard.name) && [EServerType.GLOBAL_STATE_NODE, EServerType.AI_NODE, EServerType.PHYSICS_NODE].includes(shard.type)) {
+                                        this.outgoingShardMessages.push([shard.name, message]);
+                                    }
+                                }
+                                break;
+                            }
                         }
                         break;
                     }
@@ -1274,6 +1292,17 @@ export class Game {
                                     });
                                 }
                                 this.scoreBoard.loot.sort((a, b) => b.count - a.count);
+                                break;
+                            }
+                            case EShardMessageType.CLAIM_PLANET: {
+                                const {
+                                    planetId,
+                                    factionId
+                                } = message as IClaimPlanetShardMessage;
+
+                                const faction = this.factions[factionId];
+                                const planet = this.planets.find(p => p.id === planetId);
+                                planet.claim(faction, false);
                                 break;
                             }
                             case EShardMessageType.AI_PLAYER_DATA_STATE: {
@@ -1342,6 +1371,26 @@ export class Game {
                                 const loadBalancer = this.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
                                 if (loadBalancer) {
                                     this.outgoingShardMessages.push([loadBalancer.name, message]);
+                                }
+                                break;
+                            }
+                            case EShardMessageType.CLAIM_PLANET: {
+                                const {
+                                    planetId,
+                                    factionId
+                                } = message as IClaimPlanetShardMessage;
+
+                                const faction = this.factions[factionId];
+                                const planet = this.planets.find(p => p.id === planetId);
+                                planet.claim(faction, false);
+
+                                const claimPlanetMessage: IClaimPlanetMessage = {
+                                    messageType: EMessageType.CLAIM_PLANET,
+                                    planetId,
+                                    factionId,
+                                };
+                                for (const playerData of this.playerData) {
+                                    this.outgoingMessages.push([playerData.id, claimPlanetMessage]);
                                 }
                                 break;
                             }
@@ -1421,6 +1470,17 @@ export class Game {
                                     shipId: playerShip.id
                                 };
                                 this.outgoingShardMessages.push([fromShardName, spawnShipResultMessage]);
+                                break;
+                            }
+                            case EShardMessageType.CLAIM_PLANET: {
+                                const {
+                                    planetId,
+                                    factionId
+                                } = message as IClaimPlanetShardMessage;
+
+                                const faction = this.factions[factionId];
+                                const planet = this.planets.find(p => p.id === planetId);
+                                planet.claim(faction, false);
                                 break;
                             }
                             case EShardMessageType.INVEST_DEPOSIT_AMOUNT: {

@@ -294,7 +294,7 @@ export class Faction {
             const capitalCount = this.factionPlanetRoster.filter(p => p.playerId === i.playerId && p.kingdomId === i.kingdomId).filter(p => {
                 const planet = this.instance.planets.find(pl => pl.id === p.countyId);
                 if (planet) {
-                    return planet.isDuchyCapital() || planet.isKingdomCapital();
+                    return planet.isDuchyCapital() || planet.isKingdomCapital() || planet.isImperialCapital();
                 } else {
                     return false;
                 }
@@ -307,13 +307,13 @@ export class Faction {
             };
         });
         this.factionPlayerRoyalTitles.archDukes = expandedDukes.filter((i) => {
-            return i.domainCount >= 1 && i.capitalCount >= 1 && i.capitalCount < 2;
+            return i.domainCount >= 1 && i.capitalCount >= 2 && i.capitalCount < 3;
         }).map((i) => ({
             planetId: i.kingdomId,
             playerId: i.playerId,
         }));
         this.factionPlayerRoyalTitles.kings = expandedDukes.filter((i) => {
-            return i.domainCount >= 1 && i.capitalCount >= 2;
+            return i.domainCount >= 1 && i.capitalCount >= 3;
         }).map((i) => ({
             planetId: i.kingdomId,
             playerId: i.playerId,
@@ -338,7 +338,7 @@ export class Faction {
             const capitalCount = this.factionPlanetRoster.filter(p => p.playerId === i.playerId).filter(p => {
                 const planet = this.instance.planets.find(pl => pl.id === p.countyId);
                 if (planet) {
-                    return planet.isKingdomCapital();
+                    return planet.isKingdomCapital() || planet.isImperialCapital();
                 } else {
                     return false;
                 }
@@ -350,7 +350,7 @@ export class Faction {
             };
         });
         this.factionPlayerRoyalTitles.emperors = expandedKings.filter((i) => {
-            return i.domainCount >= 1 && i.capitalCount >= 1;
+            return i.domainCount >= 1 && i.capitalCount >= 2;
         }).map((i) => ({
             planetId: this.homeWorldPlanetId,
             playerId: i.playerId,

@@ -473,7 +473,7 @@ describe("shard tests", () => {
                 const physicsNodes: Game[] = kingdomIds.map(kingdomId => shards.find(s => s.serverType === EServerType.PHYSICS_NODE && s.physicsKingdomIndex === kingdomId));
                 const kingdoms: VoronoiKingdom[] = physicsNodes.map(n => n.voronoiTerrain.kingdoms[n.physicsKingdomIndex]);
                 for (const kingdom of kingdoms) {
-                    kingdom.duchies.forEach(d => d.counties.forEach(c => c.planet.claim(kingdom.app.factions[EFaction.DUTCH])));
+                    kingdom.duchies.forEach(d => d.counties.forEach(c => c.planet.claim(kingdom.app.factions[EFaction.DUTCH], true)));
                 }
                 runGameLoop(shards, shardMap);
                 runGameLoop(shards, shardMap);
@@ -551,25 +551,25 @@ describe("shard tests", () => {
                 globalShard.factions[EFaction.DUTCH].factionPlanetRoster.push({
                     factionId: EFaction.DUTCH,
                     playerId: "archDuke",
-                    kingdomId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].counties[0].capital.id,
-                    duchyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].counties[0].capital.id,
+                    kingdomId: kingdoms[1].capital.capital.capital.id,
+                    duchyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].capital.capital.id,
                     countyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].counties[0].capital.id,
                 }, {
                     factionId: EFaction.DUTCH,
                     playerId: "archDuke",
-                    kingdomId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].counties[0].capital.id,
-                    duchyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].counties[0].capital.id,
+                    kingdomId: kingdoms[1].capital.capital.capital.id,
+                    duchyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].capital.capital.id,
                     countyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].counties[1].capital.id,
                 }, {
                     factionId: EFaction.DUTCH,
                     playerId: "archDuke",
-                    kingdomId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].counties[0].capital.id,
-                    duchyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].counties[0].capital.id,
+                    kingdomId: kingdoms[1].capital.capital.capital.id,
+                    duchyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].capital.capital.id,
                     countyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].counties[2].capital.id,
                 }, {
                     factionId: EFaction.DUTCH,
                     playerId: "archDuke",
-                    kingdomId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].counties[0].capital.id,
+                    kingdomId: kingdoms[1].capital.capital.capital.id,
                     duchyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[1].capital.capital.id,
                     countyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[1].capital.capital.id,
                 });
@@ -617,19 +617,31 @@ describe("shard tests", () => {
                 runGameLoop(shards, shardMap);
 
                 // check score board
-                expect(globalShard.scoreBoard.land.length).to.equal(6);
-                expect(globalShard.scoreBoard.land[0].playerId).to.equal("emperor");
-                expect(globalShard.scoreBoard.land[0].amount).to.equal(15);
-                expect(globalShard.scoreBoard.land[1].playerId).to.equal("king");
-                expect(globalShard.scoreBoard.land[1].amount).to.equal(13);
-                expect(globalShard.scoreBoard.land[2].playerId).to.equal("archDuke");
-                expect(globalShard.scoreBoard.land[2].amount).to.equal(11);
-                expect(globalShard.scoreBoard.land[3].playerId).to.equal("duke");
-                expect(globalShard.scoreBoard.land[3].amount).to.equal(6);
-                expect(globalShard.scoreBoard.land[4].playerId).to.equal("baron");
-                expect(globalShard.scoreBoard.land[4].amount).to.equal(4);
-                expect(globalShard.scoreBoard.land[5].playerId).to.equal("count");
-                expect(globalShard.scoreBoard.land[5].amount).to.equal(1);
+                expect(globalShard.scoreBoard.land).to.deep.equal([{
+                    playerId: "emperor",
+                    name: "emperor",
+                    amount: 20,
+                }, {
+                    playerId: "king",
+                    name: "king",
+                    amount: 13,
+                }, {
+                    playerId: "archDuke",
+                    name: "archDuke",
+                    amount: 11,
+                }, {
+                    playerId: "duke",
+                    name: "duke",
+                    amount: 6,
+                }, {
+                    playerId: "baron",
+                    name: "baron",
+                    amount: 4,
+                }, {
+                    playerId: "count",
+                    name: "count",
+                    amount: 1,
+                }]);
             })
         });
         const testPhysicsNodeTravel = function () {

@@ -2,7 +2,9 @@ import {
     EServerType,
     ESettlementLevel,
     EShardMessageType,
-    ICameraState, ICurrency,
+    ICameraState,
+    IClaimPlanetShardMessage,
+    ICurrency,
     IExplorationGraphData,
     ILootScoreShardMessage,
     ISpawnAiShardMessage,
@@ -509,7 +511,20 @@ export class Planet implements ICameraState {
         ];
     }
 
-    public claim(faction: Faction) {
+    public claim(faction: Faction, shouldNetwork: boolean) {
+        if (shouldNetwork) {
+            if ([EServerType.AI_NODE, EServerType.PHYSICS_NODE].includes(this.instance.serverType)) {
+                const claimMessage: IClaimPlanetShardMessage = {
+                    shardMessageType: EShardMessageType.CLAIM_PLANET,
+                    factionId: faction.id,
+                    planetId: this.id,
+                    fromShard: this.instance.shardName
+                };
+                const loadBalancerShard = this.instance.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+                this.instance.outgoingShardMessages.push([loadBalancerShard.name, claimMessage]);
+            }
+        }
+
         this.county.claim(faction);
 
         // build exploration graph for which planets to explore and in what order
