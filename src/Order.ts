@@ -235,7 +235,7 @@ export class Order {
             throw new Error("Could not find home world for pathing back to home world (SETTLE)");
         }
 
-        homeWorld.trade(this.owner);
+        homeWorld.trade(this.owner, true);
     }
 
     public beginTradeMission() {
@@ -244,7 +244,7 @@ export class Order {
             throw new Error("Could not find home world for pathing back to home world (FEUDAL_TRADE)");
         }
 
-        homeWorld.trade(this.owner);
+        homeWorld.trade(this.owner, true);
     }
 
     public beginFairTradeMission() {
@@ -257,7 +257,7 @@ export class Order {
             throw new Error("Could not find trade deal to perform fair trade (FAIR_TRADE");
         }
 
-        homeWorld.trade(this.owner, false, this.tradeDeal.fromResourceType);
+        homeWorld.trade(this.owner, true, false, this.tradeDeal.fromResourceType);
     }
 
     public transferToNewLord() {
@@ -266,7 +266,7 @@ export class Order {
             throw new Error("Could not find lord world for pathing back to home world (TRIBUTE)");
         }
 
-        newLordWorld.tribute(this.owner);
+        newLordWorld.tribute(this.owner, true);
     }
 
     public beginPirateMission() {
@@ -275,7 +275,7 @@ export class Order {
             throw new Error("Could not find home world for pathing back to home world (PIRATE)");
         }
 
-        homeWorld.trade(this.owner, true);
+        homeWorld.trade(this.owner, true, true);
     }
 
     public updateSettlementProgress() {
@@ -310,7 +310,7 @@ export class Order {
             }
 
             // trade with homeWorld
-            colonyWorld.trade(this.owner);
+            colonyWorld.trade(this.owner, true);
         }
     }
 
@@ -323,7 +323,7 @@ export class Order {
             throw new Error("Could not find home world for pathing back to home world (TRADE)");
         }
 
-        colonyWorld.trade(this.owner);
+        colonyWorld.trade(this.owner, true);
     }
 
     public fairTradeWithOtherPlanet() {
@@ -338,7 +338,7 @@ export class Order {
             throw new Error("Could not find trade deal to perform fair trade (FAIR_TRADE)");
         }
 
-        otherWorld.trade(this.owner, false, this.tradeDeal.toResourceType);
+        otherWorld.trade(this.owner, true, false, this.tradeDeal.toResourceType);
     }
 
     private roam() {

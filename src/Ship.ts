@@ -577,7 +577,7 @@ export class Ship implements IAutomatedShip {
         // register a destroyed ship with the faction
         // incorrect behavior, the faction should think the ship is destroyed after a timeout
         if (this.planet) {
-            this.planet.handleShipDestroyed(this);
+            this.planet.handleShipDestroyed(this, true);
         }
         if (this.faction) {
             this.faction.handleShipDestroyed(this);

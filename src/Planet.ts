@@ -4,11 +4,11 @@ import {
     EShardMessageType,
     ICameraState,
     IClaimPlanetShardMessage,
-    ICurrency,
+    ICurrency, IDestroyShipPlanetShardMessage,
     IExplorationGraphData,
     ILootScoreShardMessage,
     ISpawnAiShardMessage,
-    ITradeDeal,
+    ITradeDeal, ITradeShipPlanetShardMessage, ITributeShipPlanetShardMessage,
     MoneyAccount
 } from "./Interface";
 import Quaternion from "quaternion";
@@ -1655,7 +1655,18 @@ export class Planet implements ICameraState {
         }
     }
 
-    public handleShipDestroyed(ship: Ship) {
+    public handleShipDestroyed(ship: Ship, shouldNetwork: boolean) {
+        if (shouldNetwork && [EServerType.AI_NODE, EServerType.PHYSICS_NODE].includes(this.instance.serverType)) {
+            const claimMessage: IDestroyShipPlanetShardMessage = {
+                shardMessageType: EShardMessageType.DESTROY_SHIP_PLANET,
+                planetId: this.id,
+                shipId: ship.id,
+            };
+            const loadBalancerShard = this.instance.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+            this.instance.outgoingShardMessages.push([loadBalancerShard.name, claimMessage]);
+            return;
+        }
+
         // remove ship from exploration graph
         for (const order of ship.orders) {
             if (!order.planetId) {
@@ -1689,10 +1700,21 @@ export class Planet implements ICameraState {
         this.shipsAvailable[ship.shipType] -= 1;
     }
 
-    public tribute(ship: Ship) {
+    public tribute(ship: Ship, shouldNetwork: boolean) {
+        if (shouldNetwork && [EServerType.AI_NODE, EServerType.PHYSICS_NODE].includes(this.instance.serverType)) {
+            const claimMessage: ITributeShipPlanetShardMessage = {
+                shardMessageType: EShardMessageType.TRIBUTE_SHIP_PLANET,
+                planetId: this.id,
+                shipId: ship.id,
+            };
+            const loadBalancerShard = this.instance.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+            this.instance.outgoingShardMessages.push([loadBalancerShard.name, claimMessage]);
+            return;
+        }
+
         // remove ship from old planet's roster
         if (ship.planet) {
-            ship.planet.handleShipDestroyed(ship);
+            ship.planet.handleShipDestroyed(ship, false);
         }
 
         // add ship to new planet roster
@@ -1764,10 +1786,24 @@ export class Planet implements ICameraState {
     /**
      * The planet will trade with a ship.
      * @param ship
+     * @param shouldNetwork If the message should go over the network
      * @param unload if the ship will not take cargo
      * @param specificBuy a specific resource to buy
      */
-    trade(ship: Ship, unload: boolean = false, specificBuy: EResourceType | null = null) {
+    trade(ship: Ship, shouldNetwork: boolean, unload: boolean = false, specificBuy: EResourceType | null = null) {
+        if (shouldNetwork && [EServerType.AI_NODE, EServerType.PHYSICS_NODE].includes(this.instance.serverType)) {
+            const claimMessage: ITradeShipPlanetShardMessage = {
+                shardMessageType: EShardMessageType.TRADE_SHIP_PLANET,
+                planetId: this.id,
+                shipId: ship.id,
+                unload,
+                specificBuy
+            };
+            const loadBalancerShard = this.instance.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+            this.instance.outgoingShardMessages.push([loadBalancerShard.name, claimMessage]);
+            return;
+        }
+
         // a list of items to buy from ship and sell to ship
         let goodsToTake: EResourceType[] = [];
         let goodsToOffer: IResourceExported[] = [];

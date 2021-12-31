@@ -34,6 +34,9 @@ export enum EShardMessageType {
     DAMAGE_SCORE = "DAMAGE_SCORE",
     LOOT_SCORE = "LOOT_SCORE",
     CLAIM_PLANET = "CLAIM_PLANET",
+    DESTROY_SHIP_PLANET = "DESTROY_SHIP_PLANET",
+    TRIBUTE_SHIP_PLANET = "TRIBUTE_SHIP_PLANET",
+    TRADE_SHIP_PLANET = "TRADE_SHIP_PLANET",
     INVEST_DEPOSIT_AMOUNT = "INVEST_DEPOSIT_AMOUNT",
     INVEST_WITHDRAW_AMOUNT = "INVEST_WITHDRAW_AMOUNT",
     SPAWN_SHIP = "SPAWN_SHIP",
@@ -99,6 +102,26 @@ export interface IClaimPlanetShardMessage extends IShardMessage {
     planetId: string;
     factionId: string;
     fromShard: string;
+}
+
+export interface IDestroyShipPlanetShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.DESTROY_SHIP_PLANET;
+    planetId: string;
+    shipId: string;
+}
+
+export interface ITributeShipPlanetShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.TRIBUTE_SHIP_PLANET;
+    planetId: string;
+    shipId: string;
+}
+
+export interface ITradeShipPlanetShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.TRADE_SHIP_PLANET;
+    planetId: string;
+    shipId: string;
+    unload: boolean;
+    specificBuy: EResourceType | null;
 }
 
 export interface IInvestDepositShardMessage extends IShardMessage {

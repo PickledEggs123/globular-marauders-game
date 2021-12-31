@@ -10,7 +10,7 @@ import {
     ICameraState, IClaimPlanetShardMessage,
     ICollidable,
     IDamageScoreShardMessage,
-    IDeathShardMessage,
+    IDeathShardMessage, IDestroyShipPlanetShardMessage,
     IDirectedMarketTrade,
     IExpirableTicks,
     IFetchOrderResultShardMessage,
@@ -29,7 +29,7 @@ import {
     ISpawnAiResultShardMessage,
     ISpawnAiShardMessage,
     ISpawnResultShardMessage,
-    ISpawnShardMessage,
+    ISpawnShardMessage, ITradeShipPlanetShardMessage, ITributeShipPlanetShardMessage,
     MoneyAccount
 } from "./Interface";
 import {
@@ -1249,6 +1249,51 @@ export class Game {
                                 }
                                 break;
                             }
+                            case EShardMessageType.DESTROY_SHIP_PLANET: {
+                                // forward message to physics node
+                                const {
+                                    planetId
+                                } = message as IDestroyShipPlanetShardMessage;
+                                const planet = this.planets.find(p => p.id === planetId);
+                                if (planet) {
+                                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                                    const physicsNode = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                    if (physicsNode) {
+                                        this.outgoingShardMessages.push([physicsNode.name, message]);
+                                    }
+                                }
+                                break;
+                            }
+                            case EShardMessageType.TRIBUTE_SHIP_PLANET: {
+                                // forward message to physics node
+                                const {
+                                    planetId
+                                } = message as ITributeShipPlanetShardMessage;
+                                const planet = this.planets.find(p => p.id === planetId);
+                                if (planet) {
+                                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                                    const physicsNode = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                    if (physicsNode) {
+                                        this.outgoingShardMessages.push([physicsNode.name, message]);
+                                    }
+                                }
+                                break;
+                            }
+                            case EShardMessageType.TRADE_SHIP_PLANET: {
+                                // forward message to physics node
+                                const {
+                                    planetId
+                                } = message as ITradeShipPlanetShardMessage;
+                                const planet = this.planets.find(p => p.id === planetId);
+                                if (planet) {
+                                    const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
+                                    const physicsNode = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                    if (physicsNode) {
+                                        this.outgoingShardMessages.push([physicsNode.name, message]);
+                                    }
+                                }
+                                break;
+                            }
                         }
                         break;
                     }
@@ -1481,6 +1526,41 @@ export class Game {
                                 const faction = this.factions[factionId];
                                 const planet = this.planets.find(p => p.id === planetId);
                                 planet.claim(faction, false);
+                                break;
+                            }
+                            case EShardMessageType.DESTROY_SHIP_PLANET: {
+                                const {
+                                    planetId,
+                                    shipId
+                                } = message as IDestroyShipPlanetShardMessage;
+
+                                const ship = this.ships.find(p => p.id === shipId);
+                                const planet = this.planets.find(p => p.id === planetId);
+                                planet.handleShipDestroyed(ship, false);
+                                break;
+                            }
+                            case EShardMessageType.TRIBUTE_SHIP_PLANET: {
+                                const {
+                                    planetId,
+                                    shipId
+                                } = message as ITributeShipPlanetShardMessage;
+
+                                const ship = this.ships.find(p => p.id === shipId);
+                                const planet = this.planets.find(p => p.id === planetId);
+                                planet.tribute(ship, false);
+                                break;
+                            }
+                            case EShardMessageType.TRADE_SHIP_PLANET: {
+                                const {
+                                    planetId,
+                                    shipId,
+                                    unload,
+                                    specificBuy
+                                } = message as ITradeShipPlanetShardMessage;
+
+                                const ship = this.ships.find(p => p.id === shipId);
+                                const planet = this.planets.find(p => p.id === planetId);
+                                planet.trade(ship, false, unload, specificBuy);
                                 break;
                             }
                             case EShardMessageType.INVEST_DEPOSIT_AMOUNT: {
