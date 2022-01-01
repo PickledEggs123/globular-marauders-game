@@ -1120,9 +1120,33 @@ export class Game {
         Game.syncNetworkArray(
             this.playerData,
             this.computeSyncDelta(this.playerData, sortedData.reduce((acc, m) => [...acc, ...m.playerData], [] as IPlayerData[]), true),
-            (o) => o,
+            (o) => {
+                const moneyAccount: MoneyAccount = new MoneyAccount();
+                moneyAccount.currencies = o.moneyAccount.currencies;
+                const d: IPlayerData = {
+                    id: o.id,
+                    name: o.name,
+                    factionId: o.factionId,
+                    planetId: o.planetId,
+                    shipId: o.shipId,
+                    activeKeys: [...o.activeKeys],
+                    moneyAccount,
+                    autoPilotEnabled: o.autoPilotEnabled,
+                    aiNodeName: o.aiNodeName
+                };
+                return d;
+            },
             (o, d) => {
-                Object.apply(o, [o, d]);
+                o.id = d.id;
+                o.name = d.name;
+                o.factionId = d.factionId;
+                o.planetId = d.planetId;
+                o.shipId = d.shipId;
+                o.activeKeys = d.activeKeys;
+                o.moneyAccount.currencies = d.moneyAccount.currencies;
+                o.autoPilotEnabled = d.autoPilotEnabled;
+                o.aiNodeName = d.aiNodeName;
+                return o;
             }
         );
         for (const item of sortedData.reduce((acc, m) => [...acc, ...m.ships], [] as Array<{
