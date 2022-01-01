@@ -1706,6 +1706,17 @@ export class Game {
                 break;
             }
             case EServerType.AI_NODE: {
+                this.aiPlayerDataCombined.set(this.shardName, [-1, {
+                    shardMessageType: EShardMessageType.AI_PLAYER_DATA_STATE,
+                    playerData: this.playerData,
+                    ships: this.ships.filter(s => this.monitoredShips.includes(s.id)).map((s) => ({
+                        shipId: s.id,
+                        shipKeys: s.activeKeys,
+                        orders: s.orders.map(o => o.serialize()),
+                        pathFinding: s.pathFinding.serialize(),
+                        fireControl: s.fireControl.serialize(),
+                    })),
+                }]);
                 this.loadPhysicsDataStateMessages();
                 break;
             }
