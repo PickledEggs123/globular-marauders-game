@@ -7,10 +7,12 @@ import {
     EShardMessageType,
     IAIPlayerDataStateShardMessage,
     IAiShardCountItem,
-    ICameraState, IClaimPlanetShardMessage,
+    ICameraState,
+    IClaimPlanetShardMessage,
     ICollidable,
     IDamageScoreShardMessage,
-    IDeathShardMessage, IDestroyShipPlanetShardMessage,
+    IDeathShardMessage,
+    IDestroyShipPlanetShardMessage,
     IDirectedMarketTrade,
     IExpirableTicks,
     IFetchOrderResultShardMessage,
@@ -18,6 +20,7 @@ import {
     IGlobalStateShardMessage,
     IInvestDepositShardMessage,
     IInvestWithdrawShardMessage,
+    IJoinAliasShardMessage,
     ILootScoreShardMessage,
     IPhysicsDataStateShardMessage,
     IScoreBoard,
@@ -29,7 +32,9 @@ import {
     ISpawnAiResultShardMessage,
     ISpawnAiShardMessage,
     ISpawnResultShardMessage,
-    ISpawnShardMessage, ITradeShipPlanetShardMessage, ITributeShipPlanetShardMessage,
+    ISpawnShardMessage,
+    ITradeShipPlanetShardMessage,
+    ITributeShipPlanetShardMessage,
     MoneyAccount
 } from "./Interface";
 import {
@@ -263,6 +268,7 @@ export class Game {
     public shardList: IShardListItem[] = [];
     public shardName?: string;
     public aiShardCount: IAiShardCountItem[] = [];
+    public playerIdAliases: Map<string, string> = new Map<string, string>();
     public outgoingShardMessages: Array<[string, IShardMessage]> = [];
     public incomingShardMessages: Array<[string, IShardMessage]> = [];
     public scoreBoard: IScoreBoard = {
@@ -1224,6 +1230,14 @@ export class Game {
                 switch (this.serverType) {
                     case EServerType.LOAD_BALANCER: {
                         switch (message.shardMessageType) {
+                            case EShardMessageType.JOIN_ALIAS: {
+                                const {
+                                    playerId,
+                                    name,
+                                } = message as IJoinAliasShardMessage;
+                                this.playerIdAliases.set(name, playerId);
+                                break;
+                            }
                             case EShardMessageType.SPAWN_AI_SHIP: {
                                 // forward message to the best AI node
                                 const bestShardCount = this.aiShardCount.sort((a, b) => a.numAI - b.numAI)[0];
@@ -1234,9 +1248,14 @@ export class Game {
                             }
                             case EShardMessageType.SPAWN_SHIP: {
                                 // forward message to the best AI node
-                                const bestShardCount = this.aiShardCount.find(s => s.players.includes((message as ISpawnShardMessage).playerId));
+                                const {playerId} = message as ISpawnShardMessage;
+                                const bestShardCount = this.aiShardCount.find(s => s.players.includes(playerId));
                                 const aiShard = this.shardList.find(s => s.name === bestShardCount.name);
-                                this.outgoingShardMessages.push([aiShard.name, message]);
+                                const spawnMessage: ISpawnShardMessage = {
+                                    ...(message as ISpawnShardMessage),
+                                    playerId: this.playerIdAliases.get(playerId) ?? playerId
+                                };
+                                this.outgoingShardMessages.push([aiShard.name, spawnMessage]);
                                 bestShardCount.numAI += 1;
                                 break;
                             }
@@ -1363,6 +1382,14 @@ export class Game {
                     }
                     case EServerType.AI_NODE: {
                         switch (message.shardMessageType) {
+                            case EShardMessageType.JOIN_ALIAS: {
+                                const {
+                                    playerId,
+                                    name,
+                                } = message as IJoinAliasShardMessage;
+                                this.playerIdAliases.set(name, playerId);
+                                break;
+                            }
                             case EShardMessageType.SPAWN_AI_SHIP: {
                                 const {
                                     planetId
@@ -1503,7 +1530,7 @@ export class Game {
                                 const planet = this.planets.find(p => p.id === planetId);
 
                                 const player = this.playerData.find(p => p.id === playerId);
-                                if (!player) {
+                                if (!player || this.playerIdAliases.has(player.name)) {
                                     continue;
                                 }
                                 const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType);
@@ -1895,9 +1922,9 @@ export class Game {
                     if (message.messageType === EMessageType.JOIN) {
                         const joinMessage = message as IJoinMessage;
 
-                        const player = this.playerData.find(p => p.id === playerId);
+                        let player: IPlayerData = this.playerData.find(p => p.id === playerId);
                         if (!player) {
-                            this.playerData.push({
+                            player = {
                                 id: playerId,
                                 name: joinMessage.name,
                                 factionId: null,
@@ -1907,8 +1934,18 @@ export class Game {
                                 moneyAccount: new MoneyAccount(2000),
                                 autoPilotEnabled: true,
                                 aiNodeName: this.aiNodeName
-                            });
+                            };
+                            this.playerData.push(player);
                         }
+
+                        const loadBalancerShard = this.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+                        const joinAliasMessage: IJoinAliasShardMessage = {
+                            shardMessageType: EShardMessageType.JOIN_ALIAS,
+                            playerId,
+                            name: this.playerIdAliases.get(player.name) ?? player.name,
+                        }
+                        this.outgoingShardMessages.push([loadBalancerShard.name, joinAliasMessage]);
+
                     } else if (message.messageType === EMessageType.CHOOSE_FACTION) {
                         const chooseFactionMessage = message as IChooseFactionMessage;
 
@@ -1951,13 +1988,13 @@ export class Game {
                             if ([EServerType.STANDALONE].includes(this.serverType)) {
                                 const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType);
                                 player.shipId = playerShip.id;
-                            } else if ([EServerType.AI_NODE].includes(this.serverType)) {
+                            } else if ([EServerType.AI_NODE].includes(this.serverType) && this.playerIdAliases.has(player.name)) {
                                 const loadBalancer = this.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
                                 const spawnShipMessage: ISpawnShardMessage = {
                                     shardMessageType: EShardMessageType.SPAWN_SHIP,
                                     shipType,
                                     planetId,
-                                    playerId: player.id
+                                    playerId: this.playerIdAliases.get(player.name)
                                 };
                                 this.outgoingShardMessages.push([loadBalancer.name, spawnShipMessage]);
                             }
@@ -2089,6 +2126,13 @@ export class Game {
                             const aiShard = this.shardList.find(s => s.name === bestShardCount.name);
                             bestShardCount.numAI += 1;
                             bestShardCount.players.push(playerId);
+                            const joinAliasMessage: IJoinAliasShardMessage = {
+                                shardMessageType: EShardMessageType.JOIN_ALIAS,
+                                playerId,
+                                name: (message as IJoinMessage).name,
+                            };
+                            this.outgoingShardMessages.push([aiShard.name, joinAliasMessage]);
+
                             const joinResultMessage: IJoinResultMessage = {
                                 messageType: EMessageType.JOIN_RESULT,
                                 shardName: aiShard.name

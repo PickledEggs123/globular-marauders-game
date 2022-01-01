@@ -150,12 +150,12 @@ describe("shard tests", () => {
             messageType: EMessageType.JOIN,
             name: "test"
         };
-        loadBalancerShard.incomingMessages.push(["test", loginMessage]);
+        loadBalancerShard.incomingMessages.push(["blah1", loginMessage]);
         runGameLoop(shards, shardMap);
         runGameLoop(shards, shardMap);
         runGameLoop(shards, shardMap);
         loadBalancerShard.outgoingMessages.splice(0, loadBalancerShard.outgoingMessages.length);
-        networkGame.incomingMessages.push(["test", loginMessage]);
+        networkGame.incomingMessages.push(["blah2", loginMessage]);
         runGameLoop(shards, shardMap);
         runGameLoop(shards, shardMap);
         runGameLoop(shards, shardMap);
@@ -167,7 +167,7 @@ describe("shard tests", () => {
             messageType: EMessageType.CHOOSE_FACTION,
             factionId: EFaction.DUTCH
         };
-        networkGame.incomingMessages.push(["test", factionMessage]);
+        networkGame.incomingMessages.push(["blah2", factionMessage]);
         runGameLoop(shards, shardMap);
         runGameLoop(shards, shardMap);
         runGameLoop(shards, shardMap);
@@ -178,7 +178,7 @@ describe("shard tests", () => {
             messageType: EMessageType.CHOOSE_PLANET,
             planetId
         };
-        networkGame.incomingMessages.push(["test", planetMessage]);
+        networkGame.incomingMessages.push(["blah2", planetMessage]);
         runGameLoop(shards, shardMap);
         runGameLoop(shards, shardMap);
         runGameLoop(shards, shardMap);
@@ -190,7 +190,7 @@ describe("shard tests", () => {
             planetId,
             shipType
         };
-        networkGame.incomingMessages.push(["test", spawn]);
+        networkGame.incomingMessages.push(["blah2", spawn]);
         runGameLoop(shards, shardMap);
         runGameLoop(shards, shardMap);
         runGameLoop(shards, shardMap);
@@ -408,7 +408,7 @@ describe("shard tests", () => {
                     planetId: dutchHomeWorldId,
                     amount: depositAmount
                 };
-                networkGame.incomingMessages.push(["test", depositMessage]);
+                networkGame.incomingMessages.push(["blah2", depositMessage]);
 
                 // run for 10 minutes
                 for (let i = 0; i < 10 * 60 * 10; i++) {
@@ -418,7 +418,7 @@ describe("shard tests", () => {
                 // check final amount after 10 minutes
                 const finalAmount = (
                     globalShard.playerData[0].moneyAccount.currencies.find(c => c.currencyId === "GOLD").amount +
-                    dutchHomeWorld.investmentAccounts.get("test").amount
+                    dutchHomeWorld.investmentAccounts.get("blah2").amount
                     ) * 1000;
                 expect(globalShard.scoreBoard.money).to.deep.equal([{
                     playerId: globalShard.playerData[0].id,
@@ -428,13 +428,13 @@ describe("shard tests", () => {
                 expect(finalAmount).to.be.greaterThan(initialAmount);
 
                 // withdraw money
-                const withdrawalAmount = dutchHomeWorld.investmentAccounts.get("test").amount;
+                const withdrawalAmount = dutchHomeWorld.investmentAccounts.get("blah2").amount;
                 const withdrawalMessage: IInvestWithdrawalMessage = {
                     messageType: EMessageType.INVEST_WITHDRAWAL,
                     planetId: dutchHomeWorldId,
                     amount: withdrawalAmount
                 };
-                networkGame.incomingMessages.push(["test", withdrawalMessage]);
+                networkGame.incomingMessages.push(["blah2", withdrawalMessage]);
 
                 // run for 1 minute
                 for (let i = 0; i < 10 * 60 * 10; i++) {

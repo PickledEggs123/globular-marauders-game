@@ -32,6 +32,7 @@ export enum EShardMessageType {
     AI_PLAYER_DATA_STATE = "AI_PLAYER_DATA_STATE",
     PHYSICS_DATA_STATE = "PHYSICS_DATA_STATE",
     DAMAGE_SCORE = "DAMAGE_SCORE",
+    JOIN_ALIAS = "JOIN_ALIAS",
     LOOT_SCORE = "LOOT_SCORE",
     CLAIM_PLANET = "CLAIM_PLANET",
     DESTROY_SHIP_PLANET = "DESTROY_SHIP_PLANET",
@@ -88,6 +89,12 @@ export interface IDamageScoreShardMessage extends IShardMessage {
     playerId: string;
     name: string;
     damage: number;
+}
+
+export interface IJoinAliasShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.JOIN_ALIAS;
+    playerId: string;
+    name: string;
 }
 
 export interface ILootScoreShardMessage extends IShardMessage {
