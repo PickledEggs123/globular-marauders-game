@@ -38,7 +38,12 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
 
     constructor(app: Game, voronoiCell: VoronoiCell, level: number, parent: IVoronoiTreeNodeParent<T>) {
         this.app = app;
-        this.voronoiCell = voronoiCell;
+        this.voronoiCell = new VoronoiCell();
+        this.voronoiCell.vertices = voronoiCell.vertices;
+        this.voronoiCell.centroid = voronoiCell.centroid;
+        this.voronoiCell.radius = voronoiCell.radius;
+        this.voronoiCell.vertex = voronoiCell.vertex;
+        this.voronoiCell.neighborIndices = voronoiCell.neighborIndices;
         this.point = voronoiCell.centroid;
         this.level = level;
         this.parent = parent;
@@ -862,7 +867,6 @@ export class VoronoiDuchy extends VoronoiTreeNode<ICameraState> {
         this.capital = this.counties[data.capital] || null;
         for (let i = 0; i < data.counties.length && i < this.counties.length; i++) {
             this.counties[i].deserializeUpdate(data.counties[i]);
-            this.counties[i].voronoiCell = Object.apply(Object.create(VoronoiCell.prototype), [data.voronoiCells[i]]);
         }
         for (let i = 0; i < data.stars.length && i < this.stars.length; i++) {
             this.stars[i].deserializeUpdate(data.stars[i]);
@@ -1007,7 +1011,6 @@ export class VoronoiKingdom extends VoronoiTreeNode<ICameraState> {
         this.capital = this.duchies[data.capital] || null;
         for (let i = 0; i < data.duchies.length && this.duchies.length; i++) {
             this.duchies[i].deserializeUpdate(data.duchies[i]);
-            this.duchies[i].voronoiCell = Object.apply(Object.create(VoronoiCell.prototype), [data.voronoiCells[i]]);
         }
     }
 
@@ -1166,7 +1169,6 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
     public deserializeUpdate(data: ISerializedVoronoiTerrain) {
         for (let i = 0; i < data.kingdoms.length && i < this.kingdoms.length; i++) {
             this.kingdoms[i].deserializeUpdate(data.kingdoms[i]);
-            this.kingdoms[i].voronoiCell = Object.apply(Object.create(VoronoiCell.prototype), [data.voronoiCells[i]]);
         }
     }
 

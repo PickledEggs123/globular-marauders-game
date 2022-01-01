@@ -37,6 +37,11 @@ describe("network serialization", () => {
         const b = VoronoiTerrain.deserialize(game, a.serialize());
         expect(a.serialize()).to.deep.equal(b.serialize());
     });
+    it("VoronoiTerrain with function call", () => {
+        const a = game.voronoiTerrain;
+        const b = VoronoiTerrain.deserialize(game, JSON.parse(JSON.stringify(a.serialize())));
+        b.kingdoms[0].voronoiCell.containsPoint([0, 0, 1]);
+    });
     it("Ship", () => {
         const a = new Ship(game, EShipType.CUTTER);
         const b = Ship.deserialize(game, a.serialize());
