@@ -862,6 +862,8 @@ export class VoronoiDuchy extends VoronoiTreeNode<ICameraState> {
         this.capital = this.counties[data.capital] || null;
         for (let i = 0; i < data.counties.length && i < this.counties.length; i++) {
             this.counties[i].deserializeUpdate(data.counties[i]);
+            this.counties[i].voronoiCell = new VoronoiCell();
+            Object.apply(this.counties[i].voronoiCell, [this.counties[i].voronoiCell, data.voronoiCells[i]]);
         }
         for (let i = 0; i < data.stars.length && i < this.stars.length; i++) {
             this.stars[i].deserializeUpdate(data.stars[i]);
@@ -1006,6 +1008,8 @@ export class VoronoiKingdom extends VoronoiTreeNode<ICameraState> {
         this.capital = this.duchies[data.capital] || null;
         for (let i = 0; i < data.duchies.length && this.duchies.length; i++) {
             this.duchies[i].deserializeUpdate(data.duchies[i]);
+            this.duchies[i].voronoiCell = new VoronoiCell();
+            Object.apply(this.duchies[i].voronoiCell, [this.duchies[i].voronoiCell, data.voronoiCells[i]]);
         }
     }
 
@@ -1164,6 +1168,8 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
     public deserializeUpdate(data: ISerializedVoronoiTerrain) {
         for (let i = 0; i < data.kingdoms.length && i < this.kingdoms.length; i++) {
             this.kingdoms[i].deserializeUpdate(data.kingdoms[i]);
+            this.kingdoms[i].voronoiCell = new VoronoiCell();
+            Object.apply(this.kingdoms[i].voronoiCell, [this.kingdoms[i].voronoiCell, data.voronoiCells[i]]);
         }
     }
 
