@@ -580,7 +580,7 @@ export class Ship implements IAutomatedShip {
             this.planet.handleShipDestroyed(this, true);
         }
         if (this.faction) {
-            this.faction.handleShipDestroyed(this);
+            this.faction.handleShipDestroyed(this, true);
         }
         return crates;
     }

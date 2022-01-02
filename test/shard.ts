@@ -234,6 +234,7 @@ describe("shard tests", () => {
 
                 // run shards for 1 minute
                 let sentAiMessage: boolean = false;
+                let hasShipData: boolean = false;
                 const verifyGameLoop = (shard: Game, to: string, message: IShardMessage) => {
                     if (shard.serverType === EServerType.AI_NODE) {
                         if (message.shardMessageType === EShardMessageType.AI_PLAYER_DATA_STATE) {
@@ -250,6 +251,10 @@ describe("shard tests", () => {
                             };
                             expect(message).to.deep.equal(expectedMessage, "Expected a message containing all NPC Data.");
                             sentAiMessage = true;
+
+                            if (expectedMessage.ships.length > 0) {
+                                hasShipData = true;
+                            }
                         }
                     }
                 };
@@ -257,6 +262,7 @@ describe("shard tests", () => {
                     runGameLoop(shards, shardMap, verifyGameLoop);
                 }
                 expect(sentAiMessage).to.be.true;
+                expect(hasShipData).to.be.true;
             });
             it("each Physics node should send data", function () {
                 this.timeout(5 * 60 * 1000);
@@ -265,6 +271,7 @@ describe("shard tests", () => {
 
                 // run shards for 1 minute
                 let sentPhysicsMessage: boolean = false;
+                let hasShipData: boolean = false;
                 const verifyGameLoop = (shard: Game, to: string, message: IShardMessage) => {
                     if (shard.serverType === EServerType.PHYSICS_NODE) {
                         const isInKingdom = (c: ICameraState): boolean => {
@@ -282,6 +289,10 @@ describe("shard tests", () => {
                             };
                             expect(message).to.deep.equal(expectedMessage, "Expected a message containing all Physics Data.");
                             sentPhysicsMessage = true;
+
+                            if (expectedMessage.ships.length > 0) {
+                                hasShipData = true;
+                            }
                         }
                     }
                 };
@@ -289,6 +300,7 @@ describe("shard tests", () => {
                     runGameLoop(shards, shardMap, verifyGameLoop);
                 }
                 expect(sentPhysicsMessage).to.be.true;
+                expect(hasShipData).to.be.true;
             });
             it("each Global State node should send data", function () {
                 this.timeout(5 * 60 * 1000);
@@ -297,6 +309,8 @@ describe("shard tests", () => {
 
                 // run shards for 1 minute
                 let sentGlobalMessage: boolean = false;
+                let hasShipData: boolean = false;
+                let hasFactionShipData: boolean = false;
                 const verifyGameLoop = (shard: Game, to: string, message: IShardMessage) => {
                     if (shard.serverType === EServerType.GLOBAL_STATE_NODE) {
                         if (message.shardMessageType === EShardMessageType.GLOBAL_STATE) {
@@ -307,6 +321,13 @@ describe("shard tests", () => {
                             };
                             expect(message).to.deep.equal(expectedMessage, "Expected a message with Faction Data");
                             sentGlobalMessage = true;
+
+                            if (shard.ships.length > 0) {
+                                hasShipData = true;
+                            }
+                            if (Object.values(shard.factions).some(f => f.shipIds.length > 0)) {
+                                hasFactionShipData = true;
+                            }
                         }
                     }
                 };
@@ -314,6 +335,8 @@ describe("shard tests", () => {
                     runGameLoop(shards, shardMap, verifyGameLoop);
                 }
                 expect(sentGlobalMessage).to.be.true;
+                expect(hasShipData).to.be.true;
+                expect(hasFactionShipData).to.be.true;
             });
         });
         describe("score board", () => {

@@ -3,12 +3,15 @@ import {
     ESettlementLevel,
     EShardMessageType,
     ICameraState,
-    IClaimPlanetShardMessage,
-    ICurrency, IDestroyShipPlanetShardMessage,
+    IClaimPlanetShardMessage, ICreateShipFactionShardMessage,
+    ICurrency,
+    IDestroyShipPlanetShardMessage,
     IExplorationGraphData,
     ILootScoreShardMessage,
     ISpawnAiShardMessage,
-    ITradeDeal, ITradeShipPlanetShardMessage, ITributeShipPlanetShardMessage,
+    ITradeDeal,
+    ITradeShipPlanetShardMessage,
+    ITributeShipPlanetShardMessage,
     MoneyAccount
 } from "./Interface";
 import Quaternion from "quaternion";
@@ -1919,9 +1922,21 @@ export class Planet implements ICameraState {
         ship.color = faction.factionColor;
 
         // the faction ship
-        faction.shipIds.push(ship.id);
+        if ([EServerType.PHYSICS_NODE].includes(this.instance.serverType)) {
+            const factionShipMessage: ICreateShipFactionShardMessage = {
+                shardMessageType: EShardMessageType.CREATE_SHIP_FACTION,
+                factionId: faction.id,
+                shipId: ship.id,
+                shipType: ship.shipType
+            };
+
+            const globalShard = this.instance.shardList.find(s => s.type === EServerType.GLOBAL_STATE_NODE);
+            this.instance.outgoingShardMessages.push([globalShard.name, factionShipMessage]);
+        } else {
+            faction.shipIds.push(ship.id);
+            faction.shipsAvailable[ship.shipType] += 1;
+        }
         faction.instance.ships.push(ship);
-        faction.shipsAvailable[ship.shipType] += 1;
         this.addNewShip(ship);
 
         return ship;

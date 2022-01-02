@@ -9,9 +9,9 @@ import {
     IAiShardCountItem,
     ICameraState,
     IClaimPlanetShardMessage,
-    ICollidable,
+    ICollidable, ICreateShipFactionShardMessage,
     IDamageScoreShardMessage,
-    IDeathShardMessage,
+    IDeathShardMessage, IDestroyShipFactionShardMessage,
     IDestroyShipPlanetShardMessage,
     IDirectedMarketTrade,
     IExpirableTicks,
@@ -1391,6 +1391,29 @@ export class Game {
                                 const faction = this.factions[factionId];
                                 const planet = this.planets.find(p => p.id === planetId);
                                 planet.claim(faction, false);
+                                break;
+                            }
+                            case EShardMessageType.CREATE_SHIP_FACTION: {
+                                const {
+                                    factionId,
+                                    shipId,
+                                    shipType
+                                } = message as ICreateShipFactionShardMessage;
+
+                                const faction = this.factions[factionId];
+                                faction.shipIds.push(shipId);
+                                faction.shipsAvailable[shipType] += 1;
+                                break;
+                            }
+                            case EShardMessageType.DESTROY_SHIP_FACTION: {
+                                const {
+                                    factionId,
+                                    shipId
+                                } = message as IDestroyShipFactionShardMessage;
+
+                                const ship = this.ships.find(p => p.id === shipId);
+                                const faction = this.factions[factionId];
+                                faction.handleShipDestroyed(ship, false);
                                 break;
                             }
                             case EShardMessageType.AI_PLAYER_DATA_STATE: {

@@ -2,6 +2,12 @@ import {EResourceType} from "./Resource";
 import {EFaction, EShipType, Ship} from "./Ship";
 import {Planet} from "./Planet";
 import {Game} from "./Game";
+import {
+    EServerType,
+    EShardMessageType,
+    IDestroyShipFactionShardMessage,
+    IDestroyShipPlanetShardMessage
+} from "./Interface";
 
 export enum ERoyalRank {
     EMPEROR = "EMPEROR",
@@ -357,7 +363,18 @@ export class Faction {
         }));
     }
 
-    public handleShipDestroyed(ship: Ship) {
+    public handleShipDestroyed(ship: Ship, shouldNetwork: boolean) {
+        if (shouldNetwork && [EServerType.AI_NODE, EServerType.PHYSICS_NODE].includes(this.instance.serverType)) {
+            const claimMessage: IDestroyShipFactionShardMessage = {
+                shardMessageType: EShardMessageType.DESTROY_SHIP_FACTION,
+                factionId: this.id,
+                shipId: ship.id,
+            };
+            const globalShard = this.instance.shardList.find(s => s.type === EServerType.GLOBAL_STATE_NODE);
+            this.instance.outgoingShardMessages.push([globalShard.name, claimMessage]);
+            return;
+        }
+
         // remove ship from faction registry
         const shipIndex = this.shipIds.findIndex(s => s === ship.id);
         if (shipIndex >= 0) {

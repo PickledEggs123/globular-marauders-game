@@ -35,7 +35,9 @@ export enum EShardMessageType {
     JOIN_ALIAS = "JOIN_ALIAS",
     LOOT_SCORE = "LOOT_SCORE",
     CLAIM_PLANET = "CLAIM_PLANET",
+    CREATE_SHIP_FACTION = "CREATE_SHIP_FACTION",
     DESTROY_SHIP_PLANET = "DESTROY_SHIP_PLANET",
+    DESTROY_SHIP_FACTION = "DESTROY_SHIP_FACTION",
     TRIBUTE_SHIP_PLANET = "TRIBUTE_SHIP_PLANET",
     TRADE_SHIP_PLANET = "TRADE_SHIP_PLANET",
     INVEST_DEPOSIT_AMOUNT = "INVEST_DEPOSIT_AMOUNT",
@@ -111,9 +113,22 @@ export interface IClaimPlanetShardMessage extends IShardMessage {
     fromShard: string;
 }
 
+export interface ICreateShipFactionShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.CREATE_SHIP_FACTION;
+    factionId: string;
+    shipId: string;
+    shipType: EShipType;
+}
+
 export interface IDestroyShipPlanetShardMessage extends IShardMessage {
     shardMessageType: EShardMessageType.DESTROY_SHIP_PLANET;
     planetId: string;
+    shipId: string;
+}
+
+export interface IDestroyShipFactionShardMessage extends IShardMessage {
+    shardMessageType: EShardMessageType.DESTROY_SHIP_FACTION;
+    factionId: string;
     shipId: string;
 }
 
