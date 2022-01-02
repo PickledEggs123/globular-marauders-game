@@ -1527,6 +1527,14 @@ export class Game {
                     }
                     case EServerType.PHYSICS_NODE: {
                         switch (message.shardMessageType) {
+                            case EShardMessageType.JOIN_ALIAS: {
+                                const {
+                                    playerId,
+                                    name,
+                                } = message as IJoinAliasShardMessage;
+                                this.playerIdAliases.set(name, playerId);
+                                break;
+                            }
                             case EShardMessageType.SPAWN_AI_SHIP: {
                                 const spawnMessage = message as ISpawnAiShardMessage;
                                 const {
@@ -1554,7 +1562,7 @@ export class Game {
                                 const planet = this.planets.find(p => p.id === planetId);
 
                                 const player = this.playerData.find(p => p.id === playerId);
-                                if (!player || this.playerIdAliases.has(player.name)) {
+                                if (!(player && this.playerIdAliases.has(player.name))) {
                                     continue;
                                 }
                                 const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType);
@@ -2167,6 +2175,11 @@ export class Game {
                                 name: (message as IJoinMessage).name,
                             };
                             this.outgoingShardMessages.push([aiShard.name, joinAliasMessage]);
+                            for (const shard of this.shardList) {
+                                if (shard.type === EServerType.PHYSICS_NODE) {
+                                    this.outgoingShardMessages.push([shard.name, joinAliasMessage]);
+                                }
+                            }
 
                             const joinResultMessage: IJoinResultMessage = {
                                 messageType: EMessageType.JOIN_RESULT,

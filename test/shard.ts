@@ -194,6 +194,10 @@ describe("shard tests", () => {
         runGameLoop(shards, shardMap);
         runGameLoop(shards, shardMap);
         runGameLoop(shards, shardMap);
+        runGameLoop(shards, shardMap);
+        runGameLoop(shards, shardMap);
+        runGameLoop(shards, shardMap);
+        expect(networkGame.playerData[0].shipId).to.not.equal("");
     };
     beforeEach(() => {
         networkGame = null;
