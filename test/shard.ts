@@ -197,6 +197,12 @@ describe("shard tests", () => {
         runGameLoop(shards, shardMap);
         runGameLoop(shards, shardMap);
         runGameLoop(shards, shardMap);
+        runGameLoop(shards, shardMap);
+        runGameLoop(shards, shardMap);
+        runGameLoop(shards, shardMap);
+        runGameLoop(shards, shardMap);
+        runGameLoop(shards, shardMap);
+        runGameLoop(shards, shardMap);
         expect(networkGame.playerData[0].shipId).to.not.equal("");
     };
     beforeEach(() => {
@@ -697,7 +703,14 @@ describe("shard tests", () => {
                     }
                 }
             };
+            const lastShipCountFrames: number[] = [];
+            const numShipCountFrames = 100;
             for (let i = 0; i < 3 * 60 * 10; i++) {
+                if (lastShipCountFrames.length > numShipCountFrames - 1) {
+                    lastShipCountFrames.splice(numShipCountFrames - 1, lastShipCountFrames.length - numShipCountFrames - 1);
+                }
+                lastShipCountFrames.push(networkGame.ships.length);
+
                 if (!setMission) {
                     if (networkGame.playerData[0] && networkGame.playerData[0].shipId) {
                         const ship = networkGame.ships.find(s => s.id === networkGame.playerData[0].shipId);
@@ -725,9 +738,10 @@ describe("shard tests", () => {
             }
             expect(setMission).to.be.true;
             expect(nearEnglishWorld).to.be.true;
+            expect(lastShipCountFrames).to.not.contain(0);
         };
         describe("traveling between physics shards (normal order)", () => {
-            for (let trial = 0; trial < 100; trial++) {
+            for (let trial = 0; trial < 1000; trial++) {
                 it(`try ${trial + 1}`, testPhysicsNodeTravel);
             }
         });
@@ -738,7 +752,7 @@ describe("shard tests", () => {
             afterEach(() => {
                 randomShardOrder = false;
             });
-            for (let trial = 0; trial < 100; trial++) {
+            for (let trial = 0; trial < 1000; trial++) {
                 it(`try ${trial + 1}`, testPhysicsNodeTravel);
             }
         });

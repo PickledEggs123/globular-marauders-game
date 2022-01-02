@@ -9,9 +9,11 @@ import {
     IAiShardCountItem,
     ICameraState,
     IClaimPlanetShardMessage,
-    ICollidable, ICreateShipFactionShardMessage,
+    ICollidable,
+    ICreateShipFactionShardMessage,
     IDamageScoreShardMessage,
-    IDeathShardMessage, IDestroyShipFactionShardMessage,
+    IDeathShardMessage,
+    IDestroyShipFactionShardMessage,
     IDestroyShipPlanetShardMessage,
     IDirectedMarketTrade,
     IExpirableTicks,
@@ -1259,7 +1261,7 @@ export class Game {
                                     playerId,
                                     name,
                                 } = message as IJoinAliasShardMessage;
-                                this.playerIdAliases.set(name, playerId);
+                                this.playerIdAliases.set(name, playerId); // set
                                 break;
                             }
                             case EShardMessageType.SPAWN_AI_SHIP: {
@@ -1277,7 +1279,7 @@ export class Game {
                                 const aiShard = this.shardList.find(s => s.name === bestShardCount.name);
                                 const spawnMessage: ISpawnShardMessage = {
                                     ...(message as ISpawnShardMessage),
-                                    playerId: this.playerIdAliases.get(playerId) ?? playerId
+                                    playerId: this.playerIdAliases.get(playerId) ?? playerId // load balancer -> AI
                                 };
                                 this.outgoingShardMessages.push([aiShard.name, spawnMessage]);
                                 bestShardCount.numAI += 1;
@@ -1434,7 +1436,7 @@ export class Game {
                                     playerId,
                                     name,
                                 } = message as IJoinAliasShardMessage;
-                                this.playerIdAliases.set(name, playerId);
+                                this.playerIdAliases.set(name, playerId); // set
                                 break;
                             }
                             case EShardMessageType.SPAWN_AI_SHIP: {
@@ -1550,14 +1552,6 @@ export class Game {
                     }
                     case EServerType.PHYSICS_NODE: {
                         switch (message.shardMessageType) {
-                            case EShardMessageType.JOIN_ALIAS: {
-                                const {
-                                    playerId,
-                                    name,
-                                } = message as IJoinAliasShardMessage;
-                                this.playerIdAliases.set(name, playerId);
-                                break;
-                            }
                             case EShardMessageType.SPAWN_AI_SHIP: {
                                 const spawnMessage = message as ISpawnAiShardMessage;
                                 const {
@@ -1585,7 +1579,7 @@ export class Game {
                                 const planet = this.planets.find(p => p.id === planetId);
 
                                 const player = this.playerData.find(p => p.id === playerId);
-                                if (!(player && this.playerIdAliases.has(player.name))) {
+                                if (!player) {
                                     continue;
                                 }
                                 const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType);
@@ -2008,7 +2002,7 @@ export class Game {
                         const joinAliasMessage: IJoinAliasShardMessage = {
                             shardMessageType: EShardMessageType.JOIN_ALIAS,
                             playerId,
-                            name: this.playerIdAliases.get(player.name) ?? player.name,
+                            name: this.playerIdAliases.get(player.name) ?? player.name, // AI -> Load Balancer
                         }
                         this.outgoingShardMessages.push([loadBalancerShard.name, joinAliasMessage]);
 
@@ -2054,13 +2048,13 @@ export class Game {
                             if ([EServerType.STANDALONE].includes(this.serverType)) {
                                 const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType);
                                 player.shipId = playerShip.id;
-                            } else if ([EServerType.AI_NODE].includes(this.serverType) && this.playerIdAliases.has(player.name)) {
+                            } else if ([EServerType.AI_NODE].includes(this.serverType) && this.playerIdAliases.has(player.name)) { // check
                                 const loadBalancer = this.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
                                 const spawnShipMessage: ISpawnShardMessage = {
                                     shardMessageType: EShardMessageType.SPAWN_SHIP,
                                     shipType,
                                     planetId,
-                                    playerId: this.playerIdAliases.get(player.name)
+                                    playerId: this.playerIdAliases.get(player.name) // AI -> Load balancer
                                 };
                                 this.outgoingShardMessages.push([loadBalancer.name, spawnShipMessage]);
                             }
@@ -2198,11 +2192,6 @@ export class Game {
                                 name: (message as IJoinMessage).name,
                             };
                             this.outgoingShardMessages.push([aiShard.name, joinAliasMessage]);
-                            for (const shard of this.shardList) {
-                                if (shard.type === EServerType.PHYSICS_NODE) {
-                                    this.outgoingShardMessages.push([shard.name, joinAliasMessage]);
-                                }
-                            }
 
                             const joinResultMessage: IJoinResultMessage = {
                                 messageType: EMessageType.JOIN_RESULT,
