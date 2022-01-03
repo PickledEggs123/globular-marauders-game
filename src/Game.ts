@@ -196,7 +196,7 @@ export interface IShipStateMessage extends IMessage {
 }
 
 /**
- * The initial game data sent from server to client. Used to setup terrain.
+ * The initial game data sent from server to client. Used to set up terrain.
  */
 export interface IGameInitializationFrame {
     factions: ISerializedFaction[];
@@ -287,11 +287,11 @@ export class Game {
      */
     public static VELOCITY_STEP: number = 1 / 6000;
     /**
-     * The speed of the cannon ball projectiles.
+     * The speed of the cannonball projectiles.
      */
     public static PROJECTILE_SPEED: number = Game.VELOCITY_STEP * 100;
     /**
-     * How long a cannon ball will live for in ticks.
+     * How long a cannonball will live for in ticks.
      */
     public static PROJECTILE_LIFE: number = 40;
     /**
@@ -720,8 +720,8 @@ export class Game {
             id: EFaction.DUTCH,
             color: "orange",
             // the forth planet is always in a random location
-            // the dutch are a republic which means players can vote on things
-            // but the dutch are weaker compared to the kingdoms
+            // the Dutch are a republic which means players can vote on things
+            // but the Dutch are weaker compared to the kingdoms
             kingdom: getStartingKingdom(factionStartingPoints[0])
         }, {
             id: EFaction.ENGLISH,
@@ -786,7 +786,7 @@ export class Game {
     }
 
     /**
-     * Get the currently selected player ship. This is a place holder method within the server class. It should return
+     * Get the currently selected player ship. This is a placeholder method within the server class. It should return
      * identity. The client will render this result centered on the player's ship while the server will render an
      * identity ship.
      */
@@ -948,7 +948,7 @@ export class Game {
                 const fireDirection = cameraOrientation.clone().rotateVector(jitterPoint);
                 const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
 
-                // no faction, no cannon balls
+                // no faction, no cannonballs
                 if (!faction) {
                     continue;
                 }
@@ -1007,7 +1007,7 @@ export class Game {
         }
         this.cannonBalls = isAutomated ? [...cannonBalls, ...newCannonBalls] : [...cannonBalls];
 
-        // emit ship state events if not automated, i.e is player controlled
+        // emit ship state events if not automated, i.e. is player controlled
         if (!isAutomated) {
             const playerData = this.playerData.find(p => p.shipId === this.ships[shipIndex].id);
             if (playerData) {
@@ -1037,8 +1037,8 @@ export class Game {
     }
 
     /**
-     * Compute a cannon ball collision.
-     * @param cannonBall The cannon ball to shoot.
+     * Compute a cannonball collision.
+     * @param cannonBall The cannonball to shoot.
      * @param ship The ship to collide against.
      * @param worldScale The size of the world.
      * @private
@@ -1696,7 +1696,7 @@ export class Game {
                                     ship.orientation = DeserializeQuaternion(shipStateMessage.orientation);
                                     ship.orientationVelocity = DeserializeQuaternion(shipStateMessage.orientationVelocity);
 
-                                    // add new cannon balls
+                                    // add new cannonballs
                                     this.cannonBalls.push.apply(
                                         this.cannonBalls,
                                         shipStateMessage.newCannonBalls.map(c => CannonBall.deserialize(c))
@@ -1889,7 +1889,6 @@ export class Game {
                 const cannonBalls: CannonBall[] = [];
                 const crates: Crate[] = [];
                 const planets: Planet[] = [];
-                const transferIds: string[] = [];
 
                 // detect objects within the domain
                 const isInKingdom = (c: ICameraState): boolean => {
@@ -1902,27 +1901,18 @@ export class Game {
                         continue;
                     }
                     ships.push(ship);
-                    if (!isInKingdom(ship)) {
-                        transferIds.push(ship.id);
-                    }
                 }
                 for (const cannonBall of this.cannonBalls) {
                     if (!isUpdatable(cannonBall)) {
                         continue;
                     }
                     cannonBalls.push(cannonBall);
-                    if (!isInKingdom(cannonBall)) {
-                        transferIds.push(cannonBall.id);
-                    }
                 }
                 for (const crate of this.crates) {
                     if (!isUpdatable(crate)) {
                         continue;
                     }
                     crates.push(crate);
-                    if (!isInKingdom(crate)) {
-                        transferIds.push(crate.id);
-                    }
                 }
                 for (const planet of this.planets) {
                     const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
@@ -1973,12 +1963,12 @@ export class Game {
         // handle player input
         // the AI will remember the player's keys and send special spawn ship messages to the Physics
         if ([EServerType.STANDALONE, EServerType.AI_NODE].includes(this.serverType)) {
-            // handle key strokes
+            // handle keystrokes
             while (true) {
                 const item = this.incomingMessages.shift();
                 if (item) {
                     const [playerId, message] = item;
-                    // has message, process message
+                    // has a message, process the message
                     if (message.messageType === EMessageType.JOIN) {
                         const joinMessage = message as IJoinMessage;
 
@@ -2146,7 +2136,7 @@ export class Game {
                                     ship.orientation = DeserializeQuaternion(shipStateMessage.orientation);
                                     ship.orientationVelocity = DeserializeQuaternion(shipStateMessage.orientationVelocity);
 
-                                    // add new cannon balls
+                                    // add new cannonballs
                                     this.cannonBalls.push.apply(
                                         this.cannonBalls,
                                         shipStateMessage.newCannonBalls.map(c => CannonBall.deserialize(c))
@@ -2221,7 +2211,7 @@ export class Game {
             }
         }
         if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
-            // expire cannon balls and crates
+            // expire cannonballs and crates
             const expirableArrays: Array<{
                 array: IExpirableTicks[],
                 removeFromDataStructures: (item: IExpirableTicks) => void,
@@ -2257,7 +2247,7 @@ export class Game {
                 }
             }
 
-            // move cannon balls and crates
+            // move cannonballs and crates
             const movableArrays: Array<Array<ICameraState & IExpirableTicks>> = [
                 this.cannonBalls,
                 this.crates
@@ -2302,7 +2292,7 @@ export class Game {
                     const position = entity.position.rotateVector([0, 0, 1]);
                     const nearByShips = Array.from(this.voronoiShips.listItems(position));
 
-                    // compute closest ship
+                    // compute the closest ship
                     let bestHit: IHitTest | null = null;
                     let bestShip: Ship | null = null;
                     for (const nearByShip of nearByShips) {
@@ -2338,7 +2328,7 @@ export class Game {
                         entitiesToRemove.push(entity);
                     }
                 }
-                // remove collided cannon balls
+                // remove collided cannonballs
                 for (const entityToRemove of entitiesToRemove) {
                     const index = collidableArray.findIndex(c => c === entityToRemove);
                     if (index >= 0) {
@@ -2381,8 +2371,8 @@ export class Game {
                     }
                 }
                 if ([EServerType.AI_NODE].includes(this.serverType)) {
-                    const playerData = this.playerData.find(p => p.shipId === ship.id);
-                    if (!playerData) {
+                    const isMonitored = this.monitoredShips.includes(ship.id);
+                    if (!isMonitored) {
                         continue;
                     }
                 }
@@ -2448,7 +2438,7 @@ export class Game {
                 if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
                     const playerData = this.playerData.find(d => d.shipId === ship.id);
                     if (playerData && !playerData.autoPilotEnabled) {
-                        // ship is player ship which has no auto pilot, accept player control
+                        // ship is player ship which has no autopilot, accept player control
                         this.handleShipLoop(i, () => playerData.activeKeys, false);
                     } else {
                         // ship is npc ship if autoPilot is not enabled
@@ -2533,7 +2523,7 @@ export class Game {
                         }
                     }
 
-                    // find closest target
+                    // find the closest target
                     let closestTarget: Ship | null = null;
                     let closestDistance: number | null = null;
                     // also count the number of cannons
@@ -2564,7 +2554,7 @@ export class Game {
                         numFriendlyCannons += shipData.cannons.numCannons;
                     }
 
-                    // set closest target
+                    // set the closest target
                     if (closestTarget) {
                         ship.fireControl.targetShipId = closestTarget.id;
                         if (!this.demoAttackingShipId || +this.lastDemoAttackingShipTime + 30 * 1000 < +new Date()) {
@@ -2763,7 +2753,7 @@ export class Game {
         } else {
             // perform triangle tessellation
 
-            // compute mid points used in tessellation
+            // compute mid-points used in tessellation
             const midPoints: Quaternion[] = [];
             for (let i = 0; i < vertices.length; i++) {
                 const a: Quaternion = vertices[i % vertices.length].clone();
