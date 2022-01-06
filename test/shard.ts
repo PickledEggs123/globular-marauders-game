@@ -1,4 +1,4 @@
-import {Game, VoronoiKingdom} from "../src";
+import {Game, Ship, VoronoiKingdom} from "../src";
 import {
     EServerType,
     EShardMessageType,
@@ -22,7 +22,8 @@ import {
     IJoinResultMessage,
     ISpawnMessage
 } from "../src/Game";
-import {EFaction} from "../src/Ship";
+import {EFaction, PHYSICS_SCALE} from "../src/Ship";
+import {DelaunayGraph, VoronoiGraph} from "../src/Graph";
 
 describe("shard tests", () => {
     let networkGame: Game | null = null;
@@ -724,8 +725,12 @@ describe("shard tests", () => {
                     expect(ship).to.not.be.undefined;
                     expect(neighborKingdomPlanet).to.not.be.undefined;
                     if (ship && neighborKingdomPlanet) {
-                        const nearestPlanet = networkGame.voronoiTerrain.getNearestPlanet(ship.position.rotateVector([0, 0, 1]));
-                        if (nearestPlanet === neighborKingdomPlanet) {
+                        const distance = VoronoiGraph.angularDistance(
+                            neighborKingdomPlanet.position.rotateVector([0, 0, 1]),
+                            ship.position.rotateVector([0, 0, 1]),
+                            networkGame.worldScale
+                        );
+                        if (distance < 200 * PHYSICS_SCALE) {
                             nearEnglishWorld = true;
                         }
                     }
@@ -740,8 +745,55 @@ describe("shard tests", () => {
             expect(nearEnglishWorld).to.be.true;
             expect(lastShipCountFrames).to.not.contain(0);
         };
+        const testMoveFromOriginalSpot = function () {
+            this.timeout(5 * 60 * 1000);
+
+            const { shards, shardMap, aiShards } = setupShards(false);
+            networkGame = aiShards[0];
+
+            // run shards for 1 minute
+            const shipPositionMap: Map<string, [number, number, number]> = new Map<string, [number, number, number]>();
+            const shipHasPointsMap: Map<string, boolean> = new Map<string, boolean>();
+            const shipMovedMap: Map<string, boolean> = new Map<string, boolean>();
+            let allShipsMoved: boolean = false;
+            for (let i = 0; i < 3 * 60 * 10; i++) {
+                if (i === 20) {
+                    for (const ship of networkGame.ships) {
+                        shipPositionMap.set(ship.id, ship.position.rotateVector([0, 0, 1]));
+                        shipHasPointsMap.set(ship.id, false);
+                    }
+                } else if (shipPositionMap.size > 0) {
+                    for (const [shipId, position] of shipPositionMap.entries()) {
+                        const ship = networkGame.ships.find(s => s.id === shipId);
+                        if (ship) {
+                            const shipMoved = VoronoiGraph.angularDistance(
+                                position,
+                                ship.position.rotateVector([0, 0, 1]),
+                                networkGame.worldScale
+                            ) > 100 * PHYSICS_SCALE;
+                            shipMovedMap.set(shipId, shipMoved);
+
+                            expect(ship.orders.length).to.be.greaterThan(0);
+                            if (ship.pathFinding.points.length > 0) {
+                                shipHasPointsMap.set(shipId, true);
+                            }
+                        } else {
+                            shipMovedMap.set(shipId, true);
+                            shipHasPointsMap.set(shipId, true);
+                        }
+                    }
+                    if ([...shipMovedMap.values()].every(s => s)) {
+                        allShipsMoved = true;
+                        break;
+                    }
+                }
+                runGameLoop(shards, shardMap);
+            }
+            expect([...shipHasPointsMap.values()].every(s => s)).to.be.true;
+            expect(allShipsMoved).to.be.true;
+        };
         describe("traveling between physics shards (normal order)", () => {
-            for (let trial = 0; trial < 1000; trial++) {
+            for (let trial = 0; trial < 100; trial++) {
                 it(`try ${trial + 1}`, testPhysicsNodeTravel);
             }
         });
@@ -752,8 +804,24 @@ describe("shard tests", () => {
             afterEach(() => {
                 randomShardOrder = false;
             });
-            for (let trial = 0; trial < 1000; trial++) {
+            for (let trial = 0; trial < 100; trial++) {
                 it(`try ${trial + 1}`, testPhysicsNodeTravel);
+            }
+        });
+        describe("move from original spot (normal order)", () => {
+            for (let trial = 0; trial < 10; trial++) {
+                it(`try ${trial + 1}`, testMoveFromOriginalSpot);
+            }
+        });
+        describe("move from original spot (random order)", () => {
+            beforeEach(() => {
+                randomShardOrder = true;
+            });
+            afterEach(() => {
+                randomShardOrder = false;
+            });
+            for (let trial = 0; trial < 10; trial++) {
+                it(`try ${trial + 1}`, testMoveFromOriginalSpot);
             }
         });
     });

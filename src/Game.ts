@@ -1552,6 +1552,22 @@ export class Game {
                     }
                     case EServerType.PHYSICS_NODE: {
                         switch (message.shardMessageType) {
+                            case EShardMessageType.FETCH_ORDER: {
+                                const fetchOrderMessage = message as IFetchOrderShardMessage;
+                                const {
+                                    shipId,
+                                } = fetchOrderMessage;
+                                const ship = this.ships.find(s => s.id === shipId);
+                                const order = ship.planet.getOrder(ship);
+
+                                const fetchOrderResultMessage: IFetchOrderResultShardMessage = {
+                                    shardMessageType: EShardMessageType.FETCH_ORDER_RESULT,
+                                    shipId,
+                                    order: order.serialize(),
+                                };
+                                this.outgoingShardMessages.push([fromShardName, fetchOrderResultMessage]);
+                                break;
+                            }
                             case EShardMessageType.SPAWN_AI_SHIP: {
                                 const spawnMessage = message as ISpawnAiShardMessage;
                                 const {
@@ -1611,6 +1627,9 @@ export class Game {
                                 } = message as IDestroyShipPlanetShardMessage;
 
                                 const ship = this.ships.find(p => p.id === shipId);
+                                if (!ship) {
+                                    return;
+                                }
                                 const planet = this.planets.find(p => p.id === planetId);
                                 planet.handleShipDestroyed(ship, false);
                                 break;
@@ -1743,6 +1762,7 @@ export class Game {
                     })),
                 }]);
                 this.loadPhysicsDataStateMessages();
+                this.loadAIPlayerDataStateMessage();
                 break;
             }
             case EServerType.PHYSICS_NODE: {

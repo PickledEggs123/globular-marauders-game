@@ -1,13 +1,12 @@
 /**
  * A type of order for a ship to complete. Orders are actions the ship should take on behalf of the faction.
  */
-import {EFaction, ISerializedShip, Ship, SHIP_DATA} from "./Ship";
+import {EFaction, Ship, SHIP_DATA} from "./Ship";
 import {DelaunayGraph, VoronoiGraph} from "./Graph";
 import {ESettlementLevel, ITradeDeal} from "./Interface";
 import {Faction} from "./Faction";
 import {Planet} from "./Planet";
 import {Game} from "./Game";
-import {inspect} from "util";
 
 /**
  * Different type of orders a faction can issue its ships.
@@ -61,6 +60,8 @@ export interface ISerializedOrder {
     planetId: string | null;
     expireTicks: number;
     tradeDeal: ITradeDeal | null;
+    stage: number;
+    runningTicks: number;
 }
 
 export class Order {
@@ -73,8 +74,8 @@ export class Order {
     public planetId: string | null = null;
     public expireTicks: number = 0;
     public tradeDeal: ITradeDeal | null = null;
-    private stage: number = 0;
-    private runningTicks: number = 0;
+    public stage: number = 0;
+    public runningTicks: number = 0;
 
     public serialize(): ISerializedOrder {
         return {
@@ -84,7 +85,9 @@ export class Order {
             enemyStrength: this.enemyStrength,
             planetId: this.planetId,
             expireTicks: this.expireTicks,
-            tradeDeal: this.tradeDeal
+            tradeDeal: this.tradeDeal,
+            stage: this.stage,
+            runningTicks: this.runningTicks,
         };
     }
 
@@ -99,6 +102,8 @@ export class Order {
         this.planetId = data.planetId;
         this.expireTicks = data.expireTicks;
         this.tradeDeal = data.tradeDeal;
+        this.stage = data.stage;
+        this.runningTicks = data.runningTicks;
     }
 
     public static deserialize(game: Game, ship: Ship, data: ISerializedOrder): Order {
