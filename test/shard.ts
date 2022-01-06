@@ -773,7 +773,6 @@ describe("shard tests", () => {
                             ) > 100 * PHYSICS_SCALE;
                             shipMovedMap.set(shipId, shipMoved);
 
-                            expect(ship.orders.length).to.be.greaterThan(0);
                             if (ship.pathFinding.points.length > 0) {
                                 shipHasPointsMap.set(shipId, true);
                             }
