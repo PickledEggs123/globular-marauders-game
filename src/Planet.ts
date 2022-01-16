@@ -406,8 +406,8 @@ export class Planet implements ICameraState {
                 traderShipIds: value.traderShipIds,
                 pirateShipIds: value.pirateShipIds,
                 enemyStrength: value.enemyStrength,
-                planetId: value.planet.id,
-            }}))),
+                planetId: value.planet?.id,
+            }})).filter(item => !!item.planetId)),
         };
     }
 
