@@ -759,6 +759,7 @@ describe("shard tests", () => {
 
             // run shards for 1 minute
             const shipPositionMap: Map<string, [number, number, number]> = new Map<string, [number, number, number]>();
+            const shipHasOrderMap: Map<string, boolean> = new Map<string, boolean>();
             const shipHasPointsMap: Map<string, boolean> = new Map<string, boolean>();
             const shipMovedMap: Map<string, boolean> = new Map<string, boolean>();
             let allShipsMoved: boolean = false;
@@ -782,9 +783,14 @@ describe("shard tests", () => {
                             if (ship.pathFinding.points.length > 0) {
                                 shipHasPointsMap.set(shipId, true);
                             }
+
+                            if (ship.orders.length > 0 && ship.orders[0].orderType !== EOrderType.ROAM) {
+                                shipHasOrderMap.set(shipId, true);
+                            }
                         } else {
                             shipMovedMap.set(shipId, true);
                             shipHasPointsMap.set(shipId, true);
+                            shipHasOrderMap.set(shipId, true);
                         }
                     }
                     if ([...shipMovedMap.values()].every(s => s)) {
@@ -795,6 +801,7 @@ describe("shard tests", () => {
                 runGameLoop(shards, shardMap);
             }
             expect([...shipHasPointsMap.values()].every(s => s)).to.be.true;
+            expect([...shipHasOrderMap.values()].every(s => s)).to.be.true;
             expect(allShipsMoved).to.be.true;
         };
         describe("traveling between physics shards (normal order)", () => {
