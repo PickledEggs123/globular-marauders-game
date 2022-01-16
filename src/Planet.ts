@@ -7,7 +7,7 @@ import {
     ICurrency,
     IDestroyShipPlanetShardMessage,
     IExplorationGraphData,
-    ILootScoreShardMessage,
+    ILootScoreShardMessage, ISerializedExplorationGraphData,
     ISpawnAiShardMessage,
     ITradeDeal,
     ITradeShipPlanetShardMessage,
@@ -121,7 +121,7 @@ export interface ISerializedPlanetFull {
 
     investmentAccounts: [string, IInvestmentAccount][];
 
-    explorationGraph: Record<string, IExplorationGraphData>;
+    explorationGraph: Record<string, ISerializedExplorationGraphData>;
 }
 
 export interface IInvestmentAccount {
@@ -400,7 +400,14 @@ export class Planet implements ICameraState {
 
             investmentAccounts: [...this.investmentAccounts.entries()],
 
-            explorationGraph: this.explorationGraph,
+            explorationGraph: Object.assign.apply({}, Object.entries(this.explorationGraph).map(([key, value]): {[key: string]: ISerializedExplorationGraphData} => ({[key]: {
+                distance: value.distance,
+                settlerShipIds: value.settlerShipIds,
+                traderShipIds: value.traderShipIds,
+                pirateShipIds: value.pirateShipIds,
+                enemyStrength: value.enemyStrength,
+                planetId: value.planet.id,
+            }}))),
         };
     }
 
@@ -484,7 +491,14 @@ export class Planet implements ICameraState {
 
         this.investmentAccounts = new Map<string, IInvestmentAccount>(data.investmentAccounts);
 
-        this.explorationGraph = data.explorationGraph;
+        this.explorationGraph = Object.assign.apply({}, Object.entries(data.explorationGraph).map(([key, value]): {[key: string]: IExplorationGraphData} => ({[key]: {
+            distance: value.distance,
+            settlerShipIds: value.settlerShipIds,
+            traderShipIds: value.traderShipIds,
+            pirateShipIds: value.pirateShipIds,
+            enemyStrength: value.enemyStrength,
+            planet: this.instance.planets.get(value.planetId)
+        }})));
     }
 
     public static deserializeFull(instance: Game, county: VoronoiCounty, data: ISerializedPlanetFull): Planet {

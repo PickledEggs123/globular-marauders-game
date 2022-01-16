@@ -603,6 +603,18 @@ export interface IExplorationGraphData {
     planet: Planet;
 }
 
+/**
+ * Serialized data for exploration graph.
+ */
+export interface ISerializedExplorationGraphData {
+    distance: number;
+    settlerShipIds: string[];
+    traderShipIds: string[];
+    pirateShipIds: string[];
+    enemyStrength: number;
+    planetId: string;
+}
+
 export enum EDirectedMarketTradeDirection {
     TO = "TO",
     FROM = "FROM",
