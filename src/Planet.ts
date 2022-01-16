@@ -400,7 +400,7 @@ export class Planet implements ICameraState {
 
             investmentAccounts: [...this.investmentAccounts.entries()],
 
-            explorationGraph: Object.assign.apply({}, Object.entries(this.explorationGraph).map(([key, value]): {[key: string]: ISerializedExplorationGraphData} => ({[key]: {
+            explorationGraph: Object.assign({}, ...Object.entries(this.explorationGraph).map(([key, value]): {[key: string]: ISerializedExplorationGraphData} => ({[key]: {
                 distance: value.distance,
                 settlerShipIds: value.settlerShipIds,
                 traderShipIds: value.traderShipIds,
@@ -491,7 +491,7 @@ export class Planet implements ICameraState {
 
         this.investmentAccounts = new Map<string, IInvestmentAccount>(data.investmentAccounts);
 
-        this.explorationGraph = Object.assign.apply({}, Object.entries(data.explorationGraph).map(([key, value]): {[key: string]: IExplorationGraphData} => ({[key]: {
+        this.explorationGraph = Object.assign({}, ...Object.entries(data.explorationGraph).map(([key, value]): {[key: string]: IExplorationGraphData} => ({[key]: {
             distance: value.distance,
             settlerShipIds: value.settlerShipIds,
             traderShipIds: value.traderShipIds,
