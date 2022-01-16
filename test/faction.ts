@@ -12,7 +12,7 @@ describe("faction", () => {
 
             const factionId = EFaction.DUTCH;
             const homeWorldPlanetId = game.factions[factionId].homeWorldPlanetId;
-            const homeWorld = game.planets.find(p => p.id === homeWorldPlanetId);
+            const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
             const duchyId = homeWorld.county.duchy.capital.capital.id;
             const countyId = homeWorld.county.capital.id;
@@ -43,7 +43,7 @@ describe("faction", () => {
 
             const factionId = EFaction.DUTCH;
             const homeWorldPlanetId = game.factions[factionId].homeWorldPlanetId;
-            const homeWorld = game.planets.find(p => p.id === homeWorldPlanetId);
+            const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
             const duchyId = homeWorld.county.duchy.capital.capital.id;
             const countyId = homeWorld.county.capital.id;
@@ -86,7 +86,7 @@ describe("faction", () => {
 
             const factionId = EFaction.DUTCH;
             const homeWorldPlanetId = game.factions[factionId].homeWorldPlanetId;
-            const homeWorld = game.planets.find(p => p.id === homeWorldPlanetId);
+            const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
             const duchyId = homeWorld.county.duchy.capital.capital.id;
             const countyId = homeWorld.county.capital.id;
@@ -138,7 +138,7 @@ describe("faction", () => {
 
             const factionId = EFaction.DUTCH;
             const homeWorldPlanetId = game.factions[factionId].homeWorldPlanetId;
-            const homeWorld = game.planets.find(p => p.id === homeWorldPlanetId);
+            const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
             const duchyId = homeWorld.county.duchy.capital.capital.id;
             const countyId = homeWorld.county.capital.id;
@@ -205,7 +205,7 @@ describe("faction", () => {
 
             const factionId = EFaction.DUTCH;
             const homeWorldPlanetId = game.factions[factionId].homeWorldPlanetId;
-            const homeWorld = game.planets.find(p => p.id === homeWorldPlanetId);
+            const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
             const duchyId = homeWorld.county.duchy.capital.capital.id;
             const countyId = homeWorld.county.capital.id;
@@ -281,7 +281,7 @@ describe("faction", () => {
 
             const factionId = EFaction.DUTCH;
             const homeWorldPlanetId = game.factions[factionId].homeWorldPlanetId;
-            const homeWorld = game.planets.find(p => p.id === homeWorldPlanetId);
+            const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
             const duchyId = homeWorld.county.duchy.capital.capital.id;
             const countyId = homeWorld.county.capital.id;

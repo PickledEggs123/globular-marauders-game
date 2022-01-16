@@ -523,7 +523,7 @@ export class Planet implements ICameraState {
                     planetId: this.id,
                     fromShard: this.instance.shardName
                 };
-                const loadBalancerShard = this.instance.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+                const loadBalancerShard = Array.from(this.instance.shardList.values()).find(s => s.type === EServerType.LOAD_BALANCER);
                 this.instance.outgoingShardMessages.push([loadBalancerShard.name, claimMessage]);
             }
         }
@@ -559,7 +559,7 @@ export class Planet implements ICameraState {
                 break;
             }
             case ERoyalRank.DUKE: {
-                // dukes have few pirates and barrow their lords currency, but have their own economy
+                // dukes have few pirates and barrow their lords' currency, but have their own economy
                 this.numPirateSlots = 1;
 
                 const lordPlanet = this.getLordWorld();
@@ -605,7 +605,7 @@ export class Planet implements ICameraState {
     buildExplorationGraph() {
         const homeWorld = this;
         if (homeWorld) {
-            for (const planet of this.instance.planets) {
+            for (const [, planet] of this.instance.planets) {
                 if (planet.pathingNode && homeWorld.pathingNode && planet.id !== homeWorld.id) {
                     const path = homeWorld.pathingNode.pathToObject(planet.pathingNode);
                     if (path.length === 0) {
@@ -653,7 +653,7 @@ export class Planet implements ICameraState {
         // sort by importance
         const entries = Object.entries(this.explorationGraph)
             .sort((a, b) => {
-                // check for lords domain or the lords duchy
+                // check for lords domain or the lords' duchy
                 // dukes and kings should prioritize their local duchy
                 const aIsDuchyDomain = this.isDuchyDomain(a[1].planet);
                 const bIsDuchyDomain = this.isDuchyDomain(b[1].planet);
@@ -1053,7 +1053,7 @@ export class Planet implements ICameraState {
             case ERoyalRank.EMPEROR: {
                 const faction = this.county.duchy.kingdom.faction;
                 if (faction) {
-                    const imperialCapital = this.instance.planets.find(p => p.id === faction.homeWorldPlanetId);
+                    const imperialCapital = this.instance.planets.get(faction.homeWorldPlanetId);
                     if (imperialCapital) {
                         // if all counties have a capital, return true
                         const imperialKingdom = imperialCapital.county.duchy.kingdom;
@@ -1220,7 +1220,7 @@ export class Planet implements ICameraState {
                 return this;
             }
             case ERoyalRank.KING: {
-                const planet = this.instance.planets.find(p => {
+                const planet = Array.from(this.instance.planets.values()).find(p => {
                     return this.county.duchy.kingdom.faction &&
                         p.id === this.county.duchy.kingdom.faction.homeWorldPlanetId;
                 });
@@ -1609,7 +1609,7 @@ export class Planet implements ICameraState {
             if ([EServerType.STANDALONE].includes(this.instance.serverType)) {
                 this.spawnShip(this.moneyAccount.cash, nextShipTypeToBuild, true);
             } else if ([EServerType.PHYSICS_NODE].includes(this.instance.serverType) && !this.instance.spawningPlanets.has(this.id)) {
-                const loadBalancer = this.instance.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+                const loadBalancer = Array.from(this.instance.shardList.values()).find(s => s.type === EServerType.LOAD_BALANCER);
                 if (loadBalancer) {
                     const spawnAiShipMessage: ISpawnAiShardMessage = {
                         shardMessageType: EShardMessageType.SPAWN_AI_SHIP,
@@ -1665,7 +1665,7 @@ export class Planet implements ICameraState {
                 planetId: this.id,
                 shipId: ship.id,
             };
-            const loadBalancerShard = this.instance.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+            const loadBalancerShard = Array.from(this.instance.shardList.values()).find(s => s.type === EServerType.LOAD_BALANCER);
             this.instance.outgoingShardMessages.push([loadBalancerShard.name, claimMessage]);
             return;
         }
@@ -1710,7 +1710,7 @@ export class Planet implements ICameraState {
                 planetId: this.id,
                 shipId: ship.id,
             };
-            const loadBalancerShard = this.instance.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+            const loadBalancerShard = Array.from(this.instance.shardList.values()).find(s => s.type === EServerType.LOAD_BALANCER);
             this.instance.outgoingShardMessages.push([loadBalancerShard.name, claimMessage]);
             return;
         }
@@ -1731,7 +1731,7 @@ export class Planet implements ICameraState {
         nextBuilding: Building,
         nextBuildingCost: number
     } {
-        // find cheapest building to upgrade
+        // find the cheapest building to upgrade
         let nextBuilding: Building | null = null;
         let nextBuildingCost: number | null = null;
         for (const building of this.buildings) {
@@ -1766,7 +1766,7 @@ export class Planet implements ICameraState {
      * Determine the next building to build.
      */
     getNextBuildingToBuild(): Building | null {
-        // find next manufactory to build
+        // find next manufacture to build
         const recipe = ITEM_RECIPES.find(recipe => {
             return recipe.ingredients.every(ingredient => {
                 let amount = 0;
@@ -1802,7 +1802,7 @@ export class Planet implements ICameraState {
                 unload,
                 specificBuy
             };
-            const loadBalancerShard = this.instance.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+            const loadBalancerShard = Array.from(this.instance.shardList.values()).find(s => s.type === EServerType.LOAD_BALANCER);
             this.instance.outgoingShardMessages.push([loadBalancerShard.name, claimMessage]);
             return;
         }
@@ -1819,7 +1819,7 @@ export class Planet implements ICameraState {
             goodsToTake = CAPITAL_GOODS;
             goodsToOffer = this.feudalObligationResources;
         } else if (this.settlementLevel === ESettlementLevel.CAPITAL) {
-            // the capital will take outpost goods an pirated goods
+            // the capital will take outpost goods and pirated goods
             goodsToTake = Array.from(new Set([
                 ...OUTPOST_GOODS,
                 ...ship.cargo.filter(c => c.pirated).map(c => c.resourceType)
@@ -1844,7 +1844,7 @@ export class Planet implements ICameraState {
                 this.applyLuxuryBuff(this.moneyAccount.cash, goodToTake, boughtGood.sourcePlanetId, boughtGood.amount);
 
                 // score loot
-                const playerData = this.instance.playerData.find(p => p.shipId === ship.id);
+                const playerData = this.instance.playerData.get(ship.id);
                 const count = boughtGood.pirated ? boughtGood.amount : 0;
                 if (playerData && count) {
                     if ([EServerType.STANDALONE].includes(this.instance.serverType)) {
@@ -1866,7 +1866,7 @@ export class Planet implements ICameraState {
                             name: playerData.name,
                             count
                         };
-                        const globalShard = this.instance.shardList.find(s => s.type === EServerType.GLOBAL_STATE_NODE);
+                        const globalShard = Array.from(this.instance.shardList.values()).find(s => s.type === EServerType.GLOBAL_STATE_NODE);
                         this.instance.outgoingShardMessages.push([globalShard.name, globalScoreBoardMessage]);
                     }
                 }
@@ -1900,7 +1900,7 @@ export class Planet implements ICameraState {
 
     createShip(shipType: EShipType): Ship {
         // get the position of the planet
-        const planetWorld = this.instance.planets.find(p => p.id === this.id);
+        const planetWorld = this.instance.planets.get(this.id);
         if (!planetWorld) {
             throw new Error("Could not find planet to spawn ship");
         }
@@ -1930,13 +1930,13 @@ export class Planet implements ICameraState {
                 shipType: ship.shipType
             };
 
-            const globalShard = this.instance.shardList.find(s => s.type === EServerType.GLOBAL_STATE_NODE);
+            const globalShard = Array.from(this.instance.shardList.values()).find(s => s.type === EServerType.GLOBAL_STATE_NODE);
             this.instance.outgoingShardMessages.push([globalShard.name, factionShipMessage]);
         } else {
             faction.shipIds.push(ship.id);
             faction.shipsAvailable[ship.shipType] += 1;
         }
-        faction.instance.ships.push(ship);
+        faction.instance.ships.set(ship.id, ship);
         this.addNewShip(ship);
 
         return ship;

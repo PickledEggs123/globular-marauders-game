@@ -25,7 +25,7 @@ export enum EOrderType {
      */
     FEUDAL_TRADE = "FEUDAL_TRADE",
     /**
-     * Trade with a planet on a some what even tone.
+     * Trade with a planet on a somewhat even tone.
      */
     FAIR_TRADE = "FAIR_TRADE",
     /**
@@ -39,7 +39,7 @@ export enum EOrderType {
 }
 
 /**
- * Different results of an order a ship can report back to it's faction.
+ * Different results of an order a ship can report back to its faction.
  */
 export enum EOrderResult {
     /**
@@ -143,7 +143,7 @@ export class Order {
         }
 
         // end point
-        const randomPlanet = this.app.planets[Math.floor(Math.random() * this.app.planets.length)];
+        const randomPlanet = Array.from(this.app.planets.values())[Math.floor(Math.random() * this.app.planets.size)];
         const randomTarget = randomPlanet.pathingNode;
         if (!randomTarget) {
             throw new Error("Could not find target pathing node");
@@ -178,7 +178,7 @@ export class Order {
         if (!this.planetId) {
             throw new Error("Could not find planetId to path to (GO TO COLONY)");
         }
-        const colonyWorld = this.app.planets.find(planet => planet.id === this.planetId);
+        const colonyWorld = this.app.planets.get(this.planetId);
         if (!colonyWorld || !colonyWorld.pathingNode) {
             throw new Error("Could not find colony world for pathing back to colony world (GO TO COLONY)");
         }
@@ -201,7 +201,7 @@ export class Order {
         if (!this.planetId) {
             throw new Error("Could not find planetId to path to (PIRATE COLONY)");
         }
-        const colonyWorld = this.app.planets.find(planet => planet.id === this.planetId);
+        const colonyWorld = this.app.planets.get(this.planetId);
         if (!colonyWorld || !colonyWorld.pathingNode) {
             throw new Error("Could not find colony world for pathing to enemy colony world (PIRATE COLONY)");
         }
@@ -266,7 +266,7 @@ export class Order {
     }
 
     public transferToNewLord() {
-        const newLordWorld = this.app.planets.find(planet => planet.id === this.planetId);
+        const newLordWorld = this.app.planets.get(this.planetId);
         if (!newLordWorld || !newLordWorld.pathingNode) {
             throw new Error("Could not find lord world for pathing back to home world (TRIBUTE)");
         }
@@ -292,7 +292,7 @@ export class Order {
         if (!this.planetId) {
             throw new Error("Could not find planetId to path to (SETTLE)");
         }
-        const colonyWorld = this.app.planets.find(planet => planet.id === this.planetId);
+        const colonyWorld = this.app.planets.get(this.planetId);
         if (!colonyWorld || !colonyWorld.pathingNode) {
             throw new Error("Could not find home world for pathing back to home world (SETTLE)");
         }
@@ -323,7 +323,7 @@ export class Order {
         if (!this.planetId) {
             throw new Error("Could not find planetId to path to (TRADE)");
         }
-        const colonyWorld = this.app.planets.find(planet => planet.id === this.planetId);
+        const colonyWorld = this.app.planets.get(this.planetId);
         if (!colonyWorld || !colonyWorld.pathingNode) {
             throw new Error("Could not find home world for pathing back to home world (TRADE)");
         }
@@ -335,7 +335,7 @@ export class Order {
         if (!this.planetId) {
             throw new Error("Could not find planetId to path to (FAIR_TRADE)");
         }
-        const otherWorld = this.app.planets.find(planet => planet.id === this.planetId);
+        const otherWorld = this.app.planets.get(this.planetId);
         if (!otherWorld || !otherWorld.pathingNode) {
             throw new Error("Could not find home world for pathing back to home world (FAIR_TRADE)");
         }
@@ -616,9 +616,9 @@ export class Order {
             case EOrderType.TRIBUTE:
             case EOrderType.SETTLE:
             case EOrderType.FEUDAL_TRADE: {
-                // trade and settler ships are suppose to be between the colony world and home world, trading
+                // trade and settler ships are supposed to be between the colony world and home world, trading
                 // attack only when between colony world and home world
-                const colonyWorld = this.app.planets.find(planet => planet.id === this.planetId);
+                const colonyWorld = this.app.planets.get(this.planetId);
                 if (!colonyWorld || !colonyWorld.pathingNode) {
                     throw new Error("Could not find home world for pathing back to home world (MISSION AREA)");
                 }

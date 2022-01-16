@@ -43,7 +43,7 @@ export class PlanetaryEconomySystem {
 
         this.planets.splice(0, this.planets.length);
         this.planets.push.apply(this.planets, data.planetIds.map(planetId => {
-            return this.instance.planets.find(p => p.id === planetId) || null;
+            return this.instance.planets.get(planetId) || null;
         }).filter(p => !!p));
     }
 

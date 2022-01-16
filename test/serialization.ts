@@ -20,14 +20,14 @@ describe("network serialization", () => {
     const game: Game = new Game();
     game.initializeGame();
     it("Faction", () => {
-        for (const a of Object.values(game.factions)) {
+        for (const a of game.factions.values()) {
             const b = Faction.deserialize(game, a.serialize());
             expect(a.serialize()).to.deep.equal(b.serialize());
             expect(a).to.deep.equal(b);
         }
     });
     it("Planet", () => {
-        for (const a of game.planets) {
+        for (const [, a] of game.planets) {
             const b = Planet.deserialize(game, a.county, a.serialize());
             expect(a.serialize()).to.deep.equal(b.serialize());
         }
@@ -72,7 +72,7 @@ describe("network serialization", () => {
         };
         networkGame.incomingMessages.push(["test", loginMessage]);
         networkGame.handleServerLoop();
-        const playerData = networkGame.playerData[0];
+        const playerData = Array.from(networkGame.playerData.values())[0];
         expect(playerData).not.equal(undefined);
 
         // pick faction
@@ -111,7 +111,7 @@ describe("network serialization", () => {
 
         const playerData = shouldSpawnShip(networkGame);
         let shipPosition: [number, number, number] =
-            networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+            networkGame.ships.get(playerData.shipId).position.rotateVector([0, 0, 1]);
 
         let byteCount: number = 0;
         const bytesPerField: Map<string, number> = new Map<string, number>();
@@ -120,7 +120,7 @@ describe("network serialization", () => {
 
         for (let i = 0; i < 20; i++) {
             shipPosition =
-                networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+                networkGame.ships.get(playerData.shipId).position.rotateVector([0, 0, 1]);
             const data = networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
             byteCount = JSON.stringify(data).length;
             for (const [key, value] of Object.entries(data)) {
@@ -141,7 +141,7 @@ describe("network serialization", () => {
 
         const playerData = shouldSpawnShip(networkGame);
         let shipPosition: [number, number, number] =
-            networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+            networkGame.ships.get(playerData.shipId).position.rotateVector([0, 0, 1]);
 
         let byteCount: number = 0;
         const bytesPerField: Map<string, number> = new Map<string, number>();
@@ -154,7 +154,7 @@ describe("network serialization", () => {
 
         for (let i = 0; i < 20; i++) {
             shipPosition =
-                networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+                networkGame.ships.get(playerData.shipId).position.rotateVector([0, 0, 1]);
             const data = networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
             byteCount = JSON.stringify(data).length;
             for (const [key, value] of Object.entries(data)) {
@@ -176,7 +176,7 @@ describe("network serialization", () => {
 
         const playerData = shouldSpawnShip(networkGame);
         let shipPosition: [number, number, number] =
-            networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+            networkGame.ships.get(playerData.shipId).position.rotateVector([0, 0, 1]);
 
         let byteCount: number = 0;
         const bytesPerField: Map<string, number> = new Map<string, number>();
@@ -189,7 +189,7 @@ describe("network serialization", () => {
 
         for (let i = 0; i < 20; i++) {
             shipPosition =
-                networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+                networkGame.ships.get(playerData.shipId).position.rotateVector([0, 0, 1]);
             const data = networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
             byteCount = JSON.stringify(data).length;
             for (const [key, value] of Object.entries(data)) {
@@ -211,12 +211,12 @@ describe("network serialization", () => {
 
         const playerData = shouldSpawnShip(networkGame);
         let shipPosition: [number, number, number] =
-            networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
-        const data = networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
+            networkGame.ships.get(playerData.shipId).position.rotateVector([0, 0, 1]);
+        networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
 
         for (let i = 0; i < 20; i++) {
             shipPosition =
-                networkGame.ships.find(s => s.id === playerData.shipId).position.rotateVector([0, 0, 1]);
+                networkGame.ships.get(playerData.shipId).position.rotateVector([0, 0, 1]);
             const data = networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
             const byteCount = JSON.stringify(data).length;
             expect(byteCount).to.be.lessThan(250);

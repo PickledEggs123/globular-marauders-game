@@ -243,19 +243,19 @@ export interface IPlayerSyncState {
 export class Game {
     public voronoiShips: VoronoiTree<Ship> = new VoronoiTree(this);
     public voronoiTerrain: VoronoiTerrain = new VoronoiTerrain(this);
-    public factions: { [key: string]: Faction } = {};
-    public ships: Ship[] = [];
-    public crates: Crate[] = [];
-    public planets: Planet[] = [];
+    public factions: Map<string, Faction> = new Map<string, Faction>();
+    public ships: Map<string, Ship> = new Map<string, Ship>();
+    public crates: Map<string, Crate> = new Map<string, Crate>();
+    public planets: Map<string, Planet> = new Map<string, Planet>();
     public directedMarketTrade: Record<string, Array<IDirectedMarketTrade>> = {};
-    public cannonBalls: CannonBall[] = [];
+    public cannonBalls: Map<string, CannonBall> = new Map<string, CannonBall>();
     public luxuryBuffs: LuxuryBuff[] = [];
     public worldScale: number = 3;
     public demoAttackingShipId: string | null = null;
     public lastDemoAttackingShipTime: Date = new Date();
     public tradeTick: number = 10 * 5;
-    public playerData: IPlayerData[] = [];
-    public playerSyncState: IPlayerSyncState[] = [];
+    public playerData: Map<string, IPlayerData> = new Map<string, IPlayerData>();
+    public playerSyncState: Map<string, IPlayerSyncState> = new Map<string, IPlayerSyncState>();
     public incomingMessages: Array<[string, IMessage]> = [];
     public outgoingMessages: Array<[string, IMessage]> = [];
     public isTestMode: boolean = false;
@@ -266,10 +266,10 @@ export class Game {
     public fetchingOrder: Set<string> = new Set<string>();
     public spawningPlanets: Set<string> = new Set<string>();
     public updatingIds: Map<string, number> = new Map<string, number>();
-    public monitoredShips: string[] = [];
-    public shardList: IShardListItem[] = [];
+    public monitoredShips: Set<string> = new Set<string>();
+    public shardList: Map<string, IShardListItem> = new Map<string, IShardListItem>();
     public shardName?: string;
-    public aiShardCount: IAiShardCountItem[] = [];
+    public aiShardCount: Map<string, IAiShardCountItem> = new Map<string, IAiShardCountItem>();
     public playerIdAliases: Map<string, string> = new Map<string, string>();
     public outgoingShardMessages: Array<[string, IShardMessage]> = [];
     public incomingShardMessages: Array<[string, IShardMessage]> = [];
@@ -346,9 +346,9 @@ export class Game {
         return {
             factions: Object.values(this.factions).map(f => f.serialize()),
             voronoiTerrain: this.voronoiTerrain.serialize(),
-            ships: this.ships.map(s => s.serialize()),
-            cannonBalls: this.cannonBalls.map(c => c.serialize()),
-            crates: this.crates.map(c => c.serialize())
+            ships: Object.values(this.ships).map(s => s.serialize()),
+            cannonBalls: Object.values(this.cannonBalls).map(c => c.serialize()),
+            crates: Object.values(this.crates).map(c => c.serialize())
         };
     }
 
@@ -362,28 +362,36 @@ export class Game {
         }
         return hash;
     };
-    private computeSyncDelta<T extends {id: string, serialize?() }>(oldData: T[], newData: T[], canUpdate: boolean): IGameSyncFrameDelta<T> {
-        const oldHashes: [string, number, number][] = oldData.map((i, index) => [i.id, index, this.hashCode(JSON.stringify(i.serialize ? i.serialize() : i))]);
-        const newHashes: [string, number, number][] = newData.map((i, index) => [i.id, index, this.hashCode(JSON.stringify(i.serialize ? i.serialize() : i))]);
+    private listToMap<T extends {id:string, serialize?() }>(list: T[]): Map<string, T> {
+        const map = new Map<string, T>();
+        list.forEach(item => map.set(item.id, item));
+        return map;
+    }
+    private computeSyncDelta<T extends {id: string, serialize?() }>(oldData: Map<string, T>, newData: T[], canUpdate: boolean): IGameSyncFrameDelta<T> {
+        const oldHashes: Map<string, [number, T]> = new Map<string, [number, T]>();
+        Array.from(oldData.values()).forEach((i) => oldHashes.set(i.id, [this.hashCode(JSON.stringify(i.serialize ? i.serialize() : i)), i]));
+        const newHashes: Map<string, [number, T]> = new Map<string, [number, T]>();
+        Array.from(newData.values()).forEach((i) => newHashes.set(i.id, [this.hashCode(JSON.stringify(i.serialize ? i.serialize() : i, )), i]));
 
         const create: T[] = [];
         const update: T[] = [];
         const remove: string[] = [];
 
-        for (const newItem of newHashes) {
-            const otherItem = oldHashes.find(i => i[0] === newItem[0]);
+        for (const [newItemKey, [newItemHash, newItem]] of newHashes) {
+            const otherItem = oldHashes.get(newItemKey);
             if (otherItem) {
-                if (canUpdate && newItem[2] !== otherItem[2]) {
-                    update.push(newData[newItem[1]]);
+                const [oldItemHash, oldItem] = otherItem;
+                if (canUpdate && newItemHash !== oldItemHash) {
+                    update.push(newItem);
                 }
             } else {
-                create.push(newData[newItem[1]]);
+                create.push(newItem);
             }
         }
-        for (const oldItem of oldHashes) {
-            const otherItem = newHashes.find(i => i[0] === oldItem[0]);
+        for (const [oldItemKey] of oldHashes) {
+            const otherItem = newHashes.get(oldItemKey);
             if (!otherItem) {
-                remove.push(oldItem[0]);
+                remove.push(oldItemKey);
             }
         }
 
@@ -396,15 +404,16 @@ export class Game {
 
     private computeSyncFrame(oldState: IPlayerSyncState, newState: IPlayerSyncState): IGameSyncFrame {
         const item: IGameSyncFrame = {
-            ships: this.computeSyncDelta(oldState.ships, newState.ships, true),
-            crates: this.computeSyncDelta(oldState.crates, newState.crates, false),
-            cannonBalls: this.computeSyncDelta(oldState.cannonBalls, newState.cannonBalls, false),
-            planets: this.computeSyncDelta(oldState.planets, newState.planets, true),
-            factions: this.computeSyncDelta(oldState.factions, newState.factions, true),
-            scoreBoard: this.computeSyncDelta(oldState.scoreBoard, newState.scoreBoard, true),
+            ships: this.computeSyncDelta(this.listToMap(oldState.ships), newState.ships, true),
+            crates: this.computeSyncDelta(this.listToMap(oldState.crates), newState.crates, false),
+            cannonBalls: this.computeSyncDelta(this.listToMap(oldState.cannonBalls), newState.cannonBalls, false),
+            planets: this.computeSyncDelta(this.listToMap(oldState.planets), newState.planets, true),
+            factions: this.computeSyncDelta(this.listToMap(oldState.factions), newState.factions, true),
+            scoreBoard: this.computeSyncDelta(this.listToMap(oldState.scoreBoard), newState.scoreBoard, true),
         };
 
-        this.playerSyncState.splice(this.playerSyncState.indexOf(oldState), 1, newState);
+        this.playerSyncState.delete(oldState.id);
+        this.playerSyncState.set(newState.id, newState);
 
         return item;
     }
@@ -413,7 +422,7 @@ export class Game {
      * Get a single frame of the game 10 times a second. For multiplayer purposes.
      */
     public getSyncFrame(playerData: IPlayerData, newPlayerState: IPlayerSyncState): IGameSyncFrame {
-        let playerDelta: IPlayerSyncState = this.playerSyncState.find(p => p.id === playerData.id);
+        let playerDelta: IPlayerSyncState = this.playerSyncState.get(playerData.id);
         if (!playerDelta) {
             playerDelta = {
                 id: playerData.id,
@@ -436,28 +445,25 @@ export class Game {
      * @param createFunc A function to create a new instance.
      * @param updateFunc A function to update an old instance.
      */
-    public static syncNetworkArray<T extends {id: string}, U extends {id: string}>(mainArray: T[], dataArray: IGameSyncFrameDelta<U>, createFunc: ((u: U) => T) | null, updateFunc: (t: T, u: U) => void) {
+    public static syncNetworkArray<T extends {id: string}, U extends {id: string}>(mainArray: Map<string, T>, dataArray: IGameSyncFrameDelta<U>, createFunc: ((u: U) => T) | null, updateFunc: (t: T, u: U) => void) {
         for (const shipData of dataArray.create) {
             // ship does not exist, create a new one
             if (createFunc) {
-                mainArray.push(createFunc(shipData));
+                mainArray.set(shipData.id, createFunc(shipData));
             }
         }
         for (const shipData of dataArray.update) {
-            const ship = mainArray.find(s => s.id === shipData.id);
+            const ship = mainArray.get(shipData.id);
             if (ship) {
                 // ship did exist and still exist, simply update
                 updateFunc(ship, shipData)
             } else if (createFunc) {
-                mainArray.push(createFunc(shipData));
+                mainArray.set(shipData.id, createFunc(shipData));
             }
         }
         // remove old ships
         for (const ship of dataArray.remove) {
-            const index = mainArray.findIndex(s => s.id === ship);
-            if (index >= 0) {
-                mainArray.splice(index, 1);
-            }
+            mainArray.delete(ship);
         }
     }
 
@@ -468,25 +474,25 @@ export class Game {
      * @param createFunc A function to create a new instance.
      * @param updateFunc A function to update an old instance.
      */
-    public static syncNetworkMap<T extends {id: string}, U extends {id: string}>(mainArray: Record<string, T>, dataArray: IGameSyncFrameDelta<U>, createFunc: ((u: U) => T) | null, updateFunc: (t: T, u: U) => void) {
+    public static syncNetworkMap<T extends {id: string}, U extends {id: string}>(mainArray: Map<string, T>, dataArray: IGameSyncFrameDelta<U>, createFunc: ((u: U) => T) | null, updateFunc: (t: T, u: U) => void) {
         for (const shipData of dataArray.create) {
             // ship does not exist, create a new one
             if (createFunc) {
-                mainArray[shipData.id] = createFunc(shipData);
+                mainArray.set(shipData.id, createFunc(shipData));
             }
         }
         for (const shipData of dataArray.update) {
-            const ship = mainArray[shipData.id];
+            const ship = mainArray.get(shipData.id);
             if (ship) {
                 // ship did exist and still exist, simply update
                 updateFunc(ship, shipData)
             } else if (createFunc) {
-                mainArray[shipData.id] = createFunc(shipData);
+                mainArray.set(shipData.id, createFunc(shipData));
             }
         }
         // remove old ships
         for (const shipId of dataArray.remove) {
-            delete mainArray[shipId];
+            mainArray.delete(shipId);
         }
     }
 
@@ -504,7 +510,8 @@ export class Game {
         }
 
         this.voronoiTerrain = VoronoiTerrain.deserialize(this, data.voronoiTerrain);
-        this.planets = Array.from(this.voronoiTerrain.getPlanets());
+        this.planets = new Map<string, Planet>();
+        Array.from(this.voronoiTerrain.getPlanets()).forEach(p => this.planets.set(p.id, p));
 
         Game.syncNetworkArray(
             this.ships, {
@@ -587,7 +594,7 @@ export class Game {
 
         if (faction) {
             // get planets of faction
-            const planetsToSpawnAt = this.planets.filter(p => faction && faction.planetIds.includes(p.id))
+            const planetsToSpawnAt = Array.from(this.planets.values()).filter(p => faction && faction.planetIds.includes(p.id))
                 .sort((a, b) => {
                     const settlementLevelDifference = b.settlementLevel - a.settlementLevel;
                     if (settlementLevelDifference !== 0) {
@@ -627,7 +634,7 @@ export class Game {
 
         if (faction) {
             // get planets of faction
-            const planetsToSpawnAt = this.planets.filter(p => faction && faction.planetIds.includes(p.id))
+            const planetsToSpawnAt = Array.from(this.planets.values()).filter(p => faction && faction.planetIds.includes(p.id))
                 .sort((a, b) => {
                     const settlementLevelDifference = b.settlementLevel - a.settlementLevel;
                     if (settlementLevelDifference !== 0) {
@@ -686,7 +693,8 @@ export class Game {
         this.voronoiTerrain.generateTerrain();
 
         // initialize planets
-        this.planets = Array.from(this.voronoiTerrain.getPlanets());
+        this.planets = new Map<string, Planet>();
+        Array.from(this.voronoiTerrain.getPlanets()).forEach(p => this.planets.set(p.id, p));
 
         // initialize factions
         const factionStartingPoints = this.generateGoodPoints(5, 10).map(p => p.centroid);
@@ -760,7 +768,7 @@ export class Game {
             }
             const faction = new Faction(this, factionData.id, factionData.color, planetId);
             this.factions[factionData.id] = faction;
-            const planet = this.planets.find(p => p.id === planetId);
+            const planet = this.planets.get(planetId);
             if (planet) {
                 planet.setAsStartingCapital();
                 planet.claim(faction, false);
@@ -828,12 +836,12 @@ export class Game {
 
     /**
      * Process a ship by making changes to the ship's data.
-     * @param shipIndex Index to get ship's state.
+     * @param shipId id to get ship's state.
      * @param getActiveKeys Get the ship's active keys.
      * @param isAutomated If the function is called by AI, which shouldn't clear pathfinding logic.
      * @private
      */
-    public handleShipLoop(shipIndex: number, getActiveKeys: () => string[], isAutomated: boolean) {
+    public handleShipLoop(shipId: string, getActiveKeys: () => string[], isAutomated: boolean) {
         let {
             id: cameraId,
             position: cameraPosition,
@@ -844,15 +852,12 @@ export class Game {
             cannonCoolDown,
             shipType,
             faction
-        } = this.ships[shipIndex];
+        } = this.ships.get(shipId);
         const shipData = SHIP_DATA.find(i => i.shipType === shipType);
         if (!shipData) {
             throw new Error("Could not find Ship Type");
         }
-        const speedFactor = this.ships[shipIndex].getSpeedFactor();
-        const cannonBalls = [
-            ...this.cannonBalls.slice(-100)
-        ];
+        const speedFactor = this.ships.get(shipId).getSpeedFactor();
         const newCannonBalls: CannonBall[] = [];
 
         let clearPathFindingPoints: boolean = false;
@@ -913,7 +918,7 @@ export class Game {
                 const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
 
                 // create a cannon ball
-                const cannonBall = new CannonBall(faction.id, this.ships[shipIndex].id);
+                const cannonBall = new CannonBall(faction.id, this.ships.get(shipId).id);
                 cannonBall.id = `${cameraId}-${Math.floor(Math.random() * 100000000)}`;
                 cannonBall.position = cameraPosition.clone();
                 cannonBall.positionVelocity = fireVelocity.clone();
@@ -928,11 +933,11 @@ export class Game {
         }
 
         // handle automatic cannonades
-        for (let i = 0; i < this.ships[shipIndex].cannonadeCoolDown.length; i++) {
-            const cannonadeCoolDown = this.ships[shipIndex].cannonadeCoolDown[i];
+        for (let i = 0; i < this.ships.get(shipId).cannonadeCoolDown.length; i++) {
+            const cannonadeCoolDown = this.ships.get(shipId).cannonadeCoolDown[i];
             if (cannonadeCoolDown <= 0) {
                 // find nearby ship
-                const targetVector = this.ships[shipIndex].fireControl.getTargetVector();
+                const targetVector = this.ships.get(shipId).fireControl.getTargetVector();
                 if (!targetVector) {
                     continue;
                 }
@@ -959,7 +964,7 @@ export class Game {
                 }
 
                 // create a cannon ball
-                const cannonBall = new CannonBall(faction.id, this.ships[shipIndex].id);
+                const cannonBall = new CannonBall(faction.id, this.ships.get(shipId).id);
                 cannonBall.id = `${cameraId}-${Math.floor(Math.random() * 100000000)}`;
                 cannonBall.position = cameraPosition.clone();
                 cannonBall.positionVelocity = fireVelocity.clone();
@@ -968,9 +973,9 @@ export class Game {
                 newCannonBalls.push(cannonBall);
 
                 // apply a cool down to the cannonades
-                this.ships[shipIndex].cannonadeCoolDown[i] = 45;
+                this.ships.get(shipId).cannonadeCoolDown[i] = 45;
             } else if (cannonadeCoolDown > 0) {
-                this.ships[shipIndex].cannonadeCoolDown[i] = this.ships[shipIndex].cannonadeCoolDown[i] - 1;
+                this.ships.get(shipId).cannonadeCoolDown[i] = this.ships.get(shipId).cannonadeCoolDown[i] - 1;
             }
         }
 
@@ -985,8 +990,8 @@ export class Game {
         if (cameraOrientationVelocity !== Quaternion.ONE) {
             cameraOrientation = cameraOrientation.clone().mul(cameraOrientationVelocity.clone().pow(speedFactor));
         }
-        if (cameraPosition !== this.ships[shipIndex].position && false) {
-            const diffQuaternion = this.ships[shipIndex].position.clone().inverse().mul(cameraPosition.clone());
+        if (cameraPosition !== this.ships.get(shipId).position && false) {
+            const diffQuaternion = this.ships.get(shipId).position.clone().inverse().mul(cameraPosition.clone());
             cameraOrientation = cameraOrientation.clone().mul(diffQuaternion);
         }
 
@@ -994,22 +999,24 @@ export class Game {
         if (cannonCoolDown > 0) {
             cannonCoolDown -= 1;
         }
-        this.ships[shipIndex].handleHealthTick();
+        this.ships.get(shipId).handleHealthTick();
 
-        this.ships[shipIndex].position = cameraPosition;
-        this.ships[shipIndex].orientation = cameraOrientation;
-        this.ships[shipIndex].positionVelocity = cameraPositionVelocity;
-        this.ships[shipIndex].orientationVelocity = cameraOrientationVelocity;
-        this.ships[shipIndex].cannonLoading = cameraCannonLoading;
-        this.ships[shipIndex].cannonCoolDown = cannonCoolDown;
+        this.ships.get(shipId).position = cameraPosition;
+        this.ships.get(shipId).orientation = cameraOrientation;
+        this.ships.get(shipId).positionVelocity = cameraPositionVelocity;
+        this.ships.get(shipId).orientationVelocity = cameraOrientationVelocity;
+        this.ships.get(shipId).cannonLoading = cameraCannonLoading;
+        this.ships.get(shipId).cannonCoolDown = cannonCoolDown;
         if (clearPathFindingPoints) {
-            this.ships[shipIndex].pathFinding.points = [];
+            this.ships.get(shipId).pathFinding.points = [];
         }
-        this.cannonBalls = isAutomated ? [...cannonBalls, ...newCannonBalls] : [...cannonBalls];
+        if (isAutomated) {
+            newCannonBalls.forEach(c => this.cannonBalls.set(c.id, c));
+        }
 
         // emit ship state events if not automated, i.e. is player controlled
         if (!isAutomated) {
-            const playerData = this.playerData.find(p => p.shipId === this.ships[shipIndex].id);
+            const playerData = this.playerData.get(this.ships.get(shipId).id);
             if (playerData) {
                 const shipStateMessage: IShipStateMessage = {
                     messageType: EMessageType.SHIP_STATE,
@@ -1104,7 +1111,7 @@ export class Game {
     private loadGlobalStateMessage(message: IGlobalStateShardMessage) {
         Game.syncNetworkMap(
             this.factions,
-            this.computeSyncDelta(Object.values(this.factions), message.factions.map(f => Faction.deserialize(this, f)), true),
+            this.computeSyncDelta(this.factions, message.factions.map(f => Faction.deserialize(this, f)), true),
             (v: Faction) => v,
             (s: Faction, v: Faction) => s.deserializeUpdate(v.serialize())
         );
@@ -1158,7 +1165,7 @@ export class Game {
             pathFinding: ISerializedPathFinder;
             fireControl: ISerializedFireControl;
         }>)) {
-            const ship = this.ships.find(s => s.id === item.shipId);
+            const ship = this.ships.get(item.shipId);
             if (ship) {
                 ship.activeKeys.splice(0, ship.activeKeys.length, ...item.shipKeys);
                 ship.orders.splice(0, ship.orders.length, ...item.orders.map(o => Order.deserialize(this, ship, o)));
@@ -1229,7 +1236,7 @@ export class Game {
             (o, d) => o.deserializeUpdate(d.serialize())
         );
         for (const item of sortedData.reduce((acc, m) => [...acc, ...m.planets], [] as ISerializedPlanetFull[])) {
-            const planet = this.planets.find(p => p.id === item.id);
+            const planet = this.planets.get(item.id);
             if (planet) {
                 planet.deserializeUpdateFull(item);
             }
@@ -1266,8 +1273,8 @@ export class Game {
                             }
                             case EShardMessageType.SPAWN_AI_SHIP: {
                                 // forward message to the best AI node
-                                const bestShardCount = this.aiShardCount.sort((a, b) => a.numAI - b.numAI)[0];
-                                const aiShard = this.shardList.find(s => s.name === bestShardCount.name);
+                                const bestShardCount = Array.from(this.aiShardCount.values()).sort((a, b) => a.numAI - b.numAI)[0];
+                                const aiShard = this.shardList.get(bestShardCount.name);
                                 this.outgoingShardMessages.push([aiShard.name, message]);
                                 bestShardCount.numAI += 1;
                                 break;
@@ -1275,8 +1282,8 @@ export class Game {
                             case EShardMessageType.SPAWN_SHIP: {
                                 // forward message to the best AI node
                                 const {playerId} = message as ISpawnShardMessage;
-                                const bestShardCount = this.aiShardCount.find(s => s.players.includes(playerId));
-                                const aiShard = this.shardList.find(s => s.name === bestShardCount.name);
+                                const bestShardCount = Array.from(this.aiShardCount.values()).find(s => s.players.includes(playerId));
+                                const aiShard = this.shardList.get(bestShardCount.name);
                                 const spawnMessage: ISpawnShardMessage = {
                                     ...(message as ISpawnShardMessage),
                                     playerId: this.playerIdAliases.get(playerId) ?? playerId // load balancer -> AI
@@ -1287,7 +1294,7 @@ export class Game {
                             }
                             case EShardMessageType.CLAIM_PLANET: {
                                 // forward message to all nodes except the sender node
-                                for (const shard of this.shardList) {
+                                for (const [,shard] of this.shardList) {
                                     if (![this.shardName, fromShardName].includes(shard.name) && [EServerType.GLOBAL_STATE_NODE, EServerType.AI_NODE, EServerType.PHYSICS_NODE].includes(shard.type)) {
                                         this.outgoingShardMessages.push([shard.name, message]);
                                     }
@@ -1299,10 +1306,10 @@ export class Game {
                                 const {
                                     planetId
                                 } = message as IDestroyShipPlanetShardMessage;
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const planet = this.planets.get(planetId);
                                 if (planet) {
                                     const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                                    const physicsNode = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                    const physicsNode = Array.from(this.shardList.values()).find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
                                     if (physicsNode) {
                                         this.outgoingShardMessages.push([physicsNode.name, message]);
                                     }
@@ -1314,10 +1321,10 @@ export class Game {
                                 const {
                                     planetId
                                 } = message as ITributeShipPlanetShardMessage;
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const planet = this.planets.get(planetId);
                                 if (planet) {
                                     const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                                    const physicsNode = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                    const physicsNode = Array.from(this.shardList.values()).find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
                                     if (physicsNode) {
                                         this.outgoingShardMessages.push([physicsNode.name, message]);
                                     }
@@ -1329,10 +1336,10 @@ export class Game {
                                 const {
                                     planetId
                                 } = message as ITradeShipPlanetShardMessage;
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const planet = this.planets.get(planetId);
                                 if (planet) {
                                     const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                                    const physicsNode = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                    const physicsNode = Array.from(this.shardList.values()).find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
                                     if (physicsNode) {
                                         this.outgoingShardMessages.push([physicsNode.name, message]);
                                     }
@@ -1391,7 +1398,7 @@ export class Game {
                                 } = message as IClaimPlanetShardMessage;
 
                                 const faction = this.factions[factionId];
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const planet = this.planets.get(planetId);
                                 planet.claim(faction, false);
                                 break;
                             }
@@ -1413,7 +1420,7 @@ export class Game {
                                     shipId
                                 } = message as IDestroyShipFactionShardMessage;
 
-                                const ship = this.ships.find(p => p.id === shipId);
+                                const ship = this.ships.get(shipId);
                                 const faction = this.factions[factionId];
                                 faction.handleShipDestroyed(ship, false);
                                 break;
@@ -1443,10 +1450,10 @@ export class Game {
                                 const {
                                     planetId
                                 } = message as ISpawnAiShardMessage;
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const planet = this.planets.get(planetId);
                                 if (planet) {
                                     const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                                    const physicsNode = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                    const physicsNode = Array.from(this.shardList.values()).find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
                                     if (physicsNode) {
                                         this.outgoingShardMessages.push([physicsNode.name, message]);
                                     }
@@ -1457,8 +1464,8 @@ export class Game {
                                 const {
                                     shipId
                                 } = message as ISpawnAiResultShardMessage;
-                                this.monitoredShips.push(shipId);
-                                const loadBalancer = this.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+                                this.monitoredShips.add(shipId);
+                                const loadBalancer = Array.from(this.shardList.values()).find(s => s.type === EServerType.LOAD_BALANCER);
                                 if (loadBalancer) {
                                     this.outgoingShardMessages.push([loadBalancer.name, message]);
                                 }
@@ -1468,10 +1475,10 @@ export class Game {
                                 const {
                                     planetId
                                 } = message as ISpawnShardMessage;
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const planet = this.planets.get(planetId);
                                 if (planet) {
                                     const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                                    const physicsNode = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                    const physicsNode = Array.from(this.shardList.values()).find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
                                     if (physicsNode) {
                                         this.outgoingShardMessages.push([physicsNode.name, message]);
                                     }
@@ -1483,13 +1490,13 @@ export class Game {
                                     playerId,
                                     shipId
                                 } = message as ISpawnResultShardMessage;
-                                const player = this.playerData.find(p => p.id === playerId);
+                                const player = this.playerData.get(playerId);
                                 if (!player) {
                                     continue;
                                 }
                                 player.shipId = shipId;
-                                this.monitoredShips.push(shipId);
-                                const loadBalancer = this.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+                                this.monitoredShips.add(shipId);
+                                const loadBalancer = Array.from(this.shardList.values()).find(s => s.type === EServerType.LOAD_BALANCER);
                                 if (loadBalancer) {
                                     this.outgoingShardMessages.push([loadBalancer.name, message]);
                                 }
@@ -1502,7 +1509,7 @@ export class Game {
                                 } = message as IClaimPlanetShardMessage;
 
                                 const faction = this.factions[factionId];
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const planet = this.planets.get(planetId);
                                 planet.claim(faction, false);
 
                                 const claimPlanetMessage: IClaimPlanetMessage = {
@@ -1510,7 +1517,7 @@ export class Game {
                                     planetId,
                                     factionId,
                                 };
-                                for (const playerData of this.playerData) {
+                                for (const [,playerData] of this.playerData) {
                                     this.outgoingMessages.push([playerData.id, claimPlanetMessage]);
                                 }
                                 break;
@@ -1520,7 +1527,7 @@ export class Game {
                                     order,
                                     shipId
                                 } = message as IFetchOrderResultShardMessage;
-                                const ship = this.ships.find(s => s.id === shipId);
+                                const ship = this.ships.get(shipId);
                                 if (!ship) {
                                     continue;
                                 }
@@ -1532,7 +1539,7 @@ export class Game {
                                 const {
                                     playerId
                                 } = message as IDeathShardMessage;
-                                const player = this.playerData.find(p => p.id === playerId);
+                                const player = this.playerData.get(playerId);
                                 if (!player) {
                                     continue;
                                 }
@@ -1557,7 +1564,7 @@ export class Game {
                                 const {
                                     shipId,
                                 } = fetchOrderMessage;
-                                const ship = this.ships.find(s => s.id === shipId);
+                                const ship = this.ships.get(shipId);
                                 const order = ship.planet.getOrder(ship);
 
                                 const fetchOrderResultMessage: IFetchOrderResultShardMessage = {
@@ -1574,7 +1581,7 @@ export class Game {
                                     planetId,
                                     shipType
                                 } = spawnMessage;
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const planet = this.planets.get(planetId);
                                 const ship = planet.spawnShip(planet.moneyAccount.cash, shipType, true);
 
                                 const spawnAiShipResultMessage: ISpawnAiResultShardMessage = {
@@ -1592,9 +1599,9 @@ export class Game {
                                     planetId,
                                     playerId
                                 } = spawnMessage;
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const planet = this.planets.get(planetId);
 
-                                const player = this.playerData.find(p => p.id === playerId);
+                                const player = this.playerData.get(playerId);
                                 if (!player) {
                                     continue;
                                 }
@@ -1616,7 +1623,7 @@ export class Game {
                                 } = message as IClaimPlanetShardMessage;
 
                                 const faction = this.factions[factionId];
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const planet = this.planets.get(planetId);
                                 planet.claim(faction, false);
                                 break;
                             }
@@ -1626,11 +1633,11 @@ export class Game {
                                     shipId
                                 } = message as IDestroyShipPlanetShardMessage;
 
-                                const ship = this.ships.find(p => p.id === shipId);
+                                const ship = this.ships.get(shipId);
                                 if (!ship) {
                                     return;
                                 }
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const planet = this.planets.get(planetId);
                                 planet.handleShipDestroyed(ship, false);
                                 break;
                             }
@@ -1640,8 +1647,8 @@ export class Game {
                                     shipId
                                 } = message as ITributeShipPlanetShardMessage;
 
-                                const ship = this.ships.find(p => p.id === shipId);
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const ship = this.ships.get(shipId);
+                                const planet = this.planets.get(planetId);
                                 planet.tribute(ship, false);
                                 break;
                             }
@@ -1653,8 +1660,8 @@ export class Game {
                                     specificBuy
                                 } = message as ITradeShipPlanetShardMessage;
 
-                                const ship = this.ships.find(p => p.id === shipId);
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const ship = this.ships.get(shipId);
+                                const planet = this.planets.get(planetId);
                                 planet.trade(ship, false, unload, specificBuy);
                                 break;
                             }
@@ -1665,9 +1672,9 @@ export class Game {
                                     planetId,
                                     playerId
                                 } = investMessage;
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const planet = this.planets.get(planetId);
 
-                                const player = this.playerData.find(p => p.id === playerId);
+                                const player = this.playerData.get(playerId);
                                 if (!player) {
                                     continue;
                                 }
@@ -1685,9 +1692,9 @@ export class Game {
                                     planetId,
                                     playerId
                                 } = investMessage;
-                                const planet = this.planets.find(p => p.id === planetId);
+                                const planet = this.planets.get(planetId);
 
-                                const player = this.playerData.find(p => p.id === playerId);
+                                const player = this.playerData.get(playerId);
                                 if (!player) {
                                     continue;
                                 }
@@ -1702,12 +1709,12 @@ export class Game {
                                 const shipStateMessage = message as IShipStateShardMessage;
                                 const playerId = shipStateMessage.playerId;
 
-                                const player = this.playerData.find(p => p.id === playerId);
+                                const player = this.playerData.get(playerId);
                                 if (!player) {
                                     continue;
                                 }
 
-                                const ship = this.ships.find(s => s.id === player.shipId);
+                                const ship = this.ships.get(player.shipId);
                                 if (ship) {
                                     // update ship position
                                     ship.position = DeserializeQuaternion(shipStateMessage.position);
@@ -1716,10 +1723,9 @@ export class Game {
                                     ship.orientationVelocity = DeserializeQuaternion(shipStateMessage.orientationVelocity);
 
                                     // add new cannonballs
-                                    this.cannonBalls.push.apply(
-                                        this.cannonBalls,
-                                        shipStateMessage.newCannonBalls.map(c => CannonBall.deserialize(c))
-                                    );
+                                    shipStateMessage.newCannonBalls.map(c => CannonBall.deserialize(c)).forEach(c => {
+                                        this.cannonBalls.set(c.id, c);
+                                    });
                                 }
                                 break;
                             }
@@ -1752,8 +1758,8 @@ export class Game {
             case EServerType.AI_NODE: {
                 this.aiPlayerDataCombined.set(this.shardName, [-1, {
                     shardMessageType: EShardMessageType.AI_PLAYER_DATA_STATE,
-                    playerData: this.playerData,
-                    ships: this.ships.filter(s => this.monitoredShips.includes(s.id)).map((s) => ({
+                    playerData: Array.from(this.playerData.values()),
+                    ships: Array.from(this.ships.values()).filter(s => this.monitoredShips.has(s.id)).map((s) => ({
                         shipId: s.id,
                         shipKeys: s.activeKeys,
                         orders: s.orders.map(o => o.serialize()),
@@ -1779,17 +1785,17 @@ export class Game {
                         this.updatingIds.delete(key);
                     }
                 }
-                for (const ship of this.ships) {
+                for (const [, ship] of this.ships) {
                     if (isInKingdom(ship)) {
                         this.updatingIds.set(ship.id, 0);
                     }
                 }
-                for (const crate of this.crates) {
+                for (const [, crate] of this.crates) {
                     if (isInKingdom(crate)) {
                         this.updatingIds.set(crate.id, 0);
                     }
                 }
-                for (const cannonBall of this.cannonBalls) {
+                for (const [, cannonBall] of this.cannonBalls) {
                     if (isInKingdom(cannonBall)) {
                         this.updatingIds.set(cannonBall.id, 0);
                     }
@@ -1800,9 +1806,9 @@ export class Game {
                 this.physicsDataCombined.set(this.shardName, [-1, {
                     shardMessageType: EShardMessageType.PHYSICS_DATA_STATE,
                     planets: [],
-                    ships: this.ships.filter(isUpdated).map(s => s.serialize()),
-                    crates: this.crates.filter(isUpdated).map(s => s.serialize()),
-                    cannonBalls: this.cannonBalls.filter(isUpdated).map(s => s.serialize()),
+                    ships: Array.from(this.ships.values()).filter(isUpdated).map(s => s.serialize()),
+                    crates: Array.from(this.crates.values()).filter(isUpdated).map(s => s.serialize()),
+                    cannonBalls: Array.from(this.cannonBalls.values()).filter(isUpdated).map(s => s.serialize()),
                     transferIds: [...this.updatingIds.entries()].reduce((acc, [key, value]) => {
                         if (value > 0) {
                             acc.push(key);
@@ -1832,7 +1838,7 @@ export class Game {
                     factions: Object.values(this.factions).map(f => f.serialize()),
                     scoreBoard: this.scoreBoard,
                 };
-                for (const shard of this.shardList) {
+                for (const [, shard] of this.shardList) {
                     if ([EServerType.AI_NODE, EServerType.PHYSICS_NODE].includes(shard.type)) {
                         this.outgoingShardMessages.push([shard.name, globalStateMessage]);
                     }
@@ -1848,7 +1854,7 @@ export class Game {
                 };
 
                 // send player data to all physics nodes
-                for (const playerData of this.playerData) {
+                for (const [, playerData] of this.playerData) {
                     for (let kingdomIndex = 0; kingdomIndex < this.voronoiTerrain.kingdoms.length; kingdomIndex++) {
                         if (!physicsNodeMessages.has(kingdomIndex)) {
                             physicsNodeMessages.set(kingdomIndex, {
@@ -1863,7 +1869,7 @@ export class Game {
                 }
                 // send ship data to correct physics node
                 for (const shipId of this.monitoredShips) {
-                    const ship = this.ships.find(s => s.id === shipId);
+                    const ship = this.ships.get(shipId);
                     if (ship) {
                         // send to physics node
                         const planet = this.voronoiTerrain.getNearestPlanet(ship.position.rotateVector([0, 0, 1]));
@@ -1895,7 +1901,7 @@ export class Game {
                 }
 
                 // send data to each server
-                for (const shard of this.shardList) {
+                for (const [, shard] of this.shardList) {
                     if (shard.type === EServerType.GLOBAL_STATE_NODE) {
                         this.outgoingShardMessages.push([shard.name, globalNodeMessage]);
                     } else if (shard.type === EServerType.PHYSICS_NODE && physicsNodeMessages.has(shard.kingdomIndex)) {
@@ -1916,25 +1922,25 @@ export class Game {
                     return this.voronoiTerrain.kingdoms.indexOf(planet.county.duchy.kingdom) === this.physicsKingdomIndex;
                 };
                 const isUpdatable = (c: ICameraState): boolean => isInKingdom(c) || this.updatingIds.has(c.id);
-                for (const ship of this.ships) {
+                for (const [, ship] of this.ships) {
                     if (!isUpdatable(ship)) {
                         continue;
                     }
                     ships.push(ship);
                 }
-                for (const cannonBall of this.cannonBalls) {
+                for (const [, cannonBall] of this.cannonBalls) {
                     if (!isUpdatable(cannonBall)) {
                         continue;
                     }
                     cannonBalls.push(cannonBall);
                 }
-                for (const crate of this.crates) {
+                for (const [, crate] of this.crates) {
                     if (!isUpdatable(crate)) {
                         continue;
                     }
                     crates.push(crate);
                 }
-                for (const planet of this.planets) {
+                for (const [, planet] of this.planets) {
                     const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
                     if (kingdomIndex !== this.physicsKingdomIndex) {
                         continue;
@@ -1956,7 +1962,7 @@ export class Game {
                     }, [] as string[]),
                 };
 
-                for (const shard of this.shardList) {
+                for (const [, shard] of this.shardList) {
                     if (shard.type === EServerType.PHYSICS_NODE) {
                         // update neighbor physics shard
                         const kingdom = this.voronoiTerrain.kingdoms[this.physicsKingdomIndex];
@@ -1992,7 +1998,7 @@ export class Game {
                     if (message.messageType === EMessageType.JOIN) {
                         const joinMessage = message as IJoinMessage;
 
-                        let player: IPlayerData = this.playerData.find(p => p.id === playerId);
+                        let player: IPlayerData = this.playerData.get(playerId);
                         if (!player) {
                             player = {
                                 id: playerId,
@@ -2005,21 +2011,23 @@ export class Game {
                                 autoPilotEnabled: true,
                                 aiNodeName: this.aiNodeName
                             };
-                            this.playerData.push(player);
+                            this.playerData.set(player.id, player);
                         }
 
-                        const loadBalancerShard = this.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
-                        const joinAliasMessage: IJoinAliasShardMessage = {
-                            shardMessageType: EShardMessageType.JOIN_ALIAS,
-                            playerId,
-                            name: this.playerIdAliases.get(player.name) ?? player.name, // AI -> Load Balancer
+                        if ([EServerType.AI_NODE].includes(this.serverType)) {
+                            const loadBalancerShard = Array.from(this.shardList.values()).find(s => s.type === EServerType.LOAD_BALANCER);
+                            const joinAliasMessage: IJoinAliasShardMessage = {
+                                shardMessageType: EShardMessageType.JOIN_ALIAS,
+                                playerId,
+                                name: this.playerIdAliases.get(player.name) ?? player.name, // AI -> Load Balancer
+                            }
+                            this.outgoingShardMessages.push([loadBalancerShard.name, joinAliasMessage]);
                         }
-                        this.outgoingShardMessages.push([loadBalancerShard.name, joinAliasMessage]);
 
                     } else if (message.messageType === EMessageType.CHOOSE_FACTION) {
                         const chooseFactionMessage = message as IChooseFactionMessage;
 
-                        const player = this.playerData.find(p => p.id === playerId);
+                        const player = this.playerData.get(playerId);
                         if (!player) {
                             continue;
                         }
@@ -2032,7 +2040,7 @@ export class Game {
                     } else if (message.messageType === EMessageType.CHOOSE_PLANET) {
                         const choosePlanetMessage = message as IChoosePlanetMessage;
 
-                        const player = this.playerData.find(p => p.id === playerId);
+                        const player = this.playerData.get(playerId);
                         if (!player) {
                             continue;
                         }
@@ -2047,9 +2055,9 @@ export class Game {
                             shipType,
                             planetId
                         } = spawnMessage;
-                        const planet = this.planets.find(p => p.id === planetId);
+                        const planet = this.planets.get(planetId);
 
-                        const player = this.playerData.find(p => p.id === playerId);
+                        const player = this.playerData.get(playerId);
                         if (!player) {
                             continue;
                         }
@@ -2059,7 +2067,7 @@ export class Game {
                                 const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType);
                                 player.shipId = playerShip.id;
                             } else if ([EServerType.AI_NODE].includes(this.serverType) && this.playerIdAliases.has(player.name)) { // check
-                                const loadBalancer = this.shardList.find(s => s.type === EServerType.LOAD_BALANCER);
+                                const loadBalancer = Array.from(this.shardList.values()).find(s => s.type === EServerType.LOAD_BALANCER);
                                 const spawnShipMessage: ISpawnShardMessage = {
                                     shardMessageType: EShardMessageType.SPAWN_SHIP,
                                     shipType,
@@ -2075,9 +2083,9 @@ export class Game {
                             amount,
                             planetId
                         } = investMessage;
-                        const planet = this.planets.find(p => p.id === planetId);
+                        const planet = this.planets.get(planetId);
 
-                        const player = this.playerData.find(p => p.id === playerId);
+                        const player = this.playerData.get(playerId);
                         if (!player) {
                             continue;
                         }
@@ -2088,7 +2096,7 @@ export class Game {
                                 planet.depositInvestment(playerId, player.moneyAccount, payment);
                             } else if ([EServerType.AI_NODE].includes(this.serverType)) {
                                 const kingdomIndex = this.voronoiTerrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                                const physicsShard = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                const physicsShard = Array.from(this.shardList.values()).find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
                                 const investAmountMessage: IInvestDepositShardMessage = {
                                     shardMessageType: EShardMessageType.INVEST_DEPOSIT_AMOUNT,
                                     amount,
@@ -2104,9 +2112,9 @@ export class Game {
                             amount,
                             planetId
                         } = investMessage;
-                        const planet = this.planets.find(p => p.id === planetId);
+                        const planet = this.planets.get(planetId);
 
-                        const player = this.playerData.find(p => p.id === playerId);
+                        const player = this.playerData.get(playerId);
                         if (!player) {
                             continue;
                         }
@@ -2117,7 +2125,7 @@ export class Game {
                                 planet.withdrawInvestment(playerId, player.moneyAccount, payment);
                             } else if ([EServerType.AI_NODE].includes(this.serverType)) {
                                 const kingdomIndex = this.voronoiTerrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                                const physicsShard = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                const physicsShard = Array.from(this.shardList.values()).find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
                                 const investAmountMessage: IInvestWithdrawShardMessage = {
                                     shardMessageType: EShardMessageType.INVEST_WITHDRAW_AMOUNT,
                                     amount,
@@ -2130,7 +2138,7 @@ export class Game {
                     } if (message.messageType === EMessageType.AUTOPILOT) {
                         const autoPilotMessage = message as IAutoPilotMessage;
 
-                        const player = this.playerData.find(p => p.id === playerId);
+                        const player = this.playerData.get(playerId);
                         if (!player) {
                             continue;
                         }
@@ -2141,13 +2149,13 @@ export class Game {
                     } else if (message.messageType === EMessageType.SHIP_STATE) {
                         const shipStateMessage = message as IShipStateMessage;
 
-                        const player = this.playerData.find(p => p.id === playerId);
+                        const player = this.playerData.get(playerId);
                         if (!player) {
                             continue;
                         }
 
                         if (player && !player.autoPilotEnabled) {
-                            const ship = this.ships.find(s => s.id === player.shipId);
+                            const ship = this.ships.get(player.shipId);
                             if (ship) {
                                 if ([EServerType.STANDALONE].includes(this.serverType)) {
                                     // update ship position
@@ -2157,14 +2165,13 @@ export class Game {
                                     ship.orientationVelocity = DeserializeQuaternion(shipStateMessage.orientationVelocity);
 
                                     // add new cannonballs
-                                    this.cannonBalls.push.apply(
-                                        this.cannonBalls,
-                                        shipStateMessage.newCannonBalls.map(c => CannonBall.deserialize(c))
-                                    );
+                                    shipStateMessage.newCannonBalls.map(c => CannonBall.deserialize(c)).forEach(c => {
+                                        this.cannonBalls.set(c.id, c);
+                                    });
                                 } else if ([EServerType.AI_NODE].includes(this.serverType)) {
                                     const planet = this.voronoiTerrain.getNearestPlanet(ship.position.rotateVector([0, 0, 1]));
                                     const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
-                                    const kingdomPhysicsNode = this.shardList.find(p => p.type === EServerType.PHYSICS_NODE && p.kingdomIndex === kingdomIndex);
+                                    const kingdomPhysicsNode = Array.from(this.shardList.values()).find(p => p.type === EServerType.PHYSICS_NODE && p.kingdomIndex === kingdomIndex);
                                     const shipStateShardMessage: IShipStateShardMessage = {
                                         shardMessageType: EShardMessageType.SHIP_STATE,
                                         playerId: player.id,
@@ -2192,8 +2199,8 @@ export class Game {
                     switch (message.messageType) {
                         case EMessageType.JOIN: {
                             // forward message to the best AI node
-                            const bestShardCount = this.aiShardCount.sort((a, b) => a.players.length - b.players.length)[0];
-                            const aiShard = this.shardList.find(s => s.name === bestShardCount.name);
+                            const bestShardCount = Array.from(this.aiShardCount.values()).sort((a, b) => a.players.length - b.players.length)[0];
+                            const aiShard = this.shardList.get(bestShardCount.name);
                             bestShardCount.numAI += 1;
                             bestShardCount.players.push(playerId);
                             const joinAliasMessage: IJoinAliasShardMessage = {
@@ -2236,12 +2243,12 @@ export class Game {
                 array: IExpirableTicks[],
                 removeFromDataStructures: (item: IExpirableTicks) => void,
             }> = [{
-                array: this.cannonBalls,
+                array: Array.from(this.cannonBalls.values()),
                 removeFromDataStructures(this: Game, item: CannonBall) {
                     this.voronoiTerrain.removeCannonBall(item);
                 }
             }, {
-                array: this.crates,
+                array: Array.from(this.crates.values()),
                 removeFromDataStructures(this: Game, item: Crate) {
                     this.voronoiTerrain.removeCrate(item);
                 }
@@ -2269,8 +2276,8 @@ export class Game {
 
             // move cannonballs and crates
             const movableArrays: Array<Array<ICameraState & IExpirableTicks>> = [
-                this.cannonBalls,
-                this.crates
+                Array.from(this.cannonBalls.values()),
+                Array.from(this.crates.values())
             ];
             for (const movableArray of movableArrays) {
                 for (const entity of movableArray) {
@@ -2287,7 +2294,7 @@ export class Game {
                 useRayCast: boolean,
                 removeFromDataStructures: (item: IExpirableTicks) => void,
             }> = [{
-                arr: this.cannonBalls,
+                arr: Array.from(this.cannonBalls.values()),
                 collideFn(this: Game, ship: Ship, entity: ICollidable, hit: IHitTest) {
                     ship.applyDamage(entity as CannonBall);
                 },
@@ -2296,7 +2303,7 @@ export class Game {
                     this.voronoiTerrain.removeCannonBall(item);
                 }
             }, {
-                arr: this.crates,
+                arr: Array.from(this.crates.values()),
                 collideFn(this: Game, ship: Ship, entity: ICollidable, hit: IHitTest) {
                     ship.pickUpCargo(entity as Crate);
                 },
@@ -2363,7 +2370,7 @@ export class Game {
         // update collision acceleration structures
         // required by AI and PHYSICS
         if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE, EServerType.AI_NODE].includes(this.serverType)) {
-            for (const ship of this.ships) {
+            for (const [, ship] of this.ships) {
                 this.voronoiShips.removeItem(ship);
             }
         }
@@ -2379,9 +2386,7 @@ export class Game {
         if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE, EServerType.AI_NODE].includes(this.serverType)) {
             // AI ship loop
             const destroyedShips: Ship[] = [];
-            for (let i = 0; i < this.ships.length; i++) {
-                const ship = this.ships[i];
-
+            for (const [shipId, ship] of this.ships) {
                 // skip ships which are not controlled by the shard
                 if ([EServerType.PHYSICS_NODE].includes(this.serverType)) {
                     const planet = this.voronoiTerrain.getNearestPlanet(ship.position.rotateVector([0, 0, 1]));
@@ -2391,7 +2396,7 @@ export class Game {
                     }
                 }
                 if ([EServerType.AI_NODE].includes(this.serverType)) {
-                    const isMonitored = this.monitoredShips.includes(ship.id);
+                    const isMonitored = this.monitoredShips.has(shipId);
                     if (!isMonitored) {
                         continue;
                     }
@@ -2403,7 +2408,7 @@ export class Game {
                         destroyedShips.push(ship);
                         const crates = ship.destroy();
                         for (const crate of crates) {
-                            this.crates.push(crate);
+                            this.crates.set(crate.id, crate);
                         }
                         continue;
                     }
@@ -2432,7 +2437,7 @@ export class Game {
                                     shipId: ship.id
                                 };
                                 const kingdomIndex = ship.planet.county.duchy.kingdom.terrain.kingdoms.indexOf(ship.planet.county.duchy.kingdom);
-                                const physicsNode = this.shardList.find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
+                                const physicsNode = Array.from(this.shardList.values()).find(s => s.type === EServerType.PHYSICS_NODE && s.kingdomIndex === kingdomIndex);
                                 this.outgoingShardMessages.push([physicsNode.name, fetchOrderMessage]);
                             }
                         }
@@ -2456,13 +2461,13 @@ export class Game {
                 }
 
                 if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
-                    const playerData = this.playerData.find(d => d.shipId === ship.id);
+                    const playerData = this.playerData.get(ship.id);
                     if (playerData && !playerData.autoPilotEnabled) {
                         // ship is player ship which has no autopilot, accept player control
-                        this.handleShipLoop(i, () => playerData.activeKeys, false);
+                        this.handleShipLoop(shipId, () => playerData.activeKeys, false);
                     } else {
                         // ship is npc ship if autoPilot is not enabled
-                        this.handleShipLoop(i, () => ship.activeKeys, true);
+                        this.handleShipLoop(shipId, () => ship.activeKeys, true);
                     }
                 }
             }
@@ -2470,27 +2475,25 @@ export class Game {
             // remove destroyed ships
             if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
                 for (const destroyedShip of destroyedShips) {
-                    const playerIndex = this.playerData.findIndex(p => p.shipId === destroyedShip.id);
-                    if (playerIndex >= 0) {
+                    const player = this.playerData.get(destroyedShip.id);
+                    if (player) {
                         if ([EServerType.STANDALONE].includes(this.serverType)) {
-                            const player = this.playerData[playerIndex];
                             player.shipId = "";
                             const message: IDeathMessage = {
                                 messageType: EMessageType.DEATH
                             };
                             this.outgoingMessages.push([player.id, message]);
                         } else if ([EServerType.PHYSICS_NODE].includes(this.serverType)) {
-                            const aiNodeName = this.playerData[playerIndex].aiNodeName;
+                            const aiNodeName = player.aiNodeName;
                             const message: IDeathShardMessage = {
                                 shardMessageType: EShardMessageType.DEATH,
-                                playerId: this.playerData[playerIndex].id
+                                playerId: player.id
                             };
                             this.outgoingShardMessages.push([aiNodeName, message]);
                         }
                     }
-                    const index = this.ships.findIndex(s => s === destroyedShip);
-                    if (index >= 0) {
-                        this.ships.splice(index, 1);
+                    if (this.ships.has(destroyedShip.id)) {
+                        this.ships.delete(destroyedShip.id);
                         this.voronoiTerrain.removeShip(destroyedShip);
                     }
                 }
@@ -2502,16 +2505,16 @@ export class Game {
         // used by PHYSICS for collision
         // used by AI for speeding up orders
         if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE, EServerType.AI_NODE].includes(this.serverType)) {
-            for (const ship of this.ships) {
+            for (const [, ship] of this.ships) {
                 this.voronoiShips.addItem(ship);
             }
-            for (const ship of this.ships) {
+            for (const [, ship] of this.ships) {
                 this.voronoiTerrain.updateShip(ship);
             }
-            for (const cannonBall of this.cannonBalls) {
+            for (const [, cannonBall] of this.cannonBalls) {
                 this.voronoiTerrain.updateCannonBall(cannonBall);
             }
-            for (const crate of this.crates) {
+            for (const [, crate] of this.crates) {
                 this.voronoiTerrain.updateCrate(crate);
             }
         }
@@ -2521,7 +2524,7 @@ export class Game {
         // - send order updates to PHYSICS
         // AI -> PHYSICS
         if ([EServerType.STANDALONE, EServerType.AI_NODE].includes(this.serverType)) {
-            for (const ship of this.ships) {
+            for (const [, ship] of this.ships) {
                 // handle detecting ships to shoot at
                 if (!ship.fireControl.targetShipId && !ship.fireControl.retargetCoolDown) {
                     // get a list of nearby ships
@@ -2603,7 +2606,7 @@ export class Game {
         // - send plant update to AI and GLOBAL STATE
         if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
             // handle planet loop
-            for (const planet of this.planets) {
+            for (const [, planet] of this.planets) {
                 if ([EServerType.PHYSICS_NODE].includes(this.serverType)) {
                     const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
                     if (this.physicsKingdomIndex !== kingdomIndex) {
@@ -2634,8 +2637,8 @@ export class Game {
                     amount
                 };
             };
-            this.scoreBoard.money = this.playerData.map(scoreMoneyAccount);
-            for (const planet of this.planets) {
+            this.scoreBoard.money = Array.from(this.playerData.values()).map(scoreMoneyAccount);
+            for (const [, planet] of this.planets) {
                 for (const moneyScore of this.scoreBoard.money) {
                     const investmentAccount = planet.investmentAccounts.get(moneyScore.playerId);
                     if (investmentAccount) {
@@ -2655,7 +2658,7 @@ export class Game {
                     } else {
                         acc2.push({
                             playerId: j.playerId,
-                            name: this.playerData.find(p => p.id === j.playerId)?.name ?? j.playerId,
+                            name: this.playerData.get(j.playerId)?.name ?? j.playerId,
                             amount: 1,
                         });
                     }

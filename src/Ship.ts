@@ -98,12 +98,12 @@ export enum EShipType {
      */
     CUTTER = "CUTTER",
     /**
-     * A ship with eight cannons, four on each side, it has 10 cannonades which automatically fire at near by ship.
-     * Great for speed and harassing enemies from strange angles. Also cheap to build.
+     * A ship with eight cannons, four on each side, it has 10 cannonades which automatically fire at nearby ship.
+     * Great for speed and harassing enemies from strange angles. Also, cheap to build.
      */
     SLOOP = "SLOOP",
     /**
-     * The cheap main battle ship which has 8 cannons, 4 on each side and no cannonades. Made to attack ships directly.
+     * The cheap main battleship which has 8 cannons, 4 on each side and no cannonades. Made to attack ships directly.
      */
     CORVETTE = "CORVETTE",
     /**
@@ -305,7 +305,7 @@ export class Ship implements IAutomatedShip {
         this.id = data.id;
         this.shipType = data.shipType;
         this.faction = data.faction && this.app.factions[data.faction] || null;
-        this.planet = data.planetId && this.app.planets.find(p => p.id === data.planetId) || null;
+        this.planet = data.planetId && this.app.planets.get(data.planetId) || null;
         this.color = data.color;
         this.position = DeserializeQuaternion(data.position);
         this.positionVelocity = DeserializeQuaternion(data.positionVelocity);
@@ -385,7 +385,7 @@ export class Ship implements IAutomatedShip {
     }
 
     nearPirateCrate(): Crate | null {
-        const crate = this.app.crates.find(c => {
+        const crate = Array.from(this.app.crates.values()).find(c => {
             const cratePosition = c.position.clone().rotateVector([0, 0, 1]);
             const shipPosition = this.position.clone().rotateVector([0, 0, 1]);
             const distance = VoronoiGraph.angularDistance(cratePosition, shipPosition, this.app.worldScale);
@@ -431,7 +431,7 @@ export class Ship implements IAutomatedShip {
         }
 
         // score damage
-        const playerData = this.app.playerData.find(p => p.shipId === cannonBall.shipId);
+        const playerData = this.app.playerData.get(cannonBall.shipId);
         if (playerData) {
             if ([EServerType.STANDALONE].includes(this.app.serverType)) {
                 const item = this.app.scoreBoard.damage.find(i => i.playerId === playerData.id);
@@ -452,7 +452,7 @@ export class Ship implements IAutomatedShip {
                     name: playerData.name,
                     damage: cannonBall.damage
                 };
-                const globalShard = this.app.shardList.find(s => s.type === EServerType.GLOBAL_STATE_NODE);
+                const globalShard = Array.from(this.app.shardList.values()).find(s => s.type === EServerType.GLOBAL_STATE_NODE);
                 this.app.outgoingShardMessages.push([globalShard.name, globalScoreBoardMessage]);
             }
         }
@@ -756,7 +756,7 @@ export class FireControl<T extends IAutomatedShip> {
      * Compute unit vector towards target ship.
      */
     public getTargetVector(): [number, number, number] | null {
-        const target = this.app.ships.find(s => s.id === this.targetShipId);
+        const target = this.app.ships.get(this.targetShipId);
         if (!target) {
             return null;
         }
@@ -792,7 +792,7 @@ export class FireControl<T extends IAutomatedShip> {
             }
         }
 
-        const target = this.app.ships.find(s => s.id === this.targetShipId);
+        const target = this.app.ships.get(this.targetShipId);
         if (!target) {
             // no targets, cancel attack
             this.targetShipId = null;

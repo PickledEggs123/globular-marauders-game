@@ -69,7 +69,7 @@ export class Market {
     static ComputeProfitableTradeDirectedGraph(instance: Game) {
         // setup best profitable trades for the entire game
         if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(instance.serverType)) {
-            for (const planet of instance.planets) {
+            for (const [, planet] of instance.planets) {
                 if (planet.moneyAccount) {
                     planet.bestProfitableTrades = Market.GetBiggestPriceDifferenceInImportsForPlanet(planet).slice(0, 30);
                 }
@@ -78,10 +78,8 @@ export class Market {
 
         // compute a directed edge graph of the trades
         if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(instance.serverType)) {
-            for (let i = 0; i < instance.planets.length; i++) {
-                for (let j = i + 1; j < instance.planets.length; j++) {
-                    const a = instance.planets[i];
-                    const b = instance.planets[j];
+            for (const [, a] of instance.planets) {
+                for (const [, b] of instance.planets) {
                     const data = [] as Array<IDirectedMarketTrade>;
                     for (const [resourceType, profit, planet] of a.bestProfitableTrades) {
                         if (planet.id === b.id) {
@@ -108,15 +106,13 @@ export class Market {
 
         // compute possible trade deals, pair each directed edge into a series of bilateral trade deals
         if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(instance.serverType)) {
-            for (const planet of instance.planets) {
+            for (const [, planet] of instance.planets) {
                 planet.possibleTradeDeals = [];
             }
         }
         if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(instance.serverType)) {
-            for (let i = 0; i < instance.planets.length; i++) {
-                for (let j = i + 1; j < instance.planets.length; j++) {
-                    const a = instance.planets[i];
-                    const b = instance.planets[j];
+            for (const [, a] of instance.planets) {
+                for (const [, b] of instance.planets) {
                     const data = instance.directedMarketTrade[`${a.id}#${b.id}`];
                     const toTrades = data.filter(t => t.tradeDirection === EDirectedMarketTradeDirection.TO);
                     const fromTrades = data.filter(t => t.tradeDirection === EDirectedMarketTradeDirection.FROM);
@@ -140,7 +136,7 @@ export class Market {
             }
         }
         if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(instance.serverType)) {
-            for (const planet of instance.planets) {
+            for (const [, planet] of instance.planets) {
                 planet.possibleTradeDeals.sort((a, b) => a.profit - b.profit);
             }
         }

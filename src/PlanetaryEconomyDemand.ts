@@ -44,7 +44,7 @@ export class PlanetaryEconomyDemand {
     }
 
     public static deserialize(instance: Game, data: ISerializedPlanetaryEconomyDemand): PlanetaryEconomyDemand {
-        const planet = instance.planets.find(p => p.id === data.planetId);
+        const planet = instance.planets.get(data.planetId);
         if (!planet) {
             throw new Error("Could not find planet");
         }

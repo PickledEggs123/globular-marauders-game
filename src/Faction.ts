@@ -281,7 +281,7 @@ export class Faction {
 
         // arch dukes and kings
         const expandedDukes = this.factionPlayerRoyalTitles.dukes.map((i) => ({
-            kingdomId: this.instance.planets.find(p => p.id === i.planetId).county.duchy.kingdom?.capital?.capital?.capital.id,
+            kingdomId: this.instance.planets.get(i.planetId).county.duchy.kingdom?.capital?.capital?.capital.id,
             duchyId: i.planetId,
             playerId: i.playerId,
         })).reduce((acc, i) => {
@@ -298,7 +298,7 @@ export class Faction {
             return acc;
         }, [] as Array<{kingdomId: string, playerId: string, domainCount: number}>).map((i): {kingdomId: string, playerId: string, domainCount: number, capitalCount: number} => {
             const capitalCount = this.factionPlanetRoster.filter(p => p.playerId === i.playerId && p.kingdomId === i.kingdomId).filter(p => {
-                const planet = this.instance.planets.find(pl => pl.id === p.countyId);
+                const planet = this.instance.planets.get(p.countyId);
                 if (planet) {
                     return planet.isDuchyCapital() || planet.isKingdomCapital() || planet.isImperialCapital();
                 } else {
@@ -342,7 +342,7 @@ export class Faction {
             return acc;
         }, [] as Array<{playerId: string, domainCount: number}>).map((i): {playerId: string, domainCount: number, capitalCount: number} => {
             const capitalCount = this.factionPlanetRoster.filter(p => p.playerId === i.playerId).filter(p => {
-                const planet = this.instance.planets.find(pl => pl.id === p.countyId);
+                const planet = this.instance.planets.get(p.countyId);
                 if (planet) {
                     return planet.isKingdomCapital() || planet.isImperialCapital();
                 } else {
@@ -370,7 +370,7 @@ export class Faction {
                 factionId: this.id,
                 shipId: ship.id,
             };
-            const globalShard = this.instance.shardList.find(s => s.type === EServerType.GLOBAL_STATE_NODE);
+            const globalShard = Array.from(this.instance.shardList.values()).find(s => s.type === EServerType.GLOBAL_STATE_NODE);
             this.instance.outgoingShardMessages.push([globalShard.name, claimMessage]);
             return;
         }
