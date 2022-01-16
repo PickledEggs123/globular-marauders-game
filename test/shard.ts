@@ -1,4 +1,4 @@
-import {Game, VoronoiKingdom} from "../src";
+import {Game, Order, VoronoiKingdom} from "../src";
 import {
     EServerType,
     EShardMessageType,
@@ -24,6 +24,7 @@ import {
 } from "../src/Game";
 import {EFaction, PHYSICS_SCALE} from "../src/Ship";
 import {VoronoiGraph} from "../src/Graph";
+import {EOrderType} from "../src/Order";
 
 describe("shard tests", () => {
     let networkGame: Game | null = null;
@@ -716,7 +717,12 @@ describe("shard tests", () => {
                     if (Array.from(networkGame.playerData.values())[0] && Array.from(networkGame.playerData.values())[0].shipId) {
                         const ship = networkGame.ships.get(Array.from(networkGame.playerData.values())[0].shipId);
                         if (ship && neighborKingdomPlanet) {
-                            ship.pathFinding.points.unshift(neighborKingdomPlanet.position.rotateVector([0, 0, 1]));
+                            ship.orders[0].stage = 3;
+                            ship.pathFinding.points.splice(0, ship.pathFinding.points.length);
+                            const newOrder = new Order(networkGame, ship, ship.faction);
+                            newOrder.orderType = EOrderType.FEUDAL_TRADE;
+                            newOrder.planetId = neighborKingdomPlanet.id;
+                            ship.orders.push(newOrder);
                             setMission = true;
                         }
                     }
