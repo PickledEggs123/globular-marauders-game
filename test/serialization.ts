@@ -55,7 +55,7 @@ describe("network serialization", () => {
         expect(a).to.deep.equal(b);
     });
     it("Crate", () => {
-        const a = new Crate(EResourceType.RUM, game.factions[EFaction.DUTCH].homeWorldPlanetId, 1);
+        const a = new Crate(EResourceType.RUM, game.factions.get(EFaction.DUTCH).homeWorldPlanetId, 1);
         const b = Crate.deserialize(a.serialize());
         expect(a.serialize()).to.deep.equal(b.serialize());
         expect(a).to.deep.equal(b);

@@ -92,7 +92,7 @@ export class Order {
     }
 
     public deserializeUpdate(data: ISerializedOrder) {
-        this.faction = this.app.factions[data.factionId];
+        this.faction = this.app.factions.get(data.factionId);
         if (!this.faction) {
             throw new Error("Could not find faction using faction id");
         }
@@ -107,7 +107,7 @@ export class Order {
     }
 
     public static deserialize(game: Game, ship: Ship, data: ISerializedOrder): Order {
-        const faction = game.factions[data.factionId];
+        const faction = game.factions.get(data.factionId);
         if (!faction) {
             throw new Error("Could not find faction using faction id");
         }

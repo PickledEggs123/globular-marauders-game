@@ -11,22 +11,22 @@ describe("faction", () => {
             game.initializeGame();
 
             const factionId = EFaction.DUTCH;
-            const homeWorldPlanetId = game.factions[factionId].homeWorldPlanetId;
+            const homeWorldPlanetId = game.factions.get(factionId).homeWorldPlanetId;
             const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
             const duchyId = homeWorld.county.duchy.capital.capital.id;
             const countyId = homeWorld.county.capital.id;
             const playerId = "test";
-            homeWorld.county.duchy.counties.forEach(p => p.claim(game.factions[factionId]));
-            game.factions[factionId].factionPlanetRoster.push({
+            homeWorld.county.duchy.counties.forEach(p => p.claim(game.factions.get(factionId)));
+            game.factions.get(factionId).factionPlanetRoster.push({
                 factionId,
                 kingdomId,
                 duchyId,
                 countyId,
                 playerId,
             });
-            game.factions[factionId].handleFactionLoop();
-            expect(game.factions[factionId].factionPlayerRoyalTitles).to.deep.equal({
+            game.factions.get(factionId).handleFactionLoop();
+            expect(game.factions.get(factionId).factionPlayerRoyalTitles).to.deep.equal({
                 counts: [{planetId: countyId, playerId}],
                 barons: [],
                 dukes: [],
@@ -42,14 +42,14 @@ describe("faction", () => {
             game.initializeGame();
 
             const factionId = EFaction.DUTCH;
-            const homeWorldPlanetId = game.factions[factionId].homeWorldPlanetId;
+            const homeWorldPlanetId = game.factions.get(factionId).homeWorldPlanetId;
             const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
             const duchyId = homeWorld.county.duchy.capital.capital.id;
             const countyId = homeWorld.county.capital.id;
             const playerId = "test";
-            homeWorld.county.duchy.counties.forEach(p => p.claim(game.factions[factionId]));
-            game.factions[factionId].factionPlanetRoster.push({
+            homeWorld.county.duchy.counties.forEach(p => p.claim(game.factions.get(factionId)));
+            game.factions.get(factionId).factionPlanetRoster.push({
                 factionId,
                 kingdomId,
                 duchyId,
@@ -62,8 +62,8 @@ describe("faction", () => {
                 countyId: homeWorld.county.duchy.counties.filter(c => c.capital.id !== countyId)[0].capital.id,
                 playerId,
             });
-            game.factions[factionId].handleFactionLoop();
-            expect(game.factions[factionId].factionPlayerRoyalTitles).to.deep.equal({
+            game.factions.get(factionId).handleFactionLoop();
+            expect(game.factions.get(factionId).factionPlayerRoyalTitles).to.deep.equal({
                 counts: [{
                     planetId: countyId,
                     playerId,
@@ -85,14 +85,14 @@ describe("faction", () => {
             game.initializeGame();
 
             const factionId = EFaction.DUTCH;
-            const homeWorldPlanetId = game.factions[factionId].homeWorldPlanetId;
+            const homeWorldPlanetId = game.factions.get(factionId).homeWorldPlanetId;
             const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
             const duchyId = homeWorld.county.duchy.capital.capital.id;
             const countyId = homeWorld.county.capital.id;
             const playerId = "test";
-            homeWorld.county.duchy.counties.forEach(p => p.claim(game.factions[factionId]));
-            game.factions[factionId].factionPlanetRoster.push({
+            homeWorld.county.duchy.counties.forEach(p => p.claim(game.factions.get(factionId)));
+            game.factions.get(factionId).factionPlanetRoster.push({
                 factionId,
                 kingdomId,
                 duchyId,
@@ -111,8 +111,8 @@ describe("faction", () => {
                 countyId: homeWorld.county.duchy.counties.filter(c => c.capital.id !== countyId)[1].capital.id,
                 playerId,
             });
-            game.factions[factionId].handleFactionLoop();
-            expect(game.factions[factionId].factionPlayerRoyalTitles).to.deep.equal({
+            game.factions.get(factionId).handleFactionLoop();
+            expect(game.factions.get(factionId).factionPlayerRoyalTitles).to.deep.equal({
                 counts: [{
                     planetId: countyId,
                     playerId
@@ -137,14 +137,14 @@ describe("faction", () => {
             game.initializeGame();
 
             const factionId = EFaction.DUTCH;
-            const homeWorldPlanetId = game.factions[factionId].homeWorldPlanetId;
+            const homeWorldPlanetId = game.factions.get(factionId).homeWorldPlanetId;
             const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
             const duchyId = homeWorld.county.duchy.capital.capital.id;
             const countyId = homeWorld.county.capital.id;
             const playerId = "test";
-            homeWorld.county.duchy.kingdom.duchies.forEach(d => d.counties.forEach(p => p.claim(game.factions[factionId])));
-            game.factions[factionId].factionPlanetRoster.push({
+            homeWorld.county.duchy.kingdom.duchies.forEach(d => d.counties.forEach(p => p.claim(game.factions.get(factionId))));
+            game.factions.get(factionId).factionPlanetRoster.push({
                 factionId,
                 kingdomId,
                 duchyId,
@@ -169,8 +169,8 @@ describe("faction", () => {
                 countyId: homeWorld.county.duchy.kingdom.duchies.filter(d => d.capital.capital.id !== duchyId)[0].capital.capital.id,
                 playerId,
             });
-            game.factions[factionId].handleFactionLoop();
-            expect(game.factions[factionId].factionPlayerRoyalTitles).to.deep.equal({
+            game.factions.get(factionId).handleFactionLoop();
+            expect(game.factions.get(factionId).factionPlayerRoyalTitles).to.deep.equal({
                 counts: [{
                     planetId: countyId,
                     playerId
@@ -204,14 +204,14 @@ describe("faction", () => {
             game.initializeGame();
 
             const factionId = EFaction.DUTCH;
-            const homeWorldPlanetId = game.factions[factionId].homeWorldPlanetId;
+            const homeWorldPlanetId = game.factions.get(factionId).homeWorldPlanetId;
             const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
             const duchyId = homeWorld.county.duchy.capital.capital.id;
             const countyId = homeWorld.county.capital.id;
             const playerId = "test";
-            homeWorld.county.duchy.kingdom.duchies.forEach(d => d.counties.forEach(p => p.claim(game.factions[factionId])));
-            game.factions[factionId].factionPlanetRoster.push({
+            homeWorld.county.duchy.kingdom.duchies.forEach(d => d.counties.forEach(p => p.claim(game.factions.get(factionId))));
+            game.factions.get(factionId).factionPlanetRoster.push({
                 factionId,
                 kingdomId,
                 duchyId,
@@ -242,8 +242,8 @@ describe("faction", () => {
                 countyId: homeWorld.county.duchy.kingdom.duchies.filter(d => d.capital.capital.id !== duchyId)[1].capital.capital.id,
                 playerId,
             });
-            game.factions[factionId].handleFactionLoop();
-            expect(game.factions[factionId].factionPlayerRoyalTitles).to.deep.equal({
+            game.factions.get(factionId).handleFactionLoop();
+            expect(game.factions.get(factionId).factionPlayerRoyalTitles).to.deep.equal({
                 counts: [{
                     planetId: countyId,
                     playerId
@@ -280,15 +280,15 @@ describe("faction", () => {
             game.initializeGame();
 
             const factionId = EFaction.DUTCH;
-            const homeWorldPlanetId = game.factions[factionId].homeWorldPlanetId;
+            const homeWorldPlanetId = game.factions.get(factionId).homeWorldPlanetId;
             const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
             const duchyId = homeWorld.county.duchy.capital.capital.id;
             const countyId = homeWorld.county.capital.id;
             const playerId = "test";
-            homeWorld.county.duchy.kingdom.duchies.forEach(d => d.counties.forEach(p => p.planet.claim(game.factions[factionId], true)));
-            homeWorld.county.duchy.kingdom.neighborKingdoms[0].duchies[0].counties[0].planet.claim(game.factions[factionId], true);
-            game.factions[factionId].factionPlanetRoster.push({
+            homeWorld.county.duchy.kingdom.duchies.forEach(d => d.counties.forEach(p => p.planet.claim(game.factions.get(factionId), true)));
+            homeWorld.county.duchy.kingdom.neighborKingdoms[0].duchies[0].counties[0].planet.claim(game.factions.get(factionId), true);
+            game.factions.get(factionId).factionPlanetRoster.push({
                 factionId,
                 kingdomId,
                 duchyId,
@@ -325,8 +325,8 @@ describe("faction", () => {
                 countyId: homeWorld.county.duchy.kingdom.neighborKingdoms[0].capital.capital.capital.id,
                 playerId,
             });
-            game.factions[factionId].handleFactionLoop();
-            expect(game.factions[factionId].factionPlayerRoyalTitles).to.deep.equal({
+            game.factions.get(factionId).handleFactionLoop();
+            expect(game.factions.get(factionId).factionPlayerRoyalTitles).to.deep.equal({
                 counts: [{
                     planetId: countyId,
                     playerId
@@ -357,7 +357,7 @@ describe("faction", () => {
                     playerId,
                 }],
                 emperors: [{
-                    planetId: game.factions[factionId].homeWorldPlanetId,
+                    planetId: game.factions.get(factionId).homeWorldPlanetId,
                     playerId,
                 }],
             });

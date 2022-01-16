@@ -502,10 +502,10 @@ export class Game {
      */
     public applyGameInitializationFrame(data: IGameInitializationFrame) {
         for (const factionData of data.factions) {
-            if (this.factions[factionData.id]) {
-                this.factions[factionData.id].deserializeUpdate(factionData);
+            if (this.factions.has(factionData.id)) {
+                this.factions.get(factionData.id).deserializeUpdate(factionData);
             } else {
-                this.factions[factionData.id] = Faction.deserialize(this, factionData);
+                this.factions.set(factionData.id, Faction.deserialize(this, factionData));
             }
         }
 
@@ -589,7 +589,7 @@ export class Game {
         // get faction
         let faction: Faction | null = null;
         if (playerData.factionId) {
-            faction = this.factions[playerData.factionId];
+            faction = this.factions.get(playerData.factionId) ?? null;
         }
 
         if (faction) {
@@ -629,7 +629,7 @@ export class Game {
         // get faction
         let faction: Faction | null = null;
         if (playerData.factionId) {
-            faction = this.factions[playerData.factionId];
+            faction = this.factions.get(playerData.factionId) ?? null;
         }
 
         if (faction) {
@@ -767,7 +767,7 @@ export class Game {
                 throw new Error("Could not find planet to make faction");
             }
             const faction = new Faction(this, factionData.id, factionData.color, planetId);
-            this.factions[factionData.id] = faction;
+            this.factions.set(factionData.id, faction);
             const planet = this.planets.get(planetId);
             if (planet) {
                 planet.setAsStartingCapital();
@@ -1397,7 +1397,7 @@ export class Game {
                                     factionId
                                 } = message as IClaimPlanetShardMessage;
 
-                                const faction = this.factions[factionId];
+                                const faction = this.factions.get(factionId) ?? null;
                                 const planet = this.planets.get(planetId);
                                 planet.claim(faction, false);
                                 break;
@@ -1409,7 +1409,7 @@ export class Game {
                                     shipType
                                 } = message as ICreateShipFactionShardMessage;
 
-                                const faction = this.factions[factionId];
+                                const faction = this.factions.get(factionId) ?? null;
                                 faction.shipIds.push(shipId);
                                 faction.shipsAvailable[shipType] += 1;
                                 break;
@@ -1421,7 +1421,7 @@ export class Game {
                                 } = message as IDestroyShipFactionShardMessage;
 
                                 const ship = this.ships.get(shipId);
-                                const faction = this.factions[factionId];
+                                const faction = this.factions.get(factionId) ?? null;
                                 faction.handleShipDestroyed(ship, false);
                                 break;
                             }
@@ -1508,7 +1508,7 @@ export class Game {
                                     factionId
                                 } = message as IClaimPlanetShardMessage;
 
-                                const faction = this.factions[factionId];
+                                const faction = this.factions.get(factionId) ?? null;
                                 const planet = this.planets.get(planetId);
                                 planet.claim(faction, false);
 
@@ -1622,7 +1622,7 @@ export class Game {
                                     factionId
                                 } = message as IClaimPlanetShardMessage;
 
-                                const faction = this.factions[factionId];
+                                const faction = this.factions.get(factionId) ?? null;
                                 const planet = this.planets.get(planetId);
                                 planet.claim(faction, false);
                                 break;

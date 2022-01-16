@@ -422,7 +422,7 @@ describe("shard tests", () => {
                 const { shards, shardMap, loadBalancerShard } = setupShards(true);
                 loginShard(shards, shardMap, loadBalancerShard);
                 const globalShard = shards.find(s => s.serverType === EServerType.GLOBAL_STATE_NODE);
-                const dutchHomeWorldId = globalShard.factions[EFaction.DUTCH].homeWorldPlanetId;
+                const dutchHomeWorldId = globalShard.factions.get(EFaction.DUTCH).homeWorldPlanetId;
                 const dutchHomeWorld = globalShard.planets.get(dutchHomeWorldId);
 
                 // get initial amount
@@ -491,7 +491,7 @@ describe("shard tests", () => {
                 loginShard(shards, shardMap, loadBalancerShard);
 
                 const globalShard = shards.find(s => s.serverType === EServerType.GLOBAL_STATE_NODE);
-                const dutchHomeWorldId = globalShard.factions[EFaction.DUTCH].homeWorldPlanetId;
+                const dutchHomeWorldId = globalShard.factions.get(EFaction.DUTCH).homeWorldPlanetId;
                 const dutchHomeWorld = globalShard.planets.get(dutchHomeWorldId);
 
                 // claim 4 kingdoms as Dutch to create score board
@@ -508,14 +508,14 @@ describe("shard tests", () => {
                 const physicsNodes: Game[] = kingdomIds.map(kingdomId => shards.find(s => s.serverType === EServerType.PHYSICS_NODE && s.physicsKingdomIndex === kingdomId));
                 const kingdoms: VoronoiKingdom[] = physicsNodes.map(n => n.voronoiTerrain.kingdoms[n.physicsKingdomIndex]);
                 for (const kingdom of kingdoms) {
-                    kingdom.duchies.forEach(d => d.counties.forEach(c => c.planet.claim(kingdom.app.factions[EFaction.DUTCH], true)));
+                    kingdom.duchies.forEach(d => d.counties.forEach(c => c.planet.claim(kingdom.app.factions.get(EFaction.DUTCH), true)));
                 }
                 runGameLoop(shards, shardMap);
                 runGameLoop(shards, shardMap);
                 runGameLoop(shards, shardMap);
 
                 // create scoreboard
-                globalShard.factions[EFaction.DUTCH].factionPlanetRoster.push({
+                globalShard.factions.get(EFaction.DUTCH).factionPlanetRoster.push({
                     factionId: EFaction.DUTCH,
                     playerId: "emperor",
                     kingdomId: kingdoms[0].capital.capital.capital.id,
@@ -552,7 +552,7 @@ describe("shard tests", () => {
                     duchyId: kingdoms[1].capital.capital.capital.id,
                     countyId: kingdoms[1].capital.capital.capital.id,
                 });
-                globalShard.factions[EFaction.DUTCH].factionPlanetRoster.push({
+                globalShard.factions.get(EFaction.DUTCH).factionPlanetRoster.push({
                     factionId: EFaction.DUTCH,
                     playerId: "king",
                     kingdomId: kingdoms[2].capital.capital.capital.id,
@@ -583,7 +583,7 @@ describe("shard tests", () => {
                     duchyId: kingdoms[2].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[2].capital.capital.capital.id)[1].capital.capital.id,
                     countyId: kingdoms[2].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[2].capital.capital.capital.id)[1].capital.capital.id,
                 });
-                globalShard.factions[EFaction.DUTCH].factionPlanetRoster.push({
+                globalShard.factions.get(EFaction.DUTCH).factionPlanetRoster.push({
                     factionId: EFaction.DUTCH,
                     playerId: "archDuke",
                     kingdomId: kingdoms[1].capital.capital.capital.id,
@@ -608,7 +608,7 @@ describe("shard tests", () => {
                     duchyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[1].capital.capital.id,
                     countyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[1].capital.capital.id,
                 });
-                globalShard.factions[EFaction.DUTCH].factionPlanetRoster.push({
+                globalShard.factions.get(EFaction.DUTCH).factionPlanetRoster.push({
                     factionId: EFaction.DUTCH,
                     playerId: "duke",
                     kingdomId: kingdoms[3].capital.capital.capital.id,
@@ -627,7 +627,7 @@ describe("shard tests", () => {
                     duchyId: kingdoms[3].duchies[0].counties[0].capital.id,
                     countyId: kingdoms[3].duchies[0].counties[2].capital.id,
                 });
-                globalShard.factions[EFaction.DUTCH].factionPlanetRoster.push({
+                globalShard.factions.get(EFaction.DUTCH).factionPlanetRoster.push({
                     factionId: EFaction.DUTCH,
                     playerId: "baron",
                     kingdomId: kingdoms[3].capital.capital.capital.id,
@@ -640,7 +640,7 @@ describe("shard tests", () => {
                     duchyId: kingdoms[3].duchies[1].capital.capital.id,
                     countyId: kingdoms[3].duchies[1].counties[1].capital.id,
                 });
-                globalShard.factions[EFaction.DUTCH].factionPlanetRoster.push({
+                globalShard.factions.get(EFaction.DUTCH).factionPlanetRoster.push({
                     factionId: EFaction.DUTCH,
                     playerId: "count",
                     kingdomId: kingdoms[3].capital.capital.capital.id,
@@ -688,7 +688,7 @@ describe("shard tests", () => {
             // run shards for 1 minute
             let setMission: boolean = false;
             let nearEnglishWorld: boolean = false;
-            const dutchHomeWorld = networkGame.planets.get(networkGame.factions[EFaction.DUTCH].homeWorldPlanetId);
+            const dutchHomeWorld = networkGame.planets.get(networkGame.factions.get(EFaction.DUTCH).homeWorldPlanetId);
             const dutchKingdom = dutchHomeWorld.county.duchy.kingdom;
             const neighborKingdom = dutchKingdom.neighborKingdoms[0];
             const neighborKingdomPlanet = neighborKingdom.duchies[0].counties[0].planet;

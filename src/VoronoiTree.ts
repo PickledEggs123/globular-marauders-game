@@ -713,7 +713,7 @@ export class VoronoiCounty extends VoronoiTreeNode<ICameraState> {
     }
 
     public deserializeUpdate(data: ISerializedVoronoiCounty) {
-        this.faction = this.app.factions[data.faction];
+        this.faction = this.app.factions.get(data.faction) ?? null;
 
         // update planet;
         if (this.planet === null && data.planet) {
@@ -863,7 +863,7 @@ export class VoronoiDuchy extends VoronoiTreeNode<ICameraState> {
     }
 
     public deserializeUpdate(data: ISerializedVoronoiDuchy) {
-        this.faction = this.app.factions[data.faction] || null;
+        this.faction = this.app.factions.get(data.faction) || null;
         this.capital = this.counties[data.capital] || null;
         for (let i = 0; i < data.counties.length && i < this.counties.length; i++) {
             this.counties[i].deserializeUpdate(data.counties[i]);
@@ -1007,7 +1007,7 @@ export class VoronoiKingdom extends VoronoiTreeNode<ICameraState> {
 
     public deserializeUpdate(data: ISerializedVoronoiKingdom) {
         this.neighborKingdoms = data.neighborKingdoms.map(index => this.terrain.kingdoms[index]);
-        this.faction = this.app.factions[data.faction] || null;
+        this.faction = this.app.factions.get(data.faction) || null;
         this.capital = this.duchies[data.capital] || null;
         for (let i = 0; i < data.duchies.length && this.duchies.length; i++) {
             this.duchies[i].deserializeUpdate(data.duchies[i]);

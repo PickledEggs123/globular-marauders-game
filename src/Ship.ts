@@ -304,7 +304,7 @@ export class Ship implements IAutomatedShip {
     public deserializeUpdate(data: ISerializedShip) {
         this.id = data.id;
         this.shipType = data.shipType;
-        this.faction = data.faction && this.app.factions[data.faction] || null;
+        this.faction = data.faction && this.app.factions.get(data.faction) || null;
         this.planet = data.planetId && this.app.planets.get(data.planetId) || null;
         this.color = data.color;
         this.position = DeserializeQuaternion(data.position);
