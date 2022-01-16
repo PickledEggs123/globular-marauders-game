@@ -1342,19 +1342,23 @@ export class Planet implements ICameraState {
         }
 
         // build next ship based on lord ship demand
-        for (const shipType of Object.values(EShipType)) {
-            let lordWorld = this.getLordWorld();
-            for (let i = 0; i < 100; i++) {
-                if (lordWorld.shipsAvailable[shipType] < lordWorld.shipsDemand[shipType]) {
-                    return shipType;
-                }
-                const nextLordWorld = this.getLordWorld();
-                if (nextLordWorld === lordWorld) {
-                    break;
-                } else {
-                    lordWorld = nextLordWorld;
+        try {
+            for (const shipType of Object.values(EShipType)) {
+                let lordWorld = this.getLordWorld();
+                for (let i = 0; i < 100; i++) {
+                    if (lordWorld.shipsAvailable[shipType] < lordWorld.shipsDemand[shipType]) {
+                        return shipType;
+                    }
+                    const nextLordWorld = this.getLordWorld();
+                    if (nextLordWorld === lordWorld) {
+                        break;
+                    } else {
+                        lordWorld = nextLordWorld;
+                    }
                 }
             }
+        } catch (e) {
+
         }
 
         // build a distribution of ship types when there is no demand
