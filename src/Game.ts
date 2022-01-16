@@ -344,11 +344,11 @@ export class Game {
      */
     public getInitializationFrame(): IGameInitializationFrame {
         return {
-            factions: Object.values(this.factions).map(f => f.serialize()),
+            factions: Array.from(this.factions.values()).map(f => f.serialize()),
             voronoiTerrain: this.voronoiTerrain.serialize(),
-            ships: Object.values(this.ships).map(s => s.serialize()),
-            cannonBalls: Object.values(this.cannonBalls).map(c => c.serialize()),
-            crates: Object.values(this.crates).map(c => c.serialize())
+            ships: Array.from(this.ships.values()).map(s => s.serialize()),
+            cannonBalls: Array.from(this.cannonBalls.values()).map(c => c.serialize()),
+            crates: Array.from(this.crates.values()).map(c => c.serialize())
         };
     }
 
@@ -1835,7 +1835,7 @@ export class Game {
                 // give everyone a copy of the global faction state
                 const globalStateMessage: IGlobalStateShardMessage = {
                     shardMessageType: EShardMessageType.GLOBAL_STATE,
-                    factions: Object.values(this.factions).map(f => f.serialize()),
+                    factions: Array.from(this.factions.values()).map(f => f.serialize()),
                     scoreBoard: this.scoreBoard,
                 };
                 for (const [, shard] of this.shardList) {
@@ -2618,7 +2618,7 @@ export class Game {
         }
         if ([EServerType.STANDALONE, EServerType.GLOBAL_STATE_NODE].includes(this.serverType)) {
             // handle AI factions
-            for (const faction of Object.values(this.factions)) {
+            for (const faction of Array.from(this.factions.values())) {
                 faction.handleFactionLoop();
             }
 
@@ -2649,7 +2649,7 @@ export class Game {
             this.scoreBoard.money = this.scoreBoard.money.sort((a, b) => b.amount - a.amount);
 
             // sort land ownership
-            this.scoreBoard.land = Object.values(this.factions).reduce((acc, i) => {
+            this.scoreBoard.land = Array.from(this.factions.values()).reduce((acc, i) => {
                 acc.push(...i.factionPlayerRoyalTitles.counts.reduce((acc2, j) => {
                     const oldItem = acc2.find(k => k.playerId === j.playerId);
                     // county titles are one point

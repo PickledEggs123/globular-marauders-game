@@ -1337,7 +1337,7 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
         const cannonBalls: CannonBall[] = [];
         const crates: Crate[] = [];
         const planets: Planet[] = [];
-        const factions: Faction[] = Object.values(this.app.factions);
+        const factions: Faction[] = Array.from(this.app.factions.values());
 
         for (const county of this.getNearestCounties(position, radius)) {
             ships.push.apply(ships, county.ships);

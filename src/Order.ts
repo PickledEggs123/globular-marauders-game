@@ -297,7 +297,7 @@ export class Order {
             throw new Error("Could not find home world for pathing back to home world (SETTLE)");
         }
 
-        const wasSettledByAnotherFactionYet = Object.values(this.app.factions).some(f => {
+        const wasSettledByAnotherFactionYet = Array.from(this.app.factions.values()).some(f => {
             return !!(this.planetId && f.planetIds.includes(this.planetId) && f.id !== this.faction.id);
         });
         if (!wasSettledByAnotherFactionYet) {

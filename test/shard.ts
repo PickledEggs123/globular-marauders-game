@@ -104,7 +104,7 @@ describe("shard tests", () => {
             workerShard.shardList = shardList;
             workerShard.applyGameInitializationFrame(gameInitializationFrame);
             expect(workerShard.planets.size).to.be.greaterThan(0, "Expected at least one planet in worker shard.");
-            expect(Object.values(workerShard.factions).length).to.be.greaterThan(0, "Expected at least one faction in worker shard.");
+            expect(Array.from(workerShard.factions.values()).length).to.be.greaterThan(0, "Expected at least one faction in worker shard.");
         }
 
         expect(physicsShards.length).to.be.greaterThan(0, "Expected at least one physics shard to compute physics.");
@@ -324,7 +324,7 @@ describe("shard tests", () => {
                         if (message.shardMessageType === EShardMessageType.GLOBAL_STATE) {
                             const expectedMessage: IGlobalStateShardMessage = {
                                 shardMessageType: EShardMessageType.GLOBAL_STATE,
-                                factions: Object.values(shard.factions).map(f => f.serialize()),
+                                factions: Array.from(shard.factions.values()).map(f => f.serialize()),
                                 scoreBoard: shard.scoreBoard,
                             };
                             expect(message).to.deep.equal(expectedMessage, "Expected a message with Faction Data");
@@ -333,7 +333,7 @@ describe("shard tests", () => {
                             if (shard.ships.size > 0) {
                                 hasShipData = true;
                             }
-                            if (Object.values(shard.factions).some(f => f.shipIds.length > 0)) {
+                            if (Array.from(shard.factions.values()).some(f => f.shipIds.length > 0)) {
                                 hasFactionShipData = true;
                             }
                         }
@@ -498,7 +498,7 @@ describe("shard tests", () => {
                 const kingdomIds: number[] = [
                     globalShard.voronoiTerrain.kingdoms.indexOf(dutchHomeWorld.county.duchy.kingdom),
                     ...globalShard.voronoiTerrain.kingdoms.map((v, i) => i).filter(i => {
-                        const existingKingdoms = Object.values(globalShard.factions).map(f => {
+                        const existingKingdoms = Array.from(globalShard.factions.values()).map(f => {
                             const planet = globalShard.planets.get(f.homeWorldPlanetId);
                             return globalShard.voronoiTerrain.kingdoms.indexOf(planet.county.duchy.kingdom);
                         });

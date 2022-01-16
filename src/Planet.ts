@@ -764,7 +764,7 @@ export class Planet implements ICameraState {
             const weakEnemyPresence = entry[1].enemyStrength <= 0;
             const isSettledEnoughToTrade = entry[1].planet.settlementLevel >= ESettlementLevel.OUTPOST &&
                 entry[1].planet.settlementLevel <= ESettlementLevel.TERRITORY;
-            const isOwnedByEnemy = Object.values(this.instance.factions).some(faction => {
+            const isOwnedByEnemy = Array.from(this.instance.factions.values()).some(faction => {
                 if (homeFaction && entry[1].planet.county.faction && entry[1].planet.county.faction.id === homeFaction.id) {
                     // do not pirate own faction
                     return false;
@@ -782,7 +782,7 @@ export class Planet implements ICameraState {
             const worldIsAbleToTrade = this.isAbleToTrade(entry[1].planet);
             const roomToTrade = entry[1].traderShipIds.length <= entry[1].planet.feudalObligationResources.length - 1;
             const isSettledEnoughToTrade = entry[1].planet.settlementLevel >= ESettlementLevel.OUTPOST;
-            const notTradedYet = Object.values(this.instance.factions).every(faction => {
+            const notTradedYet = Array.from(this.instance.factions.values()).every(faction => {
                 if (homeFaction && entry[1].planet.county.faction && entry[1].planet.county.faction.id === homeFaction.id) {
                     // trade with own faction
                     return true;
@@ -810,7 +810,7 @@ export class Planet implements ICameraState {
             const roomToSettleMore = entry[1].settlerShipIds.length <=
                 Planet.NUM_SETTLEMENT_PROGRESS_STEPS -
                 Math.round(entry[1].planet.settlementProgress * Planet.NUM_SETTLEMENT_PROGRESS_STEPS) - 1;
-            const notSettledYet = Object.values(this.instance.factions).every(faction => {
+            const notSettledYet = Array.from(this.instance.factions.values()).every(faction => {
                 if (homeFaction && homeFaction.planetIds.includes(entry[1].planet.id)) {
                     // settle with own faction
                     return true;
@@ -829,7 +829,7 @@ export class Planet implements ICameraState {
             const roomToSettleMore = entry[1].settlerShipIds.length <=
                 Planet.NUM_SETTLEMENT_PROGRESS_STEPS * 5 -
                 Math.round(entry[1].planet.settlementProgress * Planet.NUM_SETTLEMENT_PROGRESS_STEPS) - 1;
-            const notSettledYet = Object.values(this.instance.factions).every(faction => {
+            const notSettledYet = Array.from(this.instance.factions.values()).every(faction => {
                 if (homeFaction && homeFaction.planetIds.includes(entry[1].planet.id)) {
                     // settle with own faction
                     return true;
@@ -1907,7 +1907,7 @@ export class Planet implements ICameraState {
         const shipPoint = planetWorld.position.rotateVector([0, 0, 1]);
 
         // get faction of the ship
-        const faction = Object.values(this.instance.factions).find(f => f.planetIds.includes(this.id));
+        const faction = Array.from(this.instance.factions.values()).find(f => f.planetIds.includes(this.id));
         if (!faction) {
             throw new Error("Could not find faction to spawn ship");
         }
