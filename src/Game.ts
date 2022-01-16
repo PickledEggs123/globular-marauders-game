@@ -2240,15 +2240,15 @@ export class Game {
         if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
             // expire cannonballs and crates
             const expirableArrays: Array<{
-                array: IExpirableTicks[],
+                array: Map<string, IExpirableTicks>,
                 removeFromDataStructures: (item: IExpirableTicks) => void,
             }> = [{
-                array: Array.from(this.cannonBalls.values()),
+                array: this.cannonBalls,
                 removeFromDataStructures(this: Game, item: CannonBall) {
                     this.voronoiTerrain.removeCannonBall(item);
                 }
             }, {
-                array: Array.from(this.crates.values()),
+                array: this.crates,
                 removeFromDataStructures(this: Game, item: Crate) {
                     this.voronoiTerrain.removeCrate(item);
                 }
@@ -2256,31 +2256,30 @@ export class Game {
             for (const {array: expirableArray, removeFromDataStructures} of expirableArrays) {
 
                 // collect expired entities
-                const expiredEntities: IExpirableTicks[] = [];
-                for (const entity of expirableArray) {
+                const expiredEntities: [string, IExpirableTicks][] = [];
+                for (const [id,entity] of expirableArray) {
                     const isExpired = entity.life >= entity.maxLife;
                     if (isExpired) {
-                        expiredEntities.push(entity);
+                        expiredEntities.push([id, entity]);
                     }
                 }
 
                 // remove expired entities
-                for (const expiredEntity of expiredEntities) {
-                    const index = expirableArray.findIndex(s => s === expiredEntity);
-                    if (index >= 0) {
-                        expirableArray.splice(index, 1);
-                        removeFromDataStructures.call(this, expiredEntity);
+                for (const [id, entity] of expiredEntities) {
+                    if (expirableArray.has(id)) {
+                        expirableArray.delete(id);
+                        removeFromDataStructures.call(this, entity);
                     }
                 }
             }
 
             // move cannonballs and crates
-            const movableArrays: Array<Array<ICameraState & IExpirableTicks>> = [
-                Array.from(this.cannonBalls.values()),
-                Array.from(this.crates.values())
+            const movableArrays: Array<Map<string, ICameraState & IExpirableTicks>> = [
+                this.cannonBalls,
+                this.crates
             ];
             for (const movableArray of movableArrays) {
-                for (const entity of movableArray) {
+                for (const [, entity] of movableArray) {
                     entity.position = entity.position.clone().mul(entity.positionVelocity.clone());
                     entity.orientation = entity.orientation.clone().mul(entity.orientationVelocity.clone());
                     entity.life += 1;
@@ -2289,12 +2288,12 @@ export class Game {
 
             // handle physics and collision detection
             const collidableArrays: Array<{
-                arr: ICollidable[],
+                arr: Map<string, ICollidable>,
                 collideFn: (this: Game, ship: Ship, entity: ICollidable, hit: IHitTest) => void,
                 useRayCast: boolean,
                 removeFromDataStructures: (item: IExpirableTicks) => void,
             }> = [{
-                arr: Array.from(this.cannonBalls.values()),
+                arr: this.cannonBalls,
                 collideFn(this: Game, ship: Ship, entity: ICollidable, hit: IHitTest) {
                     ship.applyDamage(entity as CannonBall);
                 },
@@ -2303,7 +2302,7 @@ export class Game {
                     this.voronoiTerrain.removeCannonBall(item);
                 }
             }, {
-                arr: Array.from(this.crates.values()),
+                arr: this.crates,
                 collideFn(this: Game, ship: Ship, entity: ICollidable, hit: IHitTest) {
                     ship.pickUpCargo(entity as Crate);
                 },
@@ -2313,8 +2312,8 @@ export class Game {
                 }
             }];
             for (const {arr: collidableArray, collideFn, useRayCast, removeFromDataStructures} of collidableArrays) {
-                const entitiesToRemove = [];
-                for (const entity of collidableArray) {
+                const entitiesToRemove: [string, ICollidable][] = [];
+                for (const [id, entity] of collidableArray) {
                     // get nearby ships
                     const position = entity.position.rotateVector([0, 0, 1]);
                     const nearByShips = Array.from(this.voronoiShips.listItems(position));
@@ -2352,15 +2351,14 @@ export class Game {
                     const teamDamage = bestShip && bestShip.faction && entity.factionId && bestShip.faction.id === entity.factionId;
                     if (bestHit && bestShip && !teamDamage) {
                         collideFn.call(this, bestShip, entity, bestHit);
-                        entitiesToRemove.push(entity);
+                        entitiesToRemove.push([id, entity]);
                     }
                 }
                 // remove collided cannonballs
-                for (const entityToRemove of entitiesToRemove) {
-                    const index = collidableArray.findIndex(c => c === entityToRemove);
-                    if (index >= 0) {
-                        collidableArray.splice(index, 1);
-                        removeFromDataStructures.call(this, entityToRemove);
+                for (const [id, entity] of entitiesToRemove) {
+                    if (collidableArray.has(id)) {
+                        collidableArray.delete(id);
+                        removeFromDataStructures.call(this, entity);
                     }
                 }
             }
