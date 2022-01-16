@@ -671,99 +671,104 @@ export class Planet implements ICameraState {
      */
     public getPlanetExplorationEntries(shipType?: EShipType) {
         // sort by importance
-        const entries = Object.entries(this.explorationGraph)
-            .sort((a, b) => {
-                // check for lords domain or the lords' duchy
-                // dukes and kings should prioritize their local duchy
-                const aIsDuchyDomain = this.isDuchyDomain(a[1].planet);
-                const bIsDuchyDomain = this.isDuchyDomain(b[1].planet);
-                if (aIsDuchyDomain && !bIsDuchyDomain) {
-                    return -1;
-                } else if (!aIsDuchyDomain && bIsDuchyDomain) {
-                    return 1;
-                }
-                const isKing = (
-                    this.getRoyalRank() === ERoyalRank.EMPEROR ||
-                    this.getRoyalRank() === ERoyalRank.KING
-                );
-                if (isKing) {
-                    // kings should prioritize new duchy capitals for their vassal dukes.
-                    const aIsUnclaimedDuchyOfKingdom = this.isUnclaimedSisterDuchyOfKingdom(a[1].planet);
-                    const bIsUnclaimedDuchyOfKingdom = this.isUnclaimedSisterDuchyOfKingdom(b[1].planet);
-                    if (aIsUnclaimedDuchyOfKingdom && !bIsUnclaimedDuchyOfKingdom) {
+        let entries: [string, IExplorationGraphData][] = [];
+        try {
+            entries = Object.entries(this.explorationGraph)
+                .sort((a, b) => {
+                    // check for lords domain or the lords' duchy
+                    // dukes and kings should prioritize their local duchy
+                    const aIsDuchyDomain = this.isDuchyDomain(a[1].planet);
+                    const bIsDuchyDomain = this.isDuchyDomain(b[1].planet);
+                    if (aIsDuchyDomain && !bIsDuchyDomain) {
                         return -1;
-                    } else if (!aIsUnclaimedDuchyOfKingdom && bIsUnclaimedDuchyOfKingdom) {
+                    } else if (!aIsDuchyDomain && bIsDuchyDomain) {
                         return 1;
                     }
-                }
-                // prioritize the remaining counties in kingdom
-                const aIsKingdomDomain = this.isKingdomDomain(a[1].planet);
-                const bIsKingdomDomain = this.isKingdomDomain(b[1].planet);
-                if (aIsKingdomDomain && !bIsKingdomDomain) {
-                    return -1;
-                } else if (!aIsKingdomDomain && bIsKingdomDomain) {
-                    return 1;
-                }
-                const isEmperor = this.getRoyalRank() === ERoyalRank.EMPEROR;
-                if (isEmperor) {
-                    // emperors should prioritize new kingdom capitals for their vassal kings.
-                    const aIsUnclaimedKingdomOfEmpire = this.isUnclaimedSisterKingdomOfEmpire(a[1].planet);
-                    const bIsUnclaimedKingdomOfEmpire = this.isUnclaimedSisterKingdomOfEmpire(b[1].planet);
-                    if (aIsUnclaimedKingdomOfEmpire && !bIsUnclaimedKingdomOfEmpire) {
+                    const isKing = (
+                        this.getRoyalRank() === ERoyalRank.EMPEROR ||
+                        this.getRoyalRank() === ERoyalRank.KING
+                    );
+                    if (isKing) {
+                        // kings should prioritize new duchy capitals for their vassal dukes.
+                        const aIsUnclaimedDuchyOfKingdom = this.isUnclaimedSisterDuchyOfKingdom(a[1].planet);
+                        const bIsUnclaimedDuchyOfKingdom = this.isUnclaimedSisterDuchyOfKingdom(b[1].planet);
+                        if (aIsUnclaimedDuchyOfKingdom && !bIsUnclaimedDuchyOfKingdom) {
+                            return -1;
+                        } else if (!aIsUnclaimedDuchyOfKingdom && bIsUnclaimedDuchyOfKingdom) {
+                            return 1;
+                        }
+                    }
+                    // prioritize the remaining counties in kingdom
+                    const aIsKingdomDomain = this.isKingdomDomain(a[1].planet);
+                    const bIsKingdomDomain = this.isKingdomDomain(b[1].planet);
+                    if (aIsKingdomDomain && !bIsKingdomDomain) {
                         return -1;
-                    } else if (!aIsUnclaimedKingdomOfEmpire && bIsUnclaimedKingdomOfEmpire) {
+                    } else if (!aIsKingdomDomain && bIsKingdomDomain) {
                         return 1;
                     }
-                }
-                // prioritize imperial vassals
-                const aIsVassal = this.isVassal(a[1].planet);
-                const bIsVassal = this.isVassal(b[1].planet);
-                if (aIsVassal && !bIsVassal) {
-                    return -1;
-                } else if (!aIsVassal && bIsVassal) {
-                    return 1;
-                }
-                // prioritize settlement progress
-                const settlementDifference = b[1].planet.settlementProgress - a[1].planet.settlementProgress;
-                if (settlementDifference !== 0){
-                    return settlementDifference;
-                }
-                // prioritize unclaimed land
-                const aIsUnclaimed = a[1].planet.isUnclaimed();
-                const bIsUnclaimed = b[1].planet.isUnclaimed();
-                if (aIsUnclaimed && !bIsUnclaimed) {
-                    return -1;
-                } else if (!aIsUnclaimed && bIsUnclaimed) {
-                    return 1;
-                }
-                // prioritize enemy counties
-                const aIsCountyCapital = a[1].planet.isCountyCapital();
-                const bIsCountyCapital = b[1].planet.isCountyCapital();
-                if (aIsCountyCapital && !bIsCountyCapital) {
-                    return -1;
-                } else if (!aIsCountyCapital && bIsCountyCapital) {
-                    return 1;
-                }
-                // prioritize enemy duchies
-                const aIsDuchyCapital = a[1].planet.isDuchyCapital();
-                const bIsDuchyCapital = b[1].planet.isDuchyCapital();
-                if (aIsDuchyCapital && !bIsDuchyCapital) {
-                    return -1;
-                } else if (!aIsDuchyCapital && bIsDuchyCapital) {
-                    return 1;
-                }
-                // prioritize enemy kingdoms
-                const aIsKingdomCapital = a[1].planet.isKingdomCapital();
-                const bIsKingdomCapital = b[1].planet.isKingdomCapital();
-                if (aIsKingdomCapital && !bIsKingdomCapital) {
-                    return -1;
-                } else if (!aIsKingdomCapital && bIsKingdomCapital) {
-                    return 1;
-                }
+                    const isEmperor = this.getRoyalRank() === ERoyalRank.EMPEROR;
+                    if (isEmperor) {
+                        // emperors should prioritize new kingdom capitals for their vassal kings.
+                        const aIsUnclaimedKingdomOfEmpire = this.isUnclaimedSisterKingdomOfEmpire(a[1].planet);
+                        const bIsUnclaimedKingdomOfEmpire = this.isUnclaimedSisterKingdomOfEmpire(b[1].planet);
+                        if (aIsUnclaimedKingdomOfEmpire && !bIsUnclaimedKingdomOfEmpire) {
+                            return -1;
+                        } else if (!aIsUnclaimedKingdomOfEmpire && bIsUnclaimedKingdomOfEmpire) {
+                            return 1;
+                        }
+                    }
+                    // prioritize imperial vassals
+                    const aIsVassal = this.isVassal(a[1].planet);
+                    const bIsVassal = this.isVassal(b[1].planet);
+                    if (aIsVassal && !bIsVassal) {
+                        return -1;
+                    } else if (!aIsVassal && bIsVassal) {
+                        return 1;
+                    }
+                    // prioritize settlement progress
+                    const settlementDifference = b[1].planet.settlementProgress - a[1].planet.settlementProgress;
+                    if (settlementDifference !== 0){
+                        return settlementDifference;
+                    }
+                    // prioritize unclaimed land
+                    const aIsUnclaimed = a[1].planet.isUnclaimed();
+                    const bIsUnclaimed = b[1].planet.isUnclaimed();
+                    if (aIsUnclaimed && !bIsUnclaimed) {
+                        return -1;
+                    } else if (!aIsUnclaimed && bIsUnclaimed) {
+                        return 1;
+                    }
+                    // prioritize enemy counties
+                    const aIsCountyCapital = a[1].planet.isCountyCapital();
+                    const bIsCountyCapital = b[1].planet.isCountyCapital();
+                    if (aIsCountyCapital && !bIsCountyCapital) {
+                        return -1;
+                    } else if (!aIsCountyCapital && bIsCountyCapital) {
+                        return 1;
+                    }
+                    // prioritize enemy duchies
+                    const aIsDuchyCapital = a[1].planet.isDuchyCapital();
+                    const bIsDuchyCapital = b[1].planet.isDuchyCapital();
+                    if (aIsDuchyCapital && !bIsDuchyCapital) {
+                        return -1;
+                    } else if (!aIsDuchyCapital && bIsDuchyCapital) {
+                        return 1;
+                    }
+                    // prioritize enemy kingdoms
+                    const aIsKingdomCapital = a[1].planet.isKingdomCapital();
+                    const bIsKingdomCapital = b[1].planet.isKingdomCapital();
+                    if (aIsKingdomCapital && !bIsKingdomCapital) {
+                        return -1;
+                    } else if (!aIsKingdomCapital && bIsKingdomCapital) {
+                        return 1;
+                    }
 
-                // rank by distance
-                return a[1].distance - b[1].distance;
-            });
+                    // rank by distance
+                    return a[1].distance - b[1].distance;
+                });
+        } catch (e) {
+
+        }
 
         const homeFaction = this.county.faction;
 
