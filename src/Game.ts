@@ -511,7 +511,12 @@ export class Game {
 
         this.voronoiTerrain = VoronoiTerrain.deserialize(this, data.voronoiTerrain);
         this.planets = new Map<string, Planet>();
-        Array.from(this.voronoiTerrain.getPlanets()).forEach(p => this.planets.set(p.id, p));
+        Array.from(this.voronoiTerrain.getPlanets()).forEach(p => {
+            this.planets.set(p.id, p);
+            if (p.county.faction) {
+                p.claim(p.county.faction, false);
+            }
+        });
 
         Game.syncNetworkArray(
             this.ships, {
