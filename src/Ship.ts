@@ -491,25 +491,27 @@ export class Ship implements IAutomatedShip {
     public removeOrder(order: Order) {
         // clean faction data
         if (this.planet && order.planetId) {
+            const planetData = this.planet.explorationGraph[order.planetId];
+
             // clean up settle order
-            if (order.orderType === EOrderType.SETTLE) {
-                const index = this.planet.explorationGraph[order.planetId].settlerShipIds.findIndex(s => s === this.id);
+            if (planetData && order.orderType === EOrderType.SETTLE) {
+                const index = planetData.settlerShipIds.findIndex(s => s === this.id);
                 if (index >= 0) {
                     this.planet.explorationGraph[order.planetId].settlerShipIds.splice(index, 1);
                 }
             }
 
             // clean up trade order
-            if (order.orderType === EOrderType.FEUDAL_TRADE || order.orderType === EOrderType.FAIR_TRADE) {
-                const index = this.planet.explorationGraph[order.planetId].traderShipIds.findIndex(s => s === this.id);
+            if (planetData && order.orderType === EOrderType.FEUDAL_TRADE || order.orderType === EOrderType.FAIR_TRADE) {
+                const index = planetData.traderShipIds.findIndex(s => s === this.id);
                 if (index >= 0) {
                     this.planet.explorationGraph[order.planetId].traderShipIds.splice(index, 1);
                 }
             }
 
             // clean up pirate order
-            if (order.orderType === EOrderType.PIRATE) {
-                const index = this.planet.explorationGraph[order.planetId].pirateShipIds.findIndex(s => s === this.id);
+            if (planetData && order.orderType === EOrderType.PIRATE) {
+                const index = planetData.pirateShipIds.findIndex(s => s === this.id);
                 if (index >= 0) {
                     this.planet.explorationGraph[order.planetId].pirateShipIds.splice(index, 1);
                 }
@@ -520,8 +522,8 @@ export class Ship implements IAutomatedShip {
             }
 
             // handle retreated orders by not sending another ship towards that area for a while
-            if (order.orderResult === EOrderResult.RETREAT) {
-                this.planet.explorationGraph[order.planetId].enemyStrength = order.enemyStrength;
+            if (planetData && order.orderResult === EOrderResult.RETREAT) {
+                planetData.enemyStrength = order.enemyStrength;
             }
         }
 
