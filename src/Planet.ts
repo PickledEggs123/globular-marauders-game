@@ -1628,7 +1628,8 @@ export class Planet implements ICameraState {
             this.county.faction.shipIds.length < Faction.MAX_SHIPS &&
             this.moneyAccount &&
             this.moneyAccount.cash.hasEnough(this.shipyard.quoteShip(nextShipTypeToBuild, true)) &&
-            this.instance.spawnAiShips
+            this.instance.spawnAiShips &&
+            Object.values(this.explorationGraph).length > 0
         ) {
             if ([EServerType.STANDALONE].includes(this.instance.serverType)) {
                 this.spawnShip(this.moneyAccount.cash, nextShipTypeToBuild, true);
