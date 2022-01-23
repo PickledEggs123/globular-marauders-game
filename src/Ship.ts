@@ -221,6 +221,30 @@ export const SHIP_DATA: IShipData[] = [{
     }
 }];
 
+export const GetShipData = (shipType: EShipType, scale: number): IShipData => {
+    const data = SHIP_DATA.find(s => s.shipType === shipType);
+    if (!data) {
+        throw new Error("Could not find ship data for ship type");
+    }
+    const scaledShip: IShipData = {
+        shipType: data.shipType,
+        cost: data.cost,
+        settlementProgressFactor: data.settlementProgressFactor,
+        cargoSize: data.cargoSize,
+        hull: data.hull.map(([x, y]) => [x * scale, y * scale]),
+        hullStrength: data.hullStrength,
+        cannons: {
+            numCannons: data.cannons.numCannons,
+            numCannonades: data.cannons.numCannonades,
+            startY: data.cannons.startY * scale,
+            endY: data.cannons.endY * scale,
+            leftWall: data.cannons.leftWall * scale,
+            rightWall: data.cannons.rightWall * scale,
+        },
+    };
+    return scaledShip;
+}
+
 export interface ISerializedShip {
     id: string;
     shipType: EShipType;
@@ -339,7 +363,7 @@ export class Ship implements IAutomatedShip {
         this.fireControl = new FireControl<Ship>(this.app, this);
         this.shipType = shipType;
 
-        const shipData = SHIP_DATA.find(s => s.shipType === this.shipType);
+        const shipData = GetShipData(this.shipType, this.app.shipScale);
         if (!shipData) {
             throw new Error("Could not find ship type");
         }
@@ -349,7 +373,7 @@ export class Ship implements IAutomatedShip {
     }
 
     getSpeedFactor(): number {
-        const shipData = SHIP_DATA.find(s => s.shipType);
+        const shipData = GetShipData(this.shipType, this.app.shipScale);
         if (!shipData) {
             throw new Error("Could not find ship type");
         }
@@ -539,7 +563,7 @@ export class Ship implements IAutomatedShip {
      * @param crate
      */
     public pickUpCargo(crate: ICargoItem) {
-        const shipData = SHIP_DATA.find(s => s.shipType === this.shipType);
+        const shipData = GetShipData(this.shipType, this.app.shipScale);
         if (!shipData) {
             throw new Error("Could not find ship type");
         }
@@ -606,7 +630,7 @@ export class Ship implements IAutomatedShip {
      * @param sourcePlanetId The source of the resource.
      */
     public sellGoodToShip(resourceExported: IResourceExported, sourcePlanetId: string): boolean {
-        const shipData = SHIP_DATA.find(s => s.shipType === this.shipType);
+        const shipData = GetShipData(this.shipType, this.app.shipScale);
         if (!shipData) {
             throw new Error("Could not find ship type");
         }

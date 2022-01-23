@@ -42,7 +42,7 @@ import {
 import {
     EFaction,
     EShipType,
-    FireControl,
+    FireControl, GetShipData,
     ISerializedFireControl,
     ISerializedShip,
     PHYSICS_SCALE,
@@ -251,6 +251,7 @@ export class Game {
     public cannonBalls: Map<string, CannonBall> = new Map<string, CannonBall>();
     public luxuryBuffs: LuxuryBuff[] = [];
     public worldScale: number = 3;
+    public shipScale: number = 4;
     public demoAttackingShipId: string | null = null;
     public lastDemoAttackingShipTime: Date = new Date();
     public tradeTick: number = 10 * 5;
@@ -781,7 +782,7 @@ export class Game {
             if (planet && !this.isTestMode) {
                 for (let numShipsToStartWith = 0; numShipsToStartWith < 10; numShipsToStartWith++) {
                     const shipType = planet.shipyard.getNextShipTypeToBuild();
-                    const shipData = SHIP_DATA.find(s => s.shipType === shipType);
+                    const shipData = GetShipData(shipType, this.shipScale);
                     if (!shipData) {
                         throw new Error("Could not find ship type");
                     }
@@ -858,7 +859,7 @@ export class Game {
             shipType,
             faction
         } = this.ships.get(shipId);
-        const shipData = SHIP_DATA.find(i => i.shipType === shipType);
+        const shipData = GetShipData(shipType, this.shipScale);
         if (!shipData) {
             throw new Error("Could not find Ship Type");
         }
@@ -1056,7 +1057,7 @@ export class Game {
      * @private
      */
     public static cannonBallCollision(cannonBall: ICollidable, ship: Ship, worldScale: number): IHitTest {
-        const shipData = SHIP_DATA.find(s => s.shipType === ship.shipType);
+        const shipData = GetShipData(ship.shipType, ship.planet.instance.shipScale);
         if (!shipData) {
             throw new Error("Could not find ship type");
         }
@@ -2566,14 +2567,14 @@ export class Game {
                             closestTarget = nearByEnemyShip;
                         }
 
-                        const shipData = SHIP_DATA.find(s => s.shipType === nearByEnemyShip.shipType);
+                        const shipData = GetShipData(nearByEnemyShip.shipType, this.shipScale);
                         if (!shipData) {
                             throw new Error("Could not find ship type");
                         }
                         numEnemyCannons += shipData.cannons.numCannons;
                     }
                     for (const nearByFriendlyShip of nearByFriendlyShips) {
-                        const shipData = SHIP_DATA.find(s => s.shipType === nearByFriendlyShip.shipType);
+                        const shipData = GetShipData(nearByFriendlyShip.shipType, this.shipScale);
                         if (!shipData) {
                             throw new Error("Could not find ship type");
                         }
@@ -2590,7 +2591,7 @@ export class Game {
                     }
 
                     // if too many ships, cancel order and stop attacking
-                    const currentShipData = SHIP_DATA.find(s => s.shipType === ship.shipType);
+                    const currentShipData = GetShipData(ship.shipType, this.shipScale);
                     if (!currentShipData) {
                         throw new Error("Could not find ship type");
                     }

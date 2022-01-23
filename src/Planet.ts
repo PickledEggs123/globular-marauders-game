@@ -25,7 +25,7 @@ import {
     NATURAL_RESOURCES,
     OUTPOST_GOODS
 } from "./Resource";
-import {EShipType, Ship, SHIP_DATA} from "./Ship";
+import {EShipType, GetShipData, Ship, SHIP_DATA} from "./Ship";
 import {FeudalGovernment, ISerializedFeudalGovernment, VoronoiCounty} from "./VoronoiTree";
 import {ERoyalRank, Faction, LuxuryBuff} from "./Faction";
 import {EOrderType, Order} from "./Order";
@@ -876,7 +876,7 @@ export class Planet implements ICameraState {
      * @param ship
      */
     public getOrder(ship: Ship): Order {
-        const shipData = SHIP_DATA.find(s => s.shipType === ship.shipType);
+        const shipData = GetShipData(ship.shipType, this.instance.shipScale);
         if (!shipData) {
             throw new Error("Could not find ship type");
         }

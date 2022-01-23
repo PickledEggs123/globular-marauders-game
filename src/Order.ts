@@ -1,7 +1,7 @@
 /**
  * A type of order for a ship to complete. Orders are actions the ship should take on behalf of the faction.
  */
-import {EFaction, Ship, SHIP_DATA} from "./Ship";
+import {EFaction, GetShipData, Ship, SHIP_DATA} from "./Ship";
 import {DelaunayGraph, VoronoiGraph} from "./Graph";
 import {ESettlementLevel, ITradeDeal} from "./Interface";
 import {Faction} from "./Faction";
@@ -284,7 +284,7 @@ export class Order {
     }
 
     public updateSettlementProgress() {
-        const shipData = SHIP_DATA.find(s => s.shipType === this.owner.shipType);
+        const shipData = GetShipData(this.owner.shipType, this.app.shipScale);
         if (!shipData) {
             throw new Error("Could not find ship type");
         }

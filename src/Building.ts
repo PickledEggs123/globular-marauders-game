@@ -1,7 +1,7 @@
 import {EResourceType, ICargoItem, IItemRecipe, ITEM_DATA} from "./Resource";
 import {Game} from "./Game";
 import {ICurrency, MoneyAccount} from "./Interface";
-import {EShipType, Ship, SHIP_DATA} from "./Ship";
+import {EShipType, GetShipData, Ship, SHIP_DATA} from "./Ship";
 import {
     Planet
 } from "./Planet";
@@ -48,7 +48,7 @@ export class ShipyardDock {
     }
 
     public beginBuildingOfShip(shipType: EShipType) {
-        const shipData = SHIP_DATA.find(i => i.shipType === shipType);
+        const shipData = GetShipData(shipType, this.instance.shipScale);
         if (!shipData) {
             throw new Error("Could not find ship type");
         }
@@ -284,7 +284,7 @@ export class Shipyard extends Building {
         }
 
         const nextShipTypeToBuild = this.getNextShipTypeToBuild();
-        const shipData = SHIP_DATA.find(i => i.shipType === nextShipTypeToBuild);
+        const shipData = GetShipData(nextShipTypeToBuild, this.instance.shipScale);
         if (!shipData) {
             throw new Error("Could not find ship type");
         }
@@ -309,7 +309,7 @@ export class Shipyard extends Building {
      * Begin the process of building a ship.
      */
     public buildShip(shipType: EShipType) {
-        const shipData = SHIP_DATA.find(i => i.shipType === shipType);
+        const shipData = GetShipData(shipType, this.instance.shipScale);
         if (!shipData) {
             throw new Error("Could not find ship type");
         }
@@ -374,7 +374,7 @@ export class Shipyard extends Building {
             return [];
         }
 
-        const shipData = SHIP_DATA.find(i => i.shipType === shipType);
+        const shipData = GetShipData(shipType, this.instance.shipScale);
         if (!shipData) {
             throw new Error("Could not find ship type");
         }
