@@ -3,11 +3,13 @@ import {
     ESettlementLevel,
     EShardMessageType,
     ICameraState,
-    IClaimPlanetShardMessage, ICreateShipFactionShardMessage,
+    IClaimPlanetShardMessage,
+    ICreateShipFactionShardMessage,
     ICurrency,
     IDestroyShipPlanetShardMessage,
     IExplorationGraphData,
-    ILootScoreShardMessage, ISerializedExplorationGraphData,
+    ILootScoreShardMessage,
+    ISerializedExplorationGraphData,
     ISpawnAiShardMessage,
     ITradeDeal,
     ITradeShipPlanetShardMessage,
@@ -25,11 +27,11 @@ import {
     NATURAL_RESOURCES,
     OUTPOST_GOODS
 } from "./Resource";
-import {EShipType, GetShipData, Ship, SHIP_DATA} from "./Ship";
+import {EShipType, GetShipData, Ship} from "./Ship";
 import {FeudalGovernment, ISerializedFeudalGovernment, VoronoiCounty} from "./VoronoiTree";
 import {ERoyalRank, Faction, LuxuryBuff} from "./Faction";
 import {EOrderType, Order} from "./Order";
-import {Game} from "./Game";
+import {EMessageType, Game, IClaimPlanetMessage} from "./Game";
 import {DeserializeQuaternion, ISerializedQuaternion, SerializeQuaternion} from "./Item";
 import {
     Blacksmith,
@@ -546,6 +548,15 @@ export class Planet implements ICameraState {
                 const loadBalancerShard = Array.from(this.instance.shardList.values()).find(s => s.type === EServerType.LOAD_BALANCER);
                 this.instance.outgoingShardMessages.push([loadBalancerShard.name, claimMessage]);
             }
+        }
+
+        for (const [, playerData] of this.instance.playerData) {
+            const claimMessage: IClaimPlanetMessage = {
+                messageType: EMessageType.CLAIM_PLANET,
+                planetId: this.id,
+                factionId: faction.id,
+            };
+            this.instance.outgoingMessages.push([playerData.id, claimMessage]);
         }
 
         this.county.claim(faction);

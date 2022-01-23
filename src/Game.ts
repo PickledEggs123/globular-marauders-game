@@ -2191,6 +2191,22 @@ export class Game {
                                 }
                             }
                         }
+                    } else if (message.messageType === EMessageType.CLAIM_PLANET) {
+                        const {
+                            planetId,
+                            factionId
+                        } = message as IClaimPlanetMessage;
+                        const planet = this.planets.get(planetId);
+                        if (!planetId) {
+                            return;
+                        }
+
+                        const faction = this.factions.get(factionId);
+                        if (!faction) {
+                            return;
+                        }
+
+                        planet.claim(faction, false);
                     }
                 } else {
                     // no more messages, continue
