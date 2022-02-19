@@ -1022,7 +1022,7 @@ export class Game {
 
         // emit ship state events if not automated, i.e. is player controlled
         if (!isAutomated) {
-            const playerData = this.playerData.get(this.ships.get(shipId).id);
+            const playerData = Array.from(this.playerData.values()).find(p => p.shipId === this.ships.get(shipId).id);
             if (playerData) {
                 const shipStateMessage: IShipStateMessage = {
                     messageType: EMessageType.SHIP_STATE,
@@ -2481,7 +2481,7 @@ export class Game {
                 }
 
                 if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
-                    const playerData = this.playerData.get(ship.id);
+                    const playerData = Array.from(this.playerData.values()).find(p => p.shipId === ship.id);
                     if (playerData && !playerData.autoPilotEnabled) {
                         // ship is player ship which has no autopilot, accept player control
                         this.handleShipLoop(shipId, () => playerData.activeKeys, false);
@@ -2495,7 +2495,7 @@ export class Game {
             // remove destroyed ships
             if ([EServerType.STANDALONE, EServerType.PHYSICS_NODE].includes(this.serverType)) {
                 for (const destroyedShip of destroyedShips) {
-                    const player = this.playerData.get(destroyedShip.id);
+                    const player = Array.from(this.playerData.values()).find(p => p.shipId === destroyedShip.id);
                     if (player) {
                         if ([EServerType.STANDALONE].includes(this.serverType)) {
                             player.shipId = "";
