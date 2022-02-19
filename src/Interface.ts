@@ -9,6 +9,32 @@ import {ISerializedFaction} from "./Faction";
 import {ISerializedOrder} from "./Order";
 
 /**
+ * An interface used to represent an attribute of a mesh.
+ */
+export interface IGameMeshAttribute {
+    /**
+     * The name of the attribute of a mesh, used by the shader.
+     */
+    id: string;
+    /**
+     * The numeric data of the attribute. Such as position or color.
+     */
+    buffer: number[];
+    /**
+     * The number of components in each attribute, such as 3 - xyz or 2 - xy.
+     */
+    size: number;
+}
+
+/**
+ * A mesh object used to represent a complete object to draw, does not contain shader.
+ */
+export interface IGameMesh {
+    attributes: IGameMeshAttribute[];
+    index: number[];
+}
+
+/**
  * The different server types which will affect how the server loop will execute.
  */
 export enum EServerType {
