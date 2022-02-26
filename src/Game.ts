@@ -40,14 +40,9 @@ import {
     MoneyAccount
 } from "./Interface";
 import {
-    EFaction,
-    EShipType,
-    FireControl, GetShipData,
-    ISerializedFireControl,
+    FireControl, ISerializedFireControl,
     ISerializedShip,
-    PHYSICS_SCALE,
-    Ship,
-    SHIP_DATA
+    Ship
 } from "./Ship";
 import {ISerializedVoronoiTerrain, VoronoiCounty, VoronoiKingdom, VoronoiTerrain, VoronoiTree} from "./VoronoiTree";
 import {Faction, ISerializedFaction, LuxuryBuff} from "./Faction";
@@ -78,6 +73,8 @@ import {IHitTest} from "./Intersection";
 import {EOrderType, ISerializedOrder, Order} from "./Order";
 import {Star} from "./Star";
 import {Market} from "./Market";
+import {EShipType, GetShipData, PHYSICS_SCALE, SHIP_DATA} from "./ShipType";
+import {EFaction} from "./EFaction";
 
 /**
  * A list of player specific data for the server to store.

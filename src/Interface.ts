@@ -1,12 +1,14 @@
 import Quaternion from "quaternion";
 import {ISerializedPathFinder, PathFinder} from "./Graph";
-import {EFaction, EShipType, ISerializedFireControl, ISerializedShip} from "./Ship";
+import {ISerializedFireControl, ISerializedShip} from "./Ship";
 import {ISerializedPlanetFull, Planet} from "./Planet";
 import {Crate, ISerializedCannonBall, ISerializedCrate, ISerializedQuaternion} from "./Item";
 import {Game, IPlayerData} from "./Game";
 import {EResourceType} from "./Resource";
 import {ISerializedFaction} from "./Faction";
 import {ISerializedOrder} from "./Order";
+import {EShipType} from "./ShipType";
+import {EFaction} from "./EFaction";
 
 /**
  * An interface used to represent an attribute of a mesh.

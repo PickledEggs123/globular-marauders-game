@@ -1,7 +1,6 @@
 import "mocha";
 import {config, expect} from "chai";
 import {Faction, Game, Planet, Ship, VoronoiTerrain} from "../src";
-import {EFaction, EShipType} from "../src/Ship";
 import {CannonBall, Crate} from "../src/Item";
 import {EResourceType} from "../src/Resource";
 import {
@@ -12,6 +11,8 @@ import {
     IPlayerData,
     ISpawnMessage
 } from "../src/Game";
+import {EShipType} from "../src/ShipType";
+import {EFaction} from "../src/EFaction";
 
 // force verbose deep equal
 config.truncateThreshold = 0;

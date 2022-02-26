@@ -22,9 +22,10 @@ import {
     IJoinResultMessage,
     ISpawnMessage
 } from "../src/Game";
-import {EFaction, PHYSICS_SCALE} from "../src/Ship";
 import {VoronoiGraph} from "../src/Graph";
 import {EOrderType} from "../src/Order";
+import {PHYSICS_SCALE} from "../src/ShipType";
+import {EFaction} from "../src/EFaction";
 
 describe("shard tests", () => {
     let networkGame: Game | null = null;

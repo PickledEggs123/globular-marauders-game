@@ -1,7 +1,7 @@
 import {EResourceType, ICargoItem, IItemRecipe, ITEM_DATA} from "./Resource";
 import {Game} from "./Game";
 import {ICurrency, MoneyAccount} from "./Interface";
-import {EShipType, GetShipData, Ship, SHIP_DATA} from "./Ship";
+import {Ship} from "./Ship";
 import {
     Planet
 } from "./Planet";
@@ -9,6 +9,8 @@ import {PlanetaryCurrencySystem} from "./PlanetaryCurrencySystem";
 import {ISerializedPlanetaryMoneyAccount, PlanetaryEconomyDemand} from "./PlanetaryEconomyDemand";
 import {PlanetaryEconomySystem} from "./PlanetaryEconomySystem";
 import {IMarketPrice} from "./Market";
+import {DEFAULT_FACTION_PROPERTIES} from "./FactionProperties";
+import {EShipType, GetShipData, SHIP_DATA} from "./ShipType";
 
 export class ShipyardDock {
     public instance: Game;
@@ -204,7 +206,8 @@ export class Shipyard extends Building {
         [EShipType.CORVETTE]: 0,
         [EShipType.BRIGANTINE]: 0,
         [EShipType.BRIG]: 0,
-        [EShipType.FRIGATE]: 0
+        [EShipType.FRIGATE]: 0,
+        [EShipType.GALLEON]: 0,
     };
     public shipsBuilding: Record<EShipType, number> = {
         [EShipType.CUTTER]: 0,
@@ -212,7 +215,8 @@ export class Shipyard extends Building {
         [EShipType.CORVETTE]: 0,
         [EShipType.BRIGANTINE]: 0,
         [EShipType.BRIG]: 0,
-        [EShipType.FRIGATE]: 0
+        [EShipType.FRIGATE]: 0,
+        [EShipType.GALLEON]: 0,
     };
 
     buildingType: EBuildingType = EBuildingType.SHIPYARD;
@@ -258,13 +262,13 @@ export class Shipyard extends Building {
     }
 
     public getNextShipTypeToBuild(): EShipType {
-        if (this.shipsAvailable.CUTTER + this.shipsBuilding.CUTTER < this.numberOfDocks * 3 / 10) {
-            return EShipType.CUTTER;
+        const shipTypes = DEFAULT_FACTION_PROPERTIES[this.planet.county.faction.id].shipTypes.slice().reverse();
+        for (const shipType of shipTypes) {
+            if (this.shipsAvailable[shipType] + this.shipsBuilding[shipType] < this.numberOfDocks * Math.floor(1 / shipTypes.length)) {
+                return shipType;
+            }
         }
-        if (this.shipsAvailable.SLOOP + this.shipsBuilding.SLOOP < this.numberOfDocks * 3 / 10) {
-            return EShipType.SLOOP;
-        }
-        return EShipType.CORVETTE;
+        return shipTypes.slice(-1)[0];
     }
 
     public getNumberOfDocksAtUpgradeLevel(): number {
@@ -421,12 +425,17 @@ export class Forestry extends Building {
         return 2 * 60 * 10 * Math.pow(this.buildingLevel + 1, Math.sqrt(2));
     }
 
+    factionBonus(): number {
+        const factionProperty = DEFAULT_FACTION_PROPERTIES[this.planet.county.faction.id];
+        return factionProperty.fastWoodProduction ? (1 + this.planet.settlementLevel * 0.1) : 1;
+    }
+
     handleBuildingLoop() {
         super.handleBuildingLoop();
 
         // add wood proportional to building level
-        this.planet.wood += this.buildingLevel;
-        this.planet.woodConstruction += this.buildingLevel;
+        this.planet.wood += this.buildingLevel * this.factionBonus();
+        this.planet.woodConstruction += this.buildingLevel * this.factionBonus();
     }
 }
 
@@ -594,16 +603,21 @@ export class Mine extends Building {
         return 2 * 60 * 10 * Math.pow(this.buildingLevel + 1, Math.sqrt(2));
     }
 
+    factionBonus(): number {
+        const factionProperty = DEFAULT_FACTION_PROPERTIES[this.planet.county.faction.id];
+        return factionProperty.fastWoodProduction ? (1 + this.planet.settlementLevel * 0.1) : 1;
+    }
+
     handleBuildingLoop() {
         super.handleBuildingLoop();
 
         // add iron proportional to building level
-        this.planet.iron += this.buildingLevel;
-        this.planet.ironConstruction += this.buildingLevel;
+        this.planet.iron += this.buildingLevel * this.factionBonus();
+        this.planet.ironConstruction += this.buildingLevel * this.factionBonus();
 
         // add coal for steel forging
-        this.planet.coal += this.buildingLevel;
-        this.planet.coalConstruction += this.buildingLevel;
+        this.planet.coal += this.buildingLevel * this.factionBonus();
+        this.planet.coalConstruction += this.buildingLevel * this.factionBonus();
 
         // TODO: add add gems for jewelry, each island will have its own specific gem
         /**

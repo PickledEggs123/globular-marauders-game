@@ -1,8 +1,8 @@
 import {ICameraState, ICollidable, IExpirableTicks} from "./Interface";
 import Quaternion from "quaternion";
-import {EFaction} from "./Ship";
 import {EResourceType, ICargoItem} from "./Resource";
 import {Game} from "./Game";
+import {EFaction} from "./EFaction";
 
 /**
  * The format of all serialized quaternion. Need to also serialize quaternions else

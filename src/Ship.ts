@@ -2,9 +2,9 @@ import {
     EServerType,
     EShardMessageType,
     IAutomatedShip,
-    ICameraState, IDamageScoreShardMessage,
+    ICameraState,
+    IDamageScoreShardMessage,
     ISerializedMoneyAccount,
-    IShardMessage,
     MoneyAccount
 } from "./Interface";
 import Quaternion from "quaternion";
@@ -16,234 +16,8 @@ import {Faction} from "./Faction";
 import {CannonBall, Crate, DeserializeQuaternion, ISerializedQuaternion, SerializeQuaternion} from "./Item";
 import {IResourceExported, Planet} from "./Planet";
 import {Game} from "./Game";
-
-/**
- * The scale of the graphics engine to physics. All graphics is a plane scaled down by this factor, then projected
- * onto the sphere.
- */
-export const PHYSICS_SCALE = 1 / 1000;
-/**
- * The corvette class ship hull. This format allows rendering in graphics and computing the physics hull.
- */
-export const BrigHull: Array<[number, number]> = [
-    [0, -50],
-    [18, -40],
-    [18, 45],
-    [9, 50],
-    [0, 45],
-    [-9, 50],
-    [-18, 45],
-    [-18, -40]
-];
-/**
- * The corvette class ship hull. This format allows rendering in graphics and computing the physics hull.
- */
-export const BrigantineHull: Array<[number, number]> = [
-    [0, -40],
-    [14, -30],
-    [14, 35],
-    [7, 40],
-    [0, 35],
-    [-7, 40],
-    [-14, 35],
-    [-14, -30]
-];
-/**
- * The corvette class ship hull. This format allows rendering in graphics and computing the physics hull.
- */
-export const CorvetteHull: Array<[number, number]> = [
-    [0, -30],
-    [10, -20],
-    [10, 25],
-    [5, 30],
-    [0, 25],
-    [-5, 30],
-    [-10, 25],
-    [-10, -20]
-];
-/**
- * The hull of the sloop class ships. This format allows for rendering and physics hull computations.
- */
-export const SloopHull: Array<[number, number]> = [
-    [0, -20],
-    [5, -15],
-    [5, 20],
-    [3, 15],
-    [0, 18],
-    [-3, 15],
-    [-5, 20],
-    [-5, -15]
-];
-/**
- * The hull of the cutter class ships. This format allows for rendering and physics hull computations.
- */
-export const CutterHull: Array<[number, number]> = [
-    [0, -15],
-    [3, -10],
-    [3, 15],
-    [1.5, 10],
-    [0, 12],
-    [-1.5, 10],
-    [-3, 15],
-    [-3, -10]
-];
-
-/**
- * Types of ships.
- */
-export enum EShipType {
-    /**
-     * A small ship with two cannons, one on each side. Meant for trading and speed. It is cheap to build.
-     * It has 4 cannonades.
-     */
-    CUTTER = "CUTTER",
-    /**
-     * A ship with eight cannons, four on each side, it has 10 cannonades which automatically fire at nearby ship.
-     * Great for speed and harassing enemies from strange angles. Also, cheap to build.
-     */
-    SLOOP = "SLOOP",
-    /**
-     * The cheap main battleship which has 8 cannons, 4 on each side and no cannonades. Made to attack ships directly.
-     */
-    CORVETTE = "CORVETTE",
-    /**
-     * 18 cannons.
-     */
-    BRIGANTINE = "BRIGANTINE",
-    /**
-     * 24 cannons.
-     */
-    BRIG = "BRIG",
-    /**
-     * 28 cannons.
-     */
-    FRIGATE = "FRIGATE",
-}
-// galleon 80 guns
-
-/**
- * The data format for new ships.
- */
-export interface IShipData {
-    shipType: EShipType;
-    cost: number;
-    settlementProgressFactor: number;
-    cargoSize: number;
-    hull: Array<[number, number]>;
-    hullStrength: number;
-    cannons: {
-        numCannons: number;
-        numCannonades: number;
-        startY: number;
-        endY: number;
-        leftWall: number;
-        rightWall: number;
-    }
-}
-
-/**
- * The list of ship data.
- */
-export const SHIP_DATA: IShipData[] = [{
-    shipType: EShipType.BRIG,
-    cost: 1200,
-    settlementProgressFactor: 5,
-    cargoSize: 5,
-    hull: BrigHull,
-    hullStrength: 640,
-    cannons: {
-        numCannons: 24,
-        numCannonades: 6,
-        startY: 40,
-        endY: -40,
-        leftWall: 18,
-        rightWall: -18
-    }
-}, {
-    shipType: EShipType.BRIGANTINE,
-    cost: 900,
-    settlementProgressFactor: 5,
-    cargoSize: 4,
-    hull: BrigantineHull,
-    hullStrength: 640,
-    cannons: {
-        numCannons: 18,
-        numCannonades: 6,
-        startY: 30,
-        endY: -30,
-        leftWall: 14,
-        rightWall: -14
-    }
-}, {
-    shipType: EShipType.CORVETTE,
-    cost: 600,
-    settlementProgressFactor: 4,
-    cargoSize: 3,
-    hull: CorvetteHull,
-    hullStrength: 640,
-    cannons: {
-        numCannons: 14,
-        numCannonades: 6,
-        startY: 20,
-        endY: -20,
-        leftWall: 10,
-        rightWall: -10
-    }
-}, {
-    shipType: EShipType.SLOOP,
-    cost: 300,
-    settlementProgressFactor: 2,
-    cargoSize: 2,
-    hull: SloopHull,
-    hullStrength: 320,
-    cannons: {
-        numCannons: 8,
-        numCannonades: 4,
-        startY: 15,
-        endY: -15,
-        leftWall: 5,
-        rightWall: -5
-    }
-}, {
-    shipType: EShipType.CUTTER,
-    cost: 150,
-    settlementProgressFactor: 1,
-    cargoSize: 1,
-    hull: CutterHull,
-    hullStrength: 160,
-    cannons: {
-        numCannons: 4,
-        numCannonades: 2,
-        startY: 10,
-        endY: -10,
-        leftWall: 3,
-        rightWall: -3
-    }
-}];
-
-export const GetShipData = (shipType: EShipType, scale: number): IShipData => {
-    const data = SHIP_DATA.find(s => s.shipType === shipType);
-    if (!data) {
-        throw new Error("Could not find ship data for ship type");
-    }
-    const scaledShip: IShipData = {
-        shipType: data.shipType,
-        cost: data.cost,
-        settlementProgressFactor: data.settlementProgressFactor,
-        cargoSize: data.cargoSize,
-        hull: data.hull.map(([x, y]) => [x * scale, y * scale]),
-        hullStrength: data.hullStrength,
-        cannons: {
-            numCannons: data.cannons.numCannons,
-            numCannonades: data.cannons.numCannonades,
-            startY: data.cannons.startY * scale,
-            endY: data.cannons.endY * scale,
-            leftWall: data.cannons.leftWall * scale,
-            rightWall: data.cannons.rightWall * scale,
-        },
-    };
-    return scaledShip;
-}
+import {EShipType, GetShipData} from "./ShipType";
+import {EFaction} from "./EFaction";
 
 export interface ISerializedShip {
     id: string;
@@ -652,14 +426,6 @@ export class Ship implements IAutomatedShip {
     }
 }
 
-export enum EFaction {
-    DUTCH = "DUTCH",
-    ENGLISH = "ENGLISH",
-    FRENCH = "FRENCH",
-    PORTUGUESE = "PORTUGUESE",
-    SPANISH = "SPANISH",
-}
-
 export interface ISerializedFireControl {
     targetShipId: string | null;
     coolDown: number;
@@ -818,6 +584,9 @@ export class FireControl<T extends IAutomatedShip> {
             }
         }
 
+        const nearestPlanet = this.app.voronoiTerrain.getNearestPlanet(this.owner.position.rotateVector([0, 0, 1]));
+        const isNearClaim = nearestPlanet.county.faction?.shipIds.includes(this.owner.id) ?? false;
+
         const target = this.app.ships.get(this.targetShipId);
         if (!target) {
             // no targets, cancel attack
@@ -828,7 +597,7 @@ export class FireControl<T extends IAutomatedShip> {
         }
 
         const isInMissionArea = this.owner.isInMissionArea();
-        if (!isInMissionArea) {
+        if (!isInMissionArea && !isNearClaim) {
             // outside of mission area, cancel attack to return to mission area
             this.owner.activeKeys.splice(0, this.owner.activeKeys.length);
             this.isAttacking = false;

@@ -1,6 +1,6 @@
 import {Game} from "../src";
-import {EFaction} from "../src/Ship";
 import {expect} from "chai";
+import {EFaction} from "../src/EFaction";
 
 describe("faction", () => {
     describe("faction royal titles", () => {

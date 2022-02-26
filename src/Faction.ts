@@ -1,13 +1,10 @@
 import {EResourceType} from "./Resource";
-import {EFaction, EShipType, Ship} from "./Ship";
+import {Ship} from "./Ship";
 import {Planet} from "./Planet";
 import {Game} from "./Game";
-import {
-    EServerType,
-    EShardMessageType,
-    IDestroyShipFactionShardMessage,
-    IDestroyShipPlanetShardMessage
-} from "./Interface";
+import {EServerType, EShardMessageType, IDestroyShipFactionShardMessage} from "./Interface";
+import {EShipType} from "./ShipType";
+import {EFaction} from "./EFaction";
 
 export enum ERoyalRank {
     EMPEROR = "EMPEROR",
@@ -179,7 +176,8 @@ export class Faction {
         [EShipType.CORVETTE]: 0,
         [EShipType.BRIGANTINE]: 0,
         [EShipType.BRIG]: 0,
-        [EShipType.FRIGATE]: 0
+        [EShipType.FRIGATE]: 0,
+        [EShipType.GALLEON]: 0,
     };
 
     public serialize(): ISerializedFaction {

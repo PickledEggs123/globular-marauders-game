@@ -27,7 +27,7 @@ import {
     NATURAL_RESOURCES,
     OUTPOST_GOODS
 } from "./Resource";
-import {EShipType, GetShipData, Ship} from "./Ship";
+import {Ship} from "./Ship";
 import {FeudalGovernment, ISerializedFeudalGovernment, VoronoiCounty} from "./VoronoiTree";
 import {ERoyalRank, Faction, LuxuryBuff} from "./Faction";
 import {EOrderType, Order} from "./Order";
@@ -49,6 +49,8 @@ import {ISerializedPlanetaryCurrencySystem, PlanetaryCurrencySystem} from "./Pla
 import {ISerializedPlanetaryMoneyAccount} from "./PlanetaryEconomyDemand";
 import {ISerializedPlanetaryEconomySystem, PlanetaryEconomySystem} from "./PlanetaryEconomySystem";
 import * as faker from "faker";
+import {DEFAULT_FACTION_PROPERTIES} from "./FactionProperties";
+import {EShipType, GetShipData} from "./ShipType";
 
 export interface IResourceExported {
     resourceType: EResourceType;
@@ -279,7 +281,8 @@ export class Planet implements ICameraState {
         [EShipType.CORVETTE]: 0,
         [EShipType.BRIGANTINE]: 0,
         [EShipType.BRIG]: 0,
-        [EShipType.FRIGATE]: 0
+        [EShipType.FRIGATE]: 0,
+        [EShipType.GALLEON]: 0,
     };
     public numPirateSlots: number = 0;
     public pirateSlots: string[] = [];
@@ -290,7 +293,8 @@ export class Planet implements ICameraState {
         [EShipType.CORVETTE]: 0,
         [EShipType.BRIGANTINE]: 0,
         [EShipType.BRIG]: 0,
-        [EShipType.FRIGATE]: 0
+        [EShipType.FRIGATE]: 0,
+        [EShipType.GALLEON]: 0,
     };
 
     /**
@@ -572,10 +576,12 @@ export class Planet implements ICameraState {
             this.economySystem = null;
         }
 
+        const factionProperty = DEFAULT_FACTION_PROPERTIES[faction.id];
+
         switch (this.getRoyalRank()) {
             case ERoyalRank.EMPEROR: {
                 // emperors have more pirates and their own economy
-                this.numPirateSlots = 5;
+                this.numPirateSlots = 5 * factionProperty.piracyMultiple;
                 this.economySystem = new PlanetaryEconomySystem(this.instance);
                 this.economySystem.addPlanet(this);
                 this.currencySystem = new PlanetaryCurrencySystem(`${faction.id} Bucks`);
@@ -583,7 +589,7 @@ export class Planet implements ICameraState {
             }
             case ERoyalRank.KING: {
                 // kings have some pirates and their own economy
-                this.numPirateSlots = 3;
+                this.numPirateSlots = 3 * factionProperty.piracyMultiple;
                 this.economySystem = new PlanetaryEconomySystem(this.instance);
                 this.economySystem.addPlanet(this);
                 this.currencySystem = new PlanetaryCurrencySystem(`${faction.id} Bucks - ${Math.floor(Math.random() * 1000)}`);
@@ -591,7 +597,7 @@ export class Planet implements ICameraState {
             }
             case ERoyalRank.DUKE: {
                 // dukes have few pirates and barrow their lords' currency, but have their own economy
-                this.numPirateSlots = 1;
+                this.numPirateSlots = factionProperty.piracyMultiple;
 
                 const lordPlanet = this.getLordWorld();
                 if (!lordPlanet.currencySystem) {

@@ -4,9 +4,10 @@ import Quaternion from "quaternion";
 import {ISerializedPlanet, ISerializedPlanetFull, Planet} from "./Planet";
 import {Faction} from "./Faction";
 import {Game, IGameSyncFrame, IPlayerData} from "./Game";
-import {EFaction, Ship} from "./Ship";
+import {Ship} from "./Ship";
 import {CannonBall, Crate} from "./Item";
 import {ISerializedStar, Star} from "./Star";
+import {EFaction} from "./EFaction";
 
 interface IVoronoiTreeNodeParent<T extends ICameraState> {
     nodes: Array<VoronoiTreeNode<T>>;

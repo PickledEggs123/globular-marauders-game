@@ -1,12 +1,15 @@
 /**
  * A type of order for a ship to complete. Orders are actions the ship should take on behalf of the faction.
  */
-import {EFaction, GetShipData, Ship, SHIP_DATA} from "./Ship";
+import {Ship} from "./Ship";
 import {DelaunayGraph, VoronoiGraph} from "./Graph";
 import {ESettlementLevel, ITradeDeal} from "./Interface";
 import {Faction} from "./Faction";
 import {Planet} from "./Planet";
 import {Game} from "./Game";
+import {GetShipData, SHIP_DATA} from "./ShipType";
+import {DEFAULT_FACTION_PROPERTIES} from "./FactionProperties";
+import {EFaction} from "./EFaction";
 
 /**
  * Different type of orders a faction can issue its ships.
@@ -289,6 +292,8 @@ export class Order {
             throw new Error("Could not find ship type");
         }
 
+        const factionProperty = DEFAULT_FACTION_PROPERTIES[this.faction.id];
+
         if (!this.planetId) {
             throw new Error("Could not find planetId to path to (SETTLE)");
         }
@@ -302,7 +307,7 @@ export class Order {
         });
         if (!wasSettledByAnotherFactionYet) {
             colonyWorld.settlementProgress = (
-                Math.round(colonyWorld.settlementProgress * Planet.NUM_SETTLEMENT_PROGRESS_STEPS) + shipData.settlementProgressFactor
+                Math.round(colonyWorld.settlementProgress * Planet.NUM_SETTLEMENT_PROGRESS_STEPS) + shipData.settlementProgressFactor * factionProperty.settlementMultiple
             ) / Planet.NUM_SETTLEMENT_PROGRESS_STEPS;
             if (colonyWorld.settlementProgress >= 1 && colonyWorld.settlementLevel < ESettlementLevel.OUTPOST) {
                 colonyWorld.settlementLevel = ESettlementLevel.OUTPOST;
