@@ -267,7 +267,7 @@ export class Shipyard extends Building {
         const shipPoints = factionProperty.shipTypes.map((v): [EShipType, number] => [v, shipTotalCost - GetShipData(v, 1).cost]);
         const shipTotalPoints = shipPoints.reduce((acc, v) => acc + v[1], 0);
         for (const shipType of factionProperty.shipTypes) {
-            if (this.shipsAvailable[shipType] < Math.ceil(this.numberOfDocks * (shipPoints.find(s => s[0] === shipType)[1] / shipTotalPoints))) {
+            if (this.shipsAvailable[shipType] + this.shipsBuilding[shipType] < Math.ceil(this.numberOfDocks * (shipPoints.find(s => s[0] === shipType)[1] / shipTotalPoints))) {
                 return shipType;
             }
         }

@@ -1404,7 +1404,7 @@ export class Planet implements ICameraState {
         const shipPoints = factionProperty.shipTypes.map((v): [EShipType, number] => [v, shipTotalCost - GetShipData(v, 1).cost]);
         const shipTotalPoints = shipPoints.reduce((acc, v) => acc + v[1], 0);
         for (const shipType of factionProperty.shipTypes) {
-            if (this.shipsAvailable[shipType] < Math.ceil(this.shipIds.length * (shipPoints.find(s => s[0] === shipType)[1] / shipTotalPoints))) {
+            if (this.shipyard.shipsAvailable[shipType] + this.shipyard.shipsBuilding[shipType] < Math.ceil(this.shipIds.length * (shipPoints.find(s => s[0] === shipType)[1] / shipTotalPoints))) {
                 return shipType;
             }
         }

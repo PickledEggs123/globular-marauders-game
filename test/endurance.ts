@@ -29,7 +29,7 @@ describe("Endurance tests", () => {
                 game.handleServerLoop();
                 game.outgoingMessages.splice(0, game.outgoingMessages.length);
                 for (const key in hasShips) {
-                    if (hasShips[key] !== true && Array.from(game.ships.values()).some(s => s.faction.id === key)) {
+                    if (hasShips[key] !== true && Array.from(game.ships.values()).filter(s => s.faction.id === key).length > 5) {
                         hasShips[key] = true;
                     }
                 }
