@@ -2010,7 +2010,7 @@ export class Game {
                                 planetId: null,
                                 shipId: "",
                                 activeKeys: [],
-                                moneyAccount: new MoneyAccount(2000),
+                                moneyAccount: new MoneyAccount(20000),
                                 autoPilotEnabled: true,
                                 aiNodeName: this.aiNodeName
                             };
