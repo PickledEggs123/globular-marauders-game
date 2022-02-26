@@ -264,7 +264,7 @@ export class Shipyard extends Building {
     public getNextShipTypeToBuild(): EShipType {
         const shipTypes = DEFAULT_FACTION_PROPERTIES[this.planet.county.faction.id].shipTypes.slice().reverse();
         for (const shipType of shipTypes) {
-            if (this.shipsAvailable[shipType] + this.shipsBuilding[shipType] < this.numberOfDocks * Math.floor(1 / shipTypes.length)) {
+            if (this.shipsAvailable[shipType] + this.shipsBuilding[shipType] < Math.max(Math.floor(this.numberOfDocks / shipTypes.length), 1)) {
                 return shipType;
             }
         }
