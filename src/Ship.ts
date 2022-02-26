@@ -570,6 +570,7 @@ export class FireControl<T extends IAutomatedShip> {
         const coneHit = this.getConeHit(target);
         if (!(coneHit.success && coneHit.point && coneHit.time && coneHit.time < Game.PROJECTILE_LIFE)) {
             // target is moving too fast, cannot hit it
+            this.targetShipId = null;
             return null;
         }
         return DelaunayGraph.normalize([

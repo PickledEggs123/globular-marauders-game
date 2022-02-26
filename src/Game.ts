@@ -2578,6 +2578,13 @@ export class Game {
                             nearByEnemyShip.position.clone().rotateVector([0, 0, 1]),
                             this.worldScale
                         );
+
+                        const coneHit = ship.fireControl.getConeHit(nearByEnemyShip);
+                        if (!(coneHit.success && coneHit.point && coneHit.time && coneHit.time < Game.PROJECTILE_LIFE)) {
+                            // target is moving too fast, cannot hit it
+                            continue;
+                        }
+
                         if (!closestDistance || distance < closestDistance) {
                             closestDistance = distance;
                             closestTarget = nearByEnemyShip;
