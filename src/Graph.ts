@@ -1129,12 +1129,12 @@ export class PathFinder<T extends IAutomatedShip> {
             this.owner.app.worldScale
         );
         return this.points.length > 1 ?
-            distance < Game.VELOCITY_STEP * this.owner.app.worldScale * Math.PI / 2 * 300 :
-            distance < Game.VELOCITY_STEP * this.owner.app.worldScale * Math.PI / 2 * 100;
+            distance < this.owner.getVelocityAcceleration() * this.owner.app.worldScale * Math.PI / 2 * 300 :
+            distance < this.owner.getVelocityAcceleration() * this.owner.app.worldScale * Math.PI / 2 * 100;
     }
 
     public integrateOrientationSpeedFrames(orientationSpeed: number): number {
-        const n = Math.floor(orientationSpeed / Game.ROTATION_STEP / 2);
+        const n = Math.floor(orientationSpeed / this.owner.getRotation() / 2);
         return Math.max(5, (n * (n - 1)) / 2 * 0.8);
     }
 
@@ -1167,9 +1167,9 @@ export class PathFinder<T extends IAutomatedShip> {
             targetOrientationPoint = DelaunayGraph.normalize(targetOrientationPoint);
             const orientationDiffAngle = Math.atan2(targetOrientationPoint[0], targetOrientationPoint[1]);
             const orientationSpeed = VoronoiGraph.angularDistanceQuaternion(this.owner.orientationVelocity, 1) * (orientationDiffAngle > 0 ? 1 : -1);
-            const desiredOrientationSpeed = Math.max(-Game.ROTATION_STEP * 10, Math.min(Math.round(
+            const desiredOrientationSpeed = Math.max(-this.owner.getRotation() * 10, Math.min(Math.round(
                 -(360 / 4) / Math.PI * orientationDiffAngle
-            ), Game.ROTATION_STEP * 10));
+            ), this.owner.getRotation() * 10));
 
             // compute speed towards target
             const positionAngularDistance = VoronoiGraph.angularDistanceQuaternion(positionDiff, this.owner.app.worldScale);
@@ -1180,8 +1180,8 @@ export class PathFinder<T extends IAutomatedShip> {
             // use a class variable to force more tight angle correction, and a more relaxed angle check while moving
             // should result in stop and go less often.
             const shouldRotate = this.lastStepShouldRotate ?
-                Math.abs(orientationDiffAngle) > 2 / 180 * Math.PI * (Math.pow(Math.PI - distance, 2) + 1) || Math.abs(desiredOrientationSpeed) >= Game.ROTATION_STEP :
-                Math.abs(orientationDiffAngle) > 5 / 180 * Math.PI * (Math.pow(Math.PI - distance, 2) + 1) || Math.abs(desiredOrientationSpeed) >= Game.ROTATION_STEP;
+                Math.abs(orientationDiffAngle) > 2 / 180 * Math.PI * (Math.pow(Math.PI - distance, 2) + 1) || Math.abs(desiredOrientationSpeed) >= this.owner.getRotation() :
+                Math.abs(orientationDiffAngle) > 5 / 180 * Math.PI * (Math.pow(Math.PI - distance, 2) + 1) || Math.abs(desiredOrientationSpeed) >= this.owner.getRotation();
             this.lastStepShouldRotate = shouldRotate;
             if (!shouldRotate) {
                 desiredSpeed = 5;

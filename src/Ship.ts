@@ -161,6 +161,21 @@ export class Ship implements IAutomatedShip {
         return healthSpeedFactor * cargoSpeedFactor;
     }
 
+    public getVelocitySpeed = (): number => {
+        const shipData = GetShipData(this.shipType, this.app.worldScale);
+        return 1 / ((1 / Game.VELOCITY_DRAG) * shipData.acceleration);
+    }
+
+    public getVelocityAcceleration = (): number => {
+        const shipData = GetShipData(this.shipType, this.app.worldScale);
+        return 1 / ((1 / Game.VELOCITY_STEP) * shipData.topSpeed);
+    }
+
+    public getRotation = (): number => {
+        const shipData = GetShipData(this.shipType, this.app.worldScale);
+        return 1 / ((1 / Game.ROTATION_STEP) * shipData.rotation);
+    }
+
     /**
      * Determine if the ship is in the mission area.
      */
@@ -360,7 +375,7 @@ export class Ship implements IAutomatedShip {
         for (const cargo of this.cargo) {
             const randomDirection = Quaternion.fromAxisAngle([0, 0, 1], Math.random() * 2 * Math.PI - Math.PI)
                 .rotateVector([1, 0, 0]);
-            const randomVelocity = Quaternion.fromBetweenVectors([0, 0, 1], randomDirection).pow(Game.VELOCITY_STEP / this.app.worldScale * 0.1);
+            const randomVelocity = Quaternion.fromBetweenVectors([0, 0, 1], randomDirection).pow(this.getVelocitySpeed() / this.app.worldScale * 0.1);
 
             const crate = new Crate(cargo.resourceType, cargo.sourcePlanetId, cargo.amount);
             crate.id = `${this.id}-crate-${Math.floor(Math.random() * 100000)}`;
@@ -368,7 +383,7 @@ export class Ship implements IAutomatedShip {
             crate.positionVelocity = this.positionVelocity.clone().pow(1 / 50).mul(randomVelocity);
             crate.positionVelocity = Quaternion.ONE;
             crate.orientation = Quaternion.fromAxisAngle([0, 0, 1], Math.random() * 2 * Math.PI - Math.PI);
-            crate.orientationVelocity = Quaternion.fromAxisAngle([0, 0, 1], Math.random() > 0 ? Game.ROTATION_STEP : -Game.ROTATION_STEP);
+            crate.orientationVelocity = Quaternion.fromAxisAngle([0, 0, 1], Math.random() > 0 ? this.getRotation() : -this.getRotation());
             crate.maxLife = 2 * 60 * 10;
             crate.size = 100;
             crates.push(crate);
@@ -525,7 +540,7 @@ export class FireControl<T extends IAutomatedShip> {
             shipDirectionPoint[0] - shipPosition[0],
             shipDirectionPoint[1] - shipPosition[1]
         ];
-        const attackingShipSpeed = Game.VELOCITY_STEP / Game.VELOCITY_DRAG * this.owner.getSpeedFactor();
+        const attackingShipSpeed = this.owner.getVelocityAcceleration() / this.owner.getVelocitySpeed() * this.owner.getSpeedFactor();
         const interceptConeHit = computeConeLineIntersection(shipPosition, shipDirection, attackingShipSpeed, 0);
 
         // handle cone hit result
@@ -565,7 +580,7 @@ export class FireControl<T extends IAutomatedShip> {
     }
 
     public integrateOrientationSpeedFrames(orientationSpeed: number): number {
-        const n = Math.floor(orientationSpeed / Game.ROTATION_STEP / 2);
+        const n = Math.floor(orientationSpeed / this.owner.getRotation() / 2);
         return Math.max(5, (n * (n - 1)) / 2 * 0.8);
     }
 
@@ -673,16 +688,16 @@ export class FireControl<T extends IAutomatedShip> {
             Math.atan2(targetOrientationPoint[1], targetOrientationPoint[0]);
         orientationDiffAngle = (orientationDiffAngle - Math.PI / 2) % (Math.PI * 2);
         const orientationSpeed = VoronoiGraph.angularDistanceQuaternion(this.owner.orientationVelocity, 1) * (orientationDiffAngle > 0 ? 1 : -1);
-        const desiredOrientationSpeed = Math.max(-Game.ROTATION_STEP * 10, Math.min(Math.round(
+        const desiredOrientationSpeed = Math.max(-this.owner.getRotation() * 10, Math.min(Math.round(
             -(360 / 4) / Math.PI * orientationDiffAngle
-        ), Game.ROTATION_STEP * 10));
+        ), this.owner.getRotation() * 10));
 
         // perform rotation and speed up
         // use a class variable to force more tight angle correction, and a more relaxed angle check while moving
         // should result in stop and go less often.
         const shouldRotate = this.lastStepShouldRotate ?
-            Math.abs(orientationDiffAngle) > 2 / 180 * Math.PI || Math.abs(desiredOrientationSpeed) >= Game.ROTATION_STEP :
-            Math.abs(orientationDiffAngle) > 5 / 180 * Math.PI || Math.abs(desiredOrientationSpeed) >= Game.ROTATION_STEP;
+            Math.abs(orientationDiffAngle) > 2 / 180 * Math.PI || Math.abs(desiredOrientationSpeed) >= this.owner.getRotation() :
+            Math.abs(orientationDiffAngle) > 5 / 180 * Math.PI || Math.abs(desiredOrientationSpeed) >= this.owner.getRotation();
         this.lastStepShouldRotate = shouldRotate;
         const willReachTargetRotation = Math.abs(orientationDiffAngle) / Math.abs(orientationSpeed) < this.integrateOrientationSpeedFrames(orientationSpeed);
         if (shouldRotate && desiredOrientationSpeed > orientationSpeed && !willReachTargetRotation && !this.owner.activeKeys.includes("a")) {

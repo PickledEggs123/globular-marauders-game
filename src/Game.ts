@@ -861,6 +861,9 @@ export class Game {
             throw new Error("Could not find Ship Type");
         }
         const speedFactor = this.ships.get(shipId).getSpeedFactor();
+        const velocityAcceleration = this.ships.get(shipId).getVelocityAcceleration();
+        const velocitySpeed = this.ships.get(shipId).getVelocitySpeed();
+        const rotationSpeed = this.ships.get(shipId).getRotation();
         const newCannonBalls: CannonBall[] = [];
 
         let clearPathFindingPoints: boolean = false;
@@ -869,34 +872,34 @@ export class Game {
 
         // handle movement
         if (activeKeys.includes("a")) {
-            const rotation = Quaternion.fromAxisAngle([0, 0, 1], Math.PI).pow(Game.ROTATION_STEP);
+            const rotation = Quaternion.fromAxisAngle([0, 0, 1], Math.PI).pow(rotationSpeed);
             const rotationDrag = cameraOrientationVelocity.pow(Game.ROTATION_DRAG).inverse();
             cameraOrientationVelocity = cameraOrientationVelocity.clone().mul(rotation).mul(rotationDrag);
-            if (VoronoiGraph.angularDistanceQuaternion(cameraOrientationVelocity, 1) < Math.PI * Game.ROTATION_STEP * 0.9) {
+            if (VoronoiGraph.angularDistanceQuaternion(cameraOrientationVelocity, 1) < Math.PI * rotationSpeed * 0.9) {
                 cameraOrientationVelocity = Quaternion.ONE;
             }
         }
         if (activeKeys.includes("d")) {
-            const rotation = Quaternion.fromAxisAngle([0, 0, 1], -Math.PI).pow(Game.ROTATION_STEP);
+            const rotation = Quaternion.fromAxisAngle([0, 0, 1], -Math.PI).pow(rotationSpeed);
             const rotationDrag = cameraOrientationVelocity.pow(Game.ROTATION_DRAG).inverse();
             cameraOrientationVelocity = cameraOrientationVelocity.clone().mul(rotation).mul(rotationDrag);
-            if (VoronoiGraph.angularDistanceQuaternion(cameraOrientationVelocity, 1) < Math.PI * Game.ROTATION_STEP * 0.9) {
+            if (VoronoiGraph.angularDistanceQuaternion(cameraOrientationVelocity, 1) < Math.PI * rotationSpeed * 0.9) {
                 cameraOrientationVelocity = Quaternion.ONE;
             }
         }
         if (activeKeys.includes("w")) {
             const forward = cameraOrientation.clone().rotateVector([0, 1, 0]);
-            const rotation = Quaternion.fromBetweenVectors([0, 0, 1], forward).pow(Game.VELOCITY_STEP / this.worldScale);
-            const rotationDrag = cameraPositionVelocity.pow(Game.VELOCITY_DRAG / this.worldScale).inverse();
+            const rotation = Quaternion.fromBetweenVectors([0, 0, 1], forward).pow(velocityAcceleration / this.worldScale);
+            const rotationDrag = cameraPositionVelocity.pow(velocitySpeed / this.worldScale).inverse();
             cameraPositionVelocity = cameraPositionVelocity.clone().mul(rotation).mul(rotationDrag);
-            if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * Game.VELOCITY_STEP / this.worldScale) {
+            if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * velocityAcceleration / this.worldScale) {
                 cameraPositionVelocity = Quaternion.ONE;
             }
         }
         if (activeKeys.includes("s")) {
             const rotation = cameraPositionVelocity.clone().inverse().pow(Game.BRAKE_POWER / this.worldScale);
             cameraPositionVelocity = cameraPositionVelocity.clone().mul(rotation);
-            if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * Game.VELOCITY_STEP / this.worldScale) {
+            if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * velocityAcceleration / this.worldScale) {
                 cameraPositionVelocity = Quaternion.ONE;
             }
         }

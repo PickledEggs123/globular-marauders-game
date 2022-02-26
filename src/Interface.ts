@@ -393,6 +393,10 @@ export interface IAutomatedShip extends ICameraState {
     hasPirateCargo(): boolean;
 
     getSpeedFactor(): number;
+
+    getVelocityAcceleration(): number;
+    getVelocitySpeed(): number;
+    getRotation(): number;
 }
 
 export interface ICollidable extends ICameraState {

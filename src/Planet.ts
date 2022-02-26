@@ -1364,7 +1364,7 @@ export class Planet implements ICameraState {
     public getNextShipTypeToBuild(): EShipType {
         // build next ship based on local ship demand
         for (const shipType of Object.values(EShipType)) {
-            if (this.shipsAvailable[shipType] < this.shipsDemand[shipType]) {
+            if (this.shipsAvailable[shipType] < this.shipsDemand[shipType] && this.getNumShipsAvailable(shipType) > 2) {
                 return shipType;
             }
         }
@@ -1372,7 +1372,7 @@ export class Planet implements ICameraState {
         // build next ship based on vassal ship demand
         for (const shipType of Object.values(EShipType)) {
             for (const planet of Array.from(this.getPlanetsOfDomain())) {
-                if (planet.shipsAvailable[shipType] < planet.shipsDemand[shipType]) {
+                if (planet.shipsAvailable[shipType] < planet.shipsDemand[shipType] && this.getNumShipsAvailable(shipType) > 2) {
                     return shipType;
                 }
             }
@@ -1383,7 +1383,7 @@ export class Planet implements ICameraState {
             for (const shipType of Object.values(EShipType)) {
                 let lordWorld = this.getLordWorld();
                 for (let i = 0; i < 100; i++) {
-                    if (lordWorld.shipsAvailable[shipType] < lordWorld.shipsDemand[shipType]) {
+                    if (lordWorld.shipsAvailable[shipType] < lordWorld.shipsDemand[shipType] && this.getNumShipsAvailable(shipType) > 2) {
                         return shipType;
                     }
                     const nextLordWorld = this.getLordWorld();
@@ -1399,16 +1399,16 @@ export class Planet implements ICameraState {
         }
 
         // build a distribution of ship types when there is no demand
-        if (this.shipsAvailable[EShipType.CUTTER] < Math.ceil(this.shipIds.length * (1 / 2))) {
-            return EShipType.CUTTER;
+        const factionProperty = DEFAULT_FACTION_PROPERTIES[this.county.faction.id];
+        const shipTotalCost = factionProperty.shipTypes.reduce((acc, v) => acc + GetShipData(v, 1).cost, 0);
+        const shipPoints = factionProperty.shipTypes.map((v): [EShipType, number] => [v, shipTotalCost - GetShipData(v, 1).cost]);
+        const shipTotalPoints = shipPoints.reduce((acc, v) => acc + v[1], 0);
+        for (const shipType of factionProperty.shipTypes) {
+            if (this.shipsAvailable[shipType] < Math.ceil(this.shipIds.length * (shipPoints.find(s => s[0] === shipType)[1] / shipTotalPoints))) {
+                return shipType;
+            }
         }
-        if (this.shipsAvailable[EShipType.SLOOP] < Math.ceil(this.shipIds.length * (1 / 3))) {
-            return EShipType.SLOOP;
-        }
-        if (this.shipsAvailable[EShipType.CORVETTE] < Math.ceil(this.shipIds.length * (1 / 6))) {
-            return EShipType.CORVETTE;
-        }
-        return EShipType.CUTTER;
+        return factionProperty.shipTypes[0];
     }
 
     public buildInitialResourceBuildings() {

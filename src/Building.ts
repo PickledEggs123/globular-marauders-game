@@ -262,13 +262,16 @@ export class Shipyard extends Building {
     }
 
     public getNextShipTypeToBuild(): EShipType {
-        const shipTypes = DEFAULT_FACTION_PROPERTIES[this.planet.county.faction.id].shipTypes;
-        for (const shipType of shipTypes) {
-            if (this.shipsAvailable[shipType] + this.shipsBuilding[shipType] < Math.max(Math.floor(this.numberOfDocks / shipTypes.length), 1)) {
+        const factionProperty = DEFAULT_FACTION_PROPERTIES[this.planet.county.faction.id];
+        const shipTotalCost = factionProperty.shipTypes.reduce((acc, v) => acc + GetShipData(v, 1).cost, 0);
+        const shipPoints = factionProperty.shipTypes.map((v): [EShipType, number] => [v, shipTotalCost - GetShipData(v, 1).cost]);
+        const shipTotalPoints = shipPoints.reduce((acc, v) => acc + v[1], 0);
+        for (const shipType of factionProperty.shipTypes) {
+            if (this.shipsAvailable[shipType] < Math.ceil(this.numberOfDocks * (shipPoints.find(s => s[0] === shipType)[1] / shipTotalPoints))) {
                 return shipType;
             }
         }
-        return shipTypes.slice(-1)[0];
+        return factionProperty.shipTypes[0];
     }
 
     public getNumberOfDocksAtUpgradeLevel(): number {

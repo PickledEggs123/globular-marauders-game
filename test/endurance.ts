@@ -1,4 +1,6 @@
 import {Game} from "../src";
+import {EFaction} from "../src/EFaction";
+import {expect} from "chai";
 
 describe("Endurance tests", () => {
     const numHoursTrials: number[] = [
@@ -16,10 +18,29 @@ describe("Endurance tests", () => {
 
             const game = new Game();
             game.initializeGame();
+            let hasShips: Record<EFaction, boolean> = {
+                [EFaction.DUTCH]: false,
+                [EFaction.ENGLISH]: false,
+                [EFaction.FRENCH]: false,
+                [EFaction.PORTUGUESE]: false,
+                [EFaction.SPANISH]: false,
+            };
             for (let i = 0; i < numHours * 60 * 60 * 10; i++) {
                 game.handleServerLoop();
                 game.outgoingMessages.splice(0, game.outgoingMessages.length);
+                for (const key in hasShips) {
+                    if (hasShips[key] !== true && Array.from(game.ships.values()).some(s => s.faction.id === key)) {
+                        hasShips[key] = true;
+                    }
+                }
             }
+            expect(hasShips).to.deep.equal({
+                [EFaction.DUTCH]: true,
+                [EFaction.ENGLISH]: true,
+                [EFaction.FRENCH]: true,
+                [EFaction.PORTUGUESE]: true,
+                [EFaction.SPANISH]: true,
+            });
         });
     }
 });
