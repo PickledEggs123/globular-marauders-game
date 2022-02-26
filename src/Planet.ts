@@ -1408,7 +1408,7 @@ export class Planet implements ICameraState {
                 return shipType;
             }
         }
-        const firstEntry = (Object.entries(this.shipyard.shipsAvailable) as [EShipType, number][]).sort((a, b) => GetShipData(b[0], 1).cost - GetShipData(a[0], 1).cost).find(([key, value]) => value > 1);
+        const firstEntry = (Object.entries(this.shipyard.shipsAvailable) as [EShipType, number][]).sort((a, b) => GetShipData(b[0], 1).cost - GetShipData(a[0], 1).cost).find(([key, value]) => value > 2);
         return (firstEntry ? firstEntry[0] : undefined) ?? factionProperty.shipTypes[0];
     }
 
