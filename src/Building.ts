@@ -271,7 +271,8 @@ export class Shipyard extends Building {
                 return shipType;
             }
         }
-        return factionProperty.shipTypes[0];
+        const firstEntry = (Object.entries(this.shipsAvailable) as [EShipType, number][]).sort((a, b) => GetShipData(b[0], 1).cost - GetShipData(a[0], 1).cost).find(([key, value]) => value > 2);
+        return (firstEntry ? firstEntry[0] : undefined) ?? factionProperty.shipTypes[0];
     }
 
     public getNumberOfDocksAtUpgradeLevel(): number {
