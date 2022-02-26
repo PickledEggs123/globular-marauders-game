@@ -1364,7 +1364,7 @@ export class Planet implements ICameraState {
     public getNextShipTypeToBuild(): EShipType {
         // build next ship based on local ship demand
         for (const shipType of Object.values(EShipType)) {
-            if (this.shipsAvailable[shipType] < this.shipsDemand[shipType] && this.getNumShipsAvailable(shipType) > 2) {
+            if (this.shipsAvailable[shipType] < this.shipsDemand[shipType] && this.getNumShipsAvailable(shipType) > 1) {
                 return shipType;
             }
         }
@@ -1372,7 +1372,7 @@ export class Planet implements ICameraState {
         // build next ship based on vassal ship demand
         for (const shipType of Object.values(EShipType)) {
             for (const planet of Array.from(this.getPlanetsOfDomain())) {
-                if (planet.shipsAvailable[shipType] < planet.shipsDemand[shipType] && this.getNumShipsAvailable(shipType) > 2) {
+                if (planet.shipsAvailable[shipType] < planet.shipsDemand[shipType] && this.getNumShipsAvailable(shipType) > 1) {
                     return shipType;
                 }
             }
@@ -1383,7 +1383,7 @@ export class Planet implements ICameraState {
             for (const shipType of Object.values(EShipType)) {
                 let lordWorld = this.getLordWorld();
                 for (let i = 0; i < 100; i++) {
-                    if (lordWorld.shipsAvailable[shipType] < lordWorld.shipsDemand[shipType] && this.getNumShipsAvailable(shipType) > 2) {
+                    if (lordWorld.shipsAvailable[shipType] < lordWorld.shipsDemand[shipType] && this.getNumShipsAvailable(shipType) > 1) {
                         return shipType;
                     }
                     const nextLordWorld = this.getLordWorld();
@@ -1404,11 +1404,12 @@ export class Planet implements ICameraState {
         const shipPoints = factionProperty.shipTypes.map((v): [EShipType, number] => [v, shipTotalCost - GetShipData(v, 1).cost]);
         const shipTotalPoints = shipPoints.reduce((acc, v) => acc + v[1], 0);
         for (const shipType of factionProperty.shipTypes) {
-            if (this.shipyard.shipsAvailable[shipType] + this.shipyard.shipsBuilding[shipType] < Math.ceil(this.shipIds.length * (shipPoints.find(s => s[0] === shipType)[1] / shipTotalPoints))) {
+            if (this.shipsAvailable[shipType] + this.shipyard.shipsBuilding[shipType] < Math.ceil(this.shipIds.length * (shipPoints.find(s => s[0] === shipType)[1] / shipTotalPoints))) {
                 return shipType;
             }
         }
-        return factionProperty.shipTypes[0];
+        const firstEntry = (Object.entries(this.shipyard.shipsAvailable) as [EShipType, number][]).sort((a, b) => GetShipData(b[0], 1).cost - GetShipData(a[0], 1).cost).find(([key, value]) => value > 0);
+        return (firstEntry ? firstEntry[0] : undefined) ?? factionProperty.shipTypes[0];
     }
 
     public buildInitialResourceBuildings() {
@@ -1641,7 +1642,7 @@ export class Planet implements ICameraState {
         if (
             (this.getRoyalRank() === ERoyalRank.EMPEROR ? true : this.shipIds.length < 3) &&
             this.county.faction &&
-            this.getNumShipsAvailable(nextShipTypeToBuild) > 2 &&
+            this.getNumShipsAvailable(nextShipTypeToBuild) > 1 &&
             this.county.faction.shipIds.length < Faction.MAX_SHIPS &&
             this.moneyAccount &&
             this.moneyAccount.cash.hasEnough(this.shipyard.quoteShip(nextShipTypeToBuild, true)) &&
