@@ -247,17 +247,58 @@ export class Ship implements IAutomatedShip {
         const playerData = this.app.playerData.get(cannonBall.shipId);
         if (playerData) {
             if ([EServerType.STANDALONE].includes(this.app.serverType)) {
-                const item = this.app.scoreBoard.damage.find(i => i.playerId === playerData.id);
-                if (item) {
-                    item.damage += cannonBall.damage;
-                } else {
-                    this.app.scoreBoard.damage.push({
-                        playerId: playerData.id,
-                        name: playerData.name,
-                        damage: cannonBall.damage
-                    });
+                // global scoreboard
+                {
+                    const item = this.app.scoreBoard.damage.find(i => i.playerId === playerData.id);
+                    if (item) {
+                        item.damage += cannonBall.damage;
+                    } else {
+                        this.app.scoreBoard.damage.push({
+                            playerId: playerData.id,
+                            name: playerData.name,
+                            damage: cannonBall.damage
+                        });
+                    }
+                    this.app.scoreBoard.damage.sort((a, b) => b.damage - a.damage);
                 }
-                this.app.scoreBoard.damage.sort((a, b) => b.damage - a.damage);
+
+                // faction bounty list
+                if (this.faction) {
+                    const extraPointsForDestroyingShip = this.health <= 0 ? GetShipData(this.shipType, 1).cost : 0;
+
+                    // increase bounty on target ship
+                    {
+                        const item = this.faction.bounties.find(i => i.playerId === playerData.id);
+                        if (item) {
+                            item.bounty += cannonBall.damage + extraPointsForDestroyingShip;
+                        } else {
+                            this.faction.bounties.push({
+                                playerId: playerData.id,
+                                name: playerData.name,
+                                bounty: cannonBall.damage + extraPointsForDestroyingShip,
+                            });
+                        }
+                        this.faction.bounties.sort((a, b) => b.bounty - a.bounty);
+                    }
+
+                    // apply bounty score
+                    const playerFaction = this.app.factions.get(playerData.factionId);
+                    const targetPlayerId = Array.from(this.app.playerData.values()).find(p => p.shipId === this.id)?.id;
+                    const playerFactionBounty = targetPlayerId && playerFaction?.bounties.find(b => b.playerId === targetPlayerId);
+                    if (playerFaction && extraPointsForDestroyingShip && playerFactionBounty) {
+                        const item = this.app.scoreBoard.bounty.find(i => i.playerId === playerData.id);
+                        if (item) {
+                            item.bountyAmount += playerFactionBounty.bounty;
+                        } else {
+                            this.app.scoreBoard.bounty.push({
+                                playerId: playerData.id,
+                                name: playerData.name,
+                                bountyAmount: playerFactionBounty.bounty
+                            });
+                        }
+                        this.app.scoreBoard.bounty.sort((a, b) => b.bountyAmount - a.bountyAmount);
+                    }
+                }
             } else if ([EServerType.PHYSICS_NODE].includes(this.app.serverType)) {
                 const globalScoreBoardMessage: IDamageScoreShardMessage = {
                     shardMessageType: EShardMessageType.DAMAGE_SCORE,

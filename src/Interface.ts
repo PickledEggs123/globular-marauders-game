@@ -346,7 +346,7 @@ export interface IScoreBoardLandItem {
 export interface IScoreBoardBountyItem {
     playerId: string;
     name: string;
-    count: number;
+    bountyAmount: number;
 }
 
 /**

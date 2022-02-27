@@ -1901,7 +1901,7 @@ export class Planet implements ICameraState {
                                 count
                             });
                         }
-                        this.instance.scoreBoard.damage.sort((a, b) => b.damage - a.damage);
+                        this.instance.scoreBoard.loot.sort((a, b) => b.count - a.count);
                     } else if ([EServerType.PHYSICS_NODE].includes(this.instance.serverType)) {
                         const globalScoreBoardMessage: ILootScoreShardMessage = {
                             shardMessageType: EShardMessageType.LOOT_SCORE,

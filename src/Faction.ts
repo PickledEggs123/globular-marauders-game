@@ -116,6 +116,12 @@ export interface IFactionPlayerRoyalTitles {
     emperors: IPlanetPlayerPair[];
 }
 
+export interface IFactionBounty {
+    playerId: string;
+    name: string;
+    bounty: number;
+}
+
 export interface ISerializedFaction {
     id: EFaction;
     factionColor: string;
@@ -125,6 +131,7 @@ export interface ISerializedFaction {
     factionPlayerRoyalTitles: IFactionPlayerRoyalTitles;
     shipIds: string[];
     shipsAvailable: Record<EShipType, number>;
+    bounties: IFactionBounty[];
 }
 
 /**
@@ -180,6 +187,8 @@ export class Faction {
         [EShipType.GALLEON]: 0,
     };
 
+    public bounties: IFactionBounty[] = [];
+
     public serialize(): ISerializedFaction {
         return {
             id: this.id,
@@ -189,7 +198,8 @@ export class Faction {
             factionPlanetRoster: this.factionPlanetRoster,
             factionPlayerRoyalTitles: this.factionPlayerRoyalTitles,
             shipIds: this.shipIds,
-            shipsAvailable: this.shipsAvailable
+            shipsAvailable: this.shipsAvailable,
+            bounties: this.bounties,
         };
     }
 
@@ -202,6 +212,7 @@ export class Faction {
         this.factionPlayerRoyalTitles = {...data.factionPlayerRoyalTitles};
         this.shipIds = [...data.shipIds];
         this.shipsAvailable = {...data.shipsAvailable};
+        this.bounties = [...data.bounties];
     }
 
     public static deserialize(game: Game, data: ISerializedFaction): Faction {

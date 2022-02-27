@@ -287,11 +287,11 @@ export class Game {
     /**
      * The speed of the cannonball projectiles.
      */
-    public static PROJECTILE_SPEED: number = Game.VELOCITY_STEP * 100;
+    public static PROJECTILE_SPEED: number = Game.VELOCITY_STEP * 200;
     /**
      * How long a cannonball will live for in ticks.
      */
-    public static PROJECTILE_LIFE: number = 40;
+    public static PROJECTILE_LIFE: number = 30;
     /**
      * The enemy detection range.
      */
