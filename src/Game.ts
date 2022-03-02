@@ -3052,4 +3052,11 @@ export class Game {
         planet.pathingNode = pathingNode;
         return planet;
     }
+
+    public startInvasion(planetId: string, defending: Faction, attacking: Faction) {
+        if (!this.invasions.has(planetId)) {
+            const invasion = new Invasion(attacking, defending, planetId);
+            this.invasions.set(planetId, invasion);
+        }
+    }
 }

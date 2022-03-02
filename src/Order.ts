@@ -20,6 +20,10 @@ export enum EOrderType {
      */
     ROAM = "ROAM",
     /**
+     * Move fighters to a planet to invade it.
+     */
+    INVADE = "INVADE",
+    /**
      * Move settlers to a planet to colonize it.
      */
     SETTLE = "SETTLE",
@@ -384,6 +388,54 @@ export class Order {
         }
     }
 
+    private invade() {
+        // cancel order by going back to home world
+        if (this.isOrderCancelled()) {
+            this.stage = 3;
+
+            // return to home world
+            this.returnToHomeWorld();
+        }
+
+        const pirateOrderExpired = this.runningTicks >= this.expireTicks;
+
+        // fly to a specific planet
+        if (this.stage === 0 && this.owner.pathFinding.points.length === 0) {
+            this.stage += 1;
+
+            // return to home world
+            this.returnToHomeWorld();
+        } else if (this.stage === 1 && this.owner.pathFinding.points.length === 0) {
+            this.stage += 1;
+
+            // trade with homeWorld
+            this.beginPirateMission();
+
+            // find colony world
+            this.goToColonyWorld();
+        } else if (this.stage === 2 && this.owner.pathFinding.points.length === 0) {
+            if (pirateOrderExpired) {
+                this.stage += 1;
+
+                // wait at colony world
+                // get cargo
+
+                // return to home world
+                this.returnToHomeWorld();
+            } else if (!this.owner.fireControl.isAttacking && this.owner.pathFinding.points.length === 0) {
+                // wait at colony world
+                this.goToColonyWorldToPirate();
+            }
+        } else if (this.stage === 3 && this.owner.pathFinding.points.length === 0) {
+
+            // trade with homeWorld
+            this.beginPirateMission();
+
+            // end order
+            this.owner.removeOrder(this);
+        }
+    }
+
     private settle() {
         // cancel order by going back to home world
         if (this.isOrderCancelled()) {
@@ -599,6 +651,8 @@ export class Order {
     public handleOrderLoop() {
         if (this.orderType === EOrderType.ROAM) {
             this.roam();
+        } else if (this.orderType === EOrderType.INVADE) {
+            this.invade();
         } else if (this.orderType === EOrderType.SETTLE) {
             this.settle();
         } else if (this.orderType === EOrderType.FEUDAL_TRADE) {
@@ -649,6 +703,7 @@ export class Order {
                 // pirates can attack at any time
                 return true;
             }
+            case EOrderType.INVADE:
             case EOrderType.ROAM:
             default: {
                 // roaming and default, attacking is allowed anywhere

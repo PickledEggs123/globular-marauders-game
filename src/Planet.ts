@@ -878,13 +878,30 @@ export class Planet implements ICameraState {
             return worldIsAbleToSettle && roomToSettleMore && notSettledYet;
         });
 
+        // find worlds to invade
+        const invasionWorldEntries = entries.filter(entry => {
+            const worldIsAbleToSettle = this.isAbleToSettle(entry[1].planet);
+            // settle new worlds which have not been settled yet
+            const invadeAnotherFaction = Array.from(this.instance.factions.values()).every(faction => {
+                if (homeFaction && homeFaction.planetIds.includes(entry[1].planet.id)) {
+                    // do not invade own faction
+                    return false;
+                } else {
+                    // the faction should invade another planet colonized by another faction
+                    return faction.planetIds.includes(entry[0]);
+                }
+            });
+            return worldIsAbleToSettle && invadeAnotherFaction;
+        });
+
         return {
             offerVassalEntries,
             pirateWorldEntries,
             tradeVassalEntries,
             tradeDealEntries,
             settlementWorldEntries,
-            colonizeWorldEntries
+            colonizeWorldEntries,
+            invasionWorldEntries
         };
     }
 
@@ -905,7 +922,8 @@ export class Planet implements ICameraState {
             tradeVassalEntries,
             tradeDealEntries,
             settlementWorldEntries,
-            colonizeWorldEntries
+            colonizeWorldEntries,
+            invasionWorldEntries
         } = this.getPlanetExplorationEntries(ship.shipType);
         const offerVassalEntry = offerVassalEntries[0];
         const pirateWorldEntry = pirateWorldEntries[0];
@@ -913,6 +931,7 @@ export class Planet implements ICameraState {
         const tradeDealEntry = tradeDealEntries[0];
         const settlementWorldEntry = settlementWorldEntries[0];
         const colonizeWorldEntry = colonizeWorldEntries[0];
+        const invasionWorldEntry = invasionWorldEntries[0];
 
         if (!this.county.faction) {
             throw new Error("No faction assigned to planet");
@@ -953,6 +972,15 @@ export class Planet implements ICameraState {
             order.planetId = tradeVassalWorldEntry[0];
             order.expireTicks = 10 * 60 * 20; // trade for 20 minutes before signing a new contract
             order.tradeDeal = tradeDealEntry[1];
+            return order;
+        } else if (invasionWorldEntry) {
+            // add ship to settle
+            invasionWorldEntry[1].settlerShipIds.push(ship.id);
+
+            const order = new Order(this.instance, ship, this.county.faction);
+            order.orderType = EOrderType.INVADE;
+            order.planetId = invasionWorldEntry[0];
+            order.expireTicks = 10 * 60 * 20; // invade for 20 minutes before signing a new contract
             return order;
         } else if (colonizeWorldEntry) {
             // add ship to colonize
@@ -1344,7 +1372,8 @@ export class Planet implements ICameraState {
         const {
             tradeVassalEntries,
             pirateWorldEntries,
-            colonizeWorldEntries
+            colonizeWorldEntries,
+            invasionWorldEntries
         } = this.getPlanetExplorationEntries();
 
         // reset demand
@@ -1359,6 +1388,16 @@ export class Planet implements ICameraState {
         }, 0);
         this.shipsDemand[EShipType.CORVETTE] = Math.min(this.numPirateSlots, pirateWorldEntries.length) +
             Math.max(0, Math.min(colonizeWorldEntries.length, 10));
+
+        // invasion demand
+        const factionProperties = DEFAULT_FACTION_PROPERTIES[this.county.faction.id];
+        if (factionProperties) {
+            const lastThreeShipTypes = factionProperties.shipTypes.slice(-3);
+            for (let i = 0; i < lastThreeShipTypes.length; i++) {
+                const shipType = lastThreeShipTypes[i];
+                this.shipsDemand[shipType] = invasionWorldEntries.length * Math.max(3 - i, 1);
+            }
+        }
     }
 
     public getNextShipTypeToBuild(): EShipType {
