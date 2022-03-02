@@ -75,6 +75,7 @@ import {Star} from "./Star";
 import {Market} from "./Market";
 import {EShipType, GetShipData, PHYSICS_SCALE, SHIP_DATA} from "./ShipType";
 import {EFaction} from "./EFaction";
+import {Invasion} from "./Invasion";
 
 /**
  * A list of player specific data for the server to store.
@@ -279,6 +280,7 @@ export class Game {
         bounty: [],
         capture: []
     };
+    public invasions: Map<string, Invasion> = new Map<string, Invasion>();
 
     /**
      * Velocity step size of ships.
