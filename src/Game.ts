@@ -2646,6 +2646,11 @@ export class Game {
             }
         }
         if ([EServerType.STANDALONE, EServerType.GLOBAL_STATE_NODE].includes(this.serverType)) {
+            // handle AI invasions
+            for (const invasion of Array.from(this.invasions.values())) {
+                invasion.handleInvasionLoop();
+            }
+
             // handle AI factions
             for (const faction of Array.from(this.factions.values())) {
                 faction.handleFactionLoop();

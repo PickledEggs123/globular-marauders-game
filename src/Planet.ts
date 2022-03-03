@@ -1016,6 +1016,8 @@ export class Planet implements ICameraState {
             return order;
         } else if (invasionWorldEntry && invasionEvent && [EInvasionPhase.PLANNING].includes(invasionEvent.invasionPhase)) {
             // add ship to invasion planning
+            invasionWorldEntry[1].invaderShipIds.push(ship.id);
+
             const order = new Order(this.instance, ship, this.county.faction);
             order.orderType = EOrderType.ROAM;
             order.expireTicks = invasionEvent.planExpiration + 10; // wait for invasion to start
