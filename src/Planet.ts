@@ -52,7 +52,7 @@ import {ISerializedPlanetaryEconomySystem, PlanetaryEconomySystem} from "./Plane
 import * as faker from "faker";
 import {DEFAULT_FACTION_PROPERTIES} from "./FactionProperties";
 import {EShipType, GetShipData} from "./ShipType";
-import {EInvasionPhase, Invasion} from "./Invasion";
+import {EInvasionCaptureState, EInvasionPhase, Invasion} from "./Invasion";
 
 export interface IResourceExported {
     resourceType: EResourceType;
@@ -944,11 +944,11 @@ export class Planet implements ICameraState {
         const settlementWorldEntry = settlementWorldEntries[0];
         const colonizeWorldEntry = colonizeWorldEntries[0];
         const invasionWorldEntry = invasionWorldEntries[0];
-        if (!this.invasionDemand.has(invasionWorldEntry[0][0])) {
-            this.invasionDemand.set(invasionWorldEntry[0][0], []);
+        if (invasionWorldEntry && !this.invasionDemand.has(invasionWorldEntry[0])) {
+            this.invasionDemand.set(invasionWorldEntry[0], []);
         }
-        const invasionTicks = this.invasionDemand.get(invasionWorldEntry[0][0]);
-        const invasionEvent: Invasion | undefined = this.instance.invasions.get(invasionWorldEntry[0][0]);
+        const invasionTicks = invasionWorldEntry && this.invasionDemand.get(invasionWorldEntry[0]);
+        const invasionEvent: Invasion | undefined = invasionWorldEntry && this.instance.invasions.get(invasionWorldEntry[0]);
 
         if (!this.county.faction) {
             throw new Error("No faction assigned to planet");
@@ -963,10 +963,10 @@ export class Planet implements ICameraState {
             invasionTicks.push(item);
         }
         if (invasionWorldEntry && invasionTicks.length >= 5 && !invasionEvent) {
-            const defendingPlanet = this.instance.planets.get(invasionWorldEntry[0][0]);
+            const defendingPlanet = this.instance.planets.get(invasionWorldEntry[0]);
             const defendingFaction = defendingPlanet.county.faction;
             const attackingFaction = this.county.faction;
-            this.instance.startInvasion(invasionWorldEntry[0][0], defendingFaction, attackingFaction);
+            this.instance.startInvasion(invasionWorldEntry[0], defendingFaction, attackingFaction);
         }
 
         if (pirateWorldEntry && shipData.cannons.numCannons > 4) {
@@ -1778,6 +1778,50 @@ export class Planet implements ICameraState {
         // handle invasion demand decrementing
         for (const [key, tickItems] of Array.from(this.invasionDemand.entries())) {
             this.invasionDemand.set(key, tickItems.filter(i => i.life < i.maxLife));
+        }
+
+        // handle control point for invasion event
+        const invasionEvent = this.instance.invasions.get(this.id);
+        if (invasionEvent) {
+            switch (invasionEvent.invasionPhase) {
+                case EInvasionPhase.PLANNING: {
+                    break;
+                }
+                case EInvasionPhase.STARTING:
+                case EInvasionPhase.CAPTURING: {
+                    const nearbyShips = this.county.ships;
+                    const hasFriends = nearbyShips.some(s => s.faction === this.county.faction);
+                    const hasEnemies = nearbyShips.some(s => s.faction !== this.county.faction);
+                    if (hasFriends && hasEnemies) {
+                        invasionEvent.applyCaptureProgress(EInvasionCaptureState.CONTESTED);
+                    } else if (hasFriends && !hasEnemies) {
+                        invasionEvent.applyCaptureProgress(EInvasionCaptureState.LIBERATING);
+                    } else if (!hasFriends && hasEnemies) {
+                        invasionEvent.applyCaptureProgress(EInvasionCaptureState.CAPTURING);
+                    } else {
+                        invasionEvent.applyCaptureProgress(EInvasionCaptureState.NONE);
+                    }
+                    break;
+                }
+                case EInvasionPhase.CAPTURED: {
+                    // give rewards
+                    for (const shipId of [...this.shipIds]) {
+                        const ship = this.instance.ships.get(shipId);
+                        if (ship) {
+                            // to lazy to make ships free ships, I'll self-destruct them on failure instead.
+                            ship.health = 0;
+                        }
+                    }
+                    this.claim(invasionEvent.attacking, true);
+                    this.instance.invasions.delete(this.id);
+                    break;
+                }
+                case EInvasionPhase.REPELLED: {
+                    // remove invasion
+                    this.instance.invasions.delete(this.id);
+                    break;
+                }
+            }
         }
 
         // handle resource economy
