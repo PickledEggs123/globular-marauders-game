@@ -7,6 +7,7 @@ import {
     ICreateShipFactionShardMessage,
     ICurrency,
     IDestroyShipPlanetShardMessage,
+    IExpirableTicks,
     IExplorationGraphData,
     ILootScoreShardMessage,
     ISerializedExplorationGraphData,
@@ -51,6 +52,7 @@ import {ISerializedPlanetaryEconomySystem, PlanetaryEconomySystem} from "./Plane
 import * as faker from "faker";
 import {DEFAULT_FACTION_PROPERTIES} from "./FactionProperties";
 import {EShipType, GetShipData} from "./ShipType";
+import {EInvasionPhase, Invasion} from "./Invasion";
 
 export interface IResourceExported {
     resourceType: EResourceType;
@@ -61,6 +63,11 @@ export interface IResourceExported {
 export interface IResourceProduced extends IItemRecipe {
     amount: number;
 }
+
+export interface IInvasionTick extends IExpirableTicks {
+
+}
+
 
 export interface ISerializedPlanet {
     id: string;
@@ -296,6 +303,7 @@ export class Planet implements ICameraState {
         [EShipType.FRIGATE]: 0,
         [EShipType.GALLEON]: 0,
     };
+    public invasionDemand: Map<string, IInvasionTick[]> = new Map<string, IInvasionTick[]>();
 
     /**
      * Number of settlements to colonize a planet.
@@ -408,6 +416,7 @@ export class Planet implements ICameraState {
 
             explorationGraph: Object.assign({}, ...Object.entries(this.explorationGraph).map(([key, value]): {[key: string]: ISerializedExplorationGraphData} => ({[key]: {
                 distance: value.distance,
+                invaderShipIds: value.invaderShipIds,
                 settlerShipIds: value.settlerShipIds,
                 traderShipIds: value.traderShipIds,
                 pirateShipIds: value.pirateShipIds,
@@ -499,6 +508,7 @@ export class Planet implements ICameraState {
 
         this.explorationGraph = Object.assign({}, ...Object.entries(data.explorationGraph).map(([key, value]): {[key: string]: IExplorationGraphData} => ({[key]: {
             distance: value.distance,
+            invaderShipIds: value.invaderShipIds,
             settlerShipIds: value.settlerShipIds,
             traderShipIds: value.traderShipIds,
             pirateShipIds: value.pirateShipIds,
@@ -672,6 +682,7 @@ export class Planet implements ICameraState {
 
                     this.explorationGraph[planet.id] = {
                         distance,
+                        invaderShipIds: [],
                         settlerShipIds: [],
                         traderShipIds: [],
                         pirateShipIds: [],
@@ -881,6 +892,7 @@ export class Planet implements ICameraState {
         // find worlds to invade
         const invasionWorldEntries = entries.filter(entry => {
             const worldIsAbleToSettle = this.isAbleToSettle(entry[1].planet);
+            const roomToInvadeMore = entry[1].invaderShipIds.length <= 10;
             // settle new worlds which have not been settled yet
             const invadeAnotherFaction = Array.from(this.instance.factions.values()).every(faction => {
                 if (homeFaction && homeFaction.planetIds.includes(entry[1].planet.id)) {
@@ -891,7 +903,7 @@ export class Planet implements ICameraState {
                     return faction.planetIds.includes(entry[0]);
                 }
             });
-            return worldIsAbleToSettle && invadeAnotherFaction;
+            return worldIsAbleToSettle && roomToInvadeMore && invadeAnotherFaction;
         });
 
         return {
@@ -932,9 +944,29 @@ export class Planet implements ICameraState {
         const settlementWorldEntry = settlementWorldEntries[0];
         const colonizeWorldEntry = colonizeWorldEntries[0];
         const invasionWorldEntry = invasionWorldEntries[0];
+        if (!this.invasionDemand.has(invasionWorldEntry[0][0])) {
+            this.invasionDemand.set(invasionWorldEntry[0][0], []);
+        }
+        const invasionTicks = this.invasionDemand.get(invasionWorldEntry[0][0]);
+        const invasionEvent: Invasion | undefined = this.instance.invasions.get(invasionWorldEntry[0][0]);
 
         if (!this.county.faction) {
             throw new Error("No faction assigned to planet");
+        }
+
+        // queue 5 desire events before beginning an invasion
+        if (invasionWorldEntry && invasionTicks.length < 5 && !invasionEvent) {
+            const item: IInvasionTick = {
+                life: 0,
+                maxLife: 5 * 60 * 10
+            };
+            invasionTicks.push(item);
+        }
+        if (invasionWorldEntry && invasionTicks.length >= 5 && !invasionEvent) {
+            const defendingPlanet = this.instance.planets.get(invasionWorldEntry[0][0]);
+            const defendingFaction = defendingPlanet.county.faction;
+            const attackingFaction = this.county.faction;
+            this.instance.startInvasion(invasionWorldEntry[0][0], defendingFaction, attackingFaction);
         }
 
         if (pirateWorldEntry && shipData.cannons.numCannons > 4) {
@@ -973,14 +1005,22 @@ export class Planet implements ICameraState {
             order.expireTicks = 10 * 60 * 20; // trade for 20 minutes before signing a new contract
             order.tradeDeal = tradeDealEntry[1];
             return order;
-        } else if (invasionWorldEntry) {
-            // add ship to settle
-            invasionWorldEntry[1].settlerShipIds.push(ship.id);
+        } else if (invasionWorldEntry && invasionEvent && [EInvasionPhase.STARTING, EInvasionPhase.CAPTURING].includes(invasionEvent.invasionPhase)) {
+            // add ship to active invasion
+            invasionWorldEntry[1].invaderShipIds.push(ship.id);
 
             const order = new Order(this.instance, ship, this.county.faction);
             order.orderType = EOrderType.INVADE;
             order.planetId = invasionWorldEntry[0];
             order.expireTicks = 10 * 60 * 20; // invade for 20 minutes before signing a new contract
+            return order;
+        } else if (invasionWorldEntry && invasionEvent && [EInvasionPhase.PLANNING].includes(invasionEvent.invasionPhase)) {
+            // add ship to invasion planning
+            invasionWorldEntry[1].invaderShipIds.push(ship.id);
+
+            const order = new Order(this.instance, ship, this.county.faction);
+            order.orderType = EOrderType.ROAM;
+            order.expireTicks = invasionEvent.planExpiration + 10; // wait for invasion to start
             return order;
         } else if (colonizeWorldEntry) {
             // add ship to colonize
@@ -1049,6 +1089,7 @@ export class Planet implements ICameraState {
             // add ship to explore
             const order = new Order(this.instance, ship, this.county.faction);
             order.orderType = EOrderType.ROAM;
+            order.expireTicks = 60 * 10;
             return order;
         }
     }
@@ -1734,6 +1775,11 @@ export class Planet implements ICameraState {
             }
         }
 
+        // handle invasion demand decrementing
+        for (const [key, tickItems] of Array.from(this.invasionDemand.entries())) {
+            this.invasionDemand.set(key, tickItems.filter(i => i.life < i.maxLife));
+        }
+
         // handle resource economy
         if (this.moneyAccount) {
             this.moneyAccount.handlePlanetaryEconomy();
@@ -1759,6 +1805,10 @@ export class Planet implements ICameraState {
             }
 
             const node = this.explorationGraph[order.planetId];
+            const invaderIndex = node.invaderShipIds.findIndex(s => s === ship.id);
+            if (invaderIndex >= 0) {
+                node.settlerShipIds.splice(invaderIndex, 1);
+            }
             const settlerIndex = node.settlerShipIds.findIndex(s => s === ship.id);
             if (settlerIndex >= 0) {
                 node.settlerShipIds.splice(settlerIndex, 1);

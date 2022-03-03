@@ -347,6 +347,14 @@ export class Ship implements IAutomatedShip {
         if (this.planet && order.planetId) {
             const planetData = this.planet.explorationGraph[order.planetId];
 
+            // clean up invade order
+            if (planetData && order.orderType === EOrderType.INVADE) {
+                const index = planetData.invaderShipIds.findIndex(s => s === this.id);
+                if (index >= 0) {
+                    this.planet.explorationGraph[order.planetId].invaderShipIds.splice(index, 1);
+                }
+            }
+
             // clean up settle order
             if (planetData && order.orderType === EOrderType.SETTLE) {
                 const index = planetData.settlerShipIds.findIndex(s => s === this.id);

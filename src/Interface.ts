@@ -628,6 +628,7 @@ export enum ESettlementLevel {
  */
 export interface IExplorationGraphData {
     distance: number;
+    invaderShipIds: string[];
     settlerShipIds: string[];
     traderShipIds: string[];
     pirateShipIds: string[];
@@ -640,6 +641,7 @@ export interface IExplorationGraphData {
  */
 export interface ISerializedExplorationGraphData {
     distance: number;
+    invaderShipIds: string[];
     settlerShipIds: string[];
     traderShipIds: string[];
     pirateShipIds: string[];

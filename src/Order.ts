@@ -7,9 +7,10 @@ import {ESettlementLevel, ITradeDeal} from "./Interface";
 import {Faction} from "./Faction";
 import {Planet} from "./Planet";
 import {Game} from "./Game";
-import {GetShipData, SHIP_DATA} from "./ShipType";
+import {GetShipData} from "./ShipType";
 import {DEFAULT_FACTION_PROPERTIES} from "./FactionProperties";
 import {EFaction} from "./EFaction";
+import {EInvasionPhase} from "./Invasion";
 
 /**
  * Different type of orders a faction can issue its ships.
@@ -364,6 +365,8 @@ export class Order {
             this.returnToHomeWorld();
         }
 
+        const roamOrderExpired = this.runningTicks >= this.expireTicks;
+
         // pick random planets
         if (this.stage === 0 && this.owner.pathFinding.points.length === 0) {
             this.stage += 1;
@@ -377,11 +380,18 @@ export class Order {
 
             // explore a random planet
             this.pickRandomPlanet();
-        } else if (this.stage === 2 && this.owner.pathFinding.points.length === 0) {
-            this.stage += 1;
+        } else if (this.stage === 2) {
+            if (roamOrderExpired) {
+                this.stage += 1;
 
-            // return to home world
-            this.returnToHomeWorld();
+                // wait at colony world
+                // get cargo
+
+                // return to home world
+                this.returnToHomeWorld();
+            } else if (this.owner.pathFinding.points.length === 0) {
+                this.stage -= 2;
+            }
         } else if (this.stage === 3 && this.owner.pathFinding.points.length === 0) {
             // end order
             this.owner.removeOrder(this);
@@ -397,7 +407,9 @@ export class Order {
             this.returnToHomeWorld();
         }
 
-        const pirateOrderExpired = this.runningTicks >= this.expireTicks;
+        const invadeOrderExpired = this.runningTicks >= this.expireTicks;
+        const invasionEvent = this.app.invasions.get(this.planetId);
+        const invasionOver = !(invasionEvent && [EInvasionPhase.STARTING, EInvasionPhase.CAPTURING].includes(invasionEvent.invasionPhase));
 
         // fly to a specific planet
         if (this.stage === 0 && this.owner.pathFinding.points.length === 0) {
@@ -414,7 +426,7 @@ export class Order {
             // find colony world
             this.goToColonyWorld();
         } else if (this.stage === 2 && this.owner.pathFinding.points.length === 0) {
-            if (pirateOrderExpired) {
+            if (invadeOrderExpired || invasionOver) {
                 this.stage += 1;
 
                 // wait at colony world
@@ -424,7 +436,7 @@ export class Order {
                 this.returnToHomeWorld();
             } else if (!this.owner.fireControl.isAttacking && this.owner.pathFinding.points.length === 0) {
                 // wait at colony world
-                this.goToColonyWorldToPirate();
+                this.goToColonyWorld();
             }
         } else if (this.stage === 3 && this.owner.pathFinding.points.length === 0) {
 
