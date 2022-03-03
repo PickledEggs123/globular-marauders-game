@@ -891,7 +891,7 @@ export class Planet implements ICameraState {
 
         // find worlds to invade
         const invasionWorldEntries = entries.filter(entry => {
-            const worldIsAbleToSettle = this.isAbleToSettle(entry[1].planet);
+            const worldIsAbleToSettle = true;
             const roomToInvadeMore = entry[1].invaderShipIds.length <= 10;
             // settle new worlds which have not been settled yet
             const invadeAnotherFaction = Array.from(this.instance.factions.values()).every(faction => {
