@@ -75,7 +75,7 @@ import {Star} from "./Star";
 import {Market} from "./Market";
 import {EShipType, GetShipData, PHYSICS_SCALE, SHIP_DATA} from "./ShipType";
 import {EFaction} from "./EFaction";
-import {Invasion} from "./Invasion";
+import {Invasion, ISerializedInvasion} from "./Invasion";
 
 /**
  * A list of player specific data for the server to store.
@@ -223,6 +223,7 @@ export interface IGameSyncFrame {
     planets: IGameSyncFrameDelta<ISerializedPlanet>;
     factions: IGameSyncFrameDelta<ISerializedFaction>;
     scoreBoard: IGameSyncFrameDelta<IScoreBoard & {id: string}>;
+    invasions: ISerializedInvasion[];
 }
 
 /**
@@ -410,6 +411,7 @@ export class Game {
             planets: this.computeSyncDelta(this.listToMap(oldState.planets), newState.planets, true),
             factions: this.computeSyncDelta(this.listToMap(oldState.factions), newState.factions, true),
             scoreBoard: this.computeSyncDelta(this.listToMap(oldState.scoreBoard), newState.scoreBoard, true),
+            invasions: Array.from(this.invasions.values()).map(i => i.serialize())
         };
 
         this.playerSyncState.delete(oldState.id);
@@ -585,6 +587,11 @@ export class Game {
         const scoreBoardData = data.scoreBoard.create[0] ?? data.scoreBoard.update[0];
         if (scoreBoardData) {
             this.scoreBoard = scoreBoardData;
+        }
+        this.invasions.clear();
+        const invasionData = data.invasions.map(d => Invasion.deserialize(this, d));
+        for (const invasion of invasionData) {
+            this.invasions.set(invasion.id, invasion);
         }
     }
 
@@ -3060,7 +3067,7 @@ export class Game {
 
     public startInvasion(planetId: string, defending: Faction, attacking: Faction) {
         if (!this.invasions.has(planetId)) {
-            const invasion = new Invasion(attacking, defending, planetId);
+            const invasion = new Invasion(this, attacking, defending, planetId);
             this.invasions.set(planetId, invasion);
         }
     }

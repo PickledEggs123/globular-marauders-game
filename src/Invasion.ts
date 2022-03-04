@@ -1,4 +1,6 @@
-import {Faction} from "./Faction";
+import {Faction, ISerializedFaction} from "./Faction";
+import {EFaction} from "./EFaction";
+import {Game} from "./Game";
 
 export enum EInvasionPhase {
     PLANNING = "PLANNING",
@@ -15,8 +17,25 @@ export enum EInvasionCaptureState {
     LIBERATING = "LIBERATING",
 }
 
+export interface ISerializedInvasion {
+    id: string;
+    attacking: EFaction;
+    defending: EFaction;
+    planetId: string;
+    planExpiration: number;
+    startExpiration: number;
+    captureExpiration: number;
+    startProgress: number;
+    captureProgress: number;
+    liberationProgress: number;
+    invasionPhase: EInvasionPhase;
+    overtime: boolean;
+    planetSpawnAllowed: boolean;
+}
+
 export class Invasion {
     public id: string;
+    public instance: Game;
     public attacking: Faction;
     public defending: Faction;
     public planetId: string;
@@ -28,9 +47,10 @@ export class Invasion {
     public liberationProgress: number = 0;
     public invasionPhase: EInvasionPhase = EInvasionPhase.PLANNING;
     public overtime: boolean = false;
-    public planetSpawnAllowed = true;
+    public planetSpawnAllowed: boolean = true;
 
-    public constructor(attacking: Faction, defending: Faction, planetId: string) {
+    public constructor(instance: Game, attacking: Faction, defending: Faction, planetId: string) {
+        this.instance = instance;
         this.attacking = attacking;
         this.defending = defending;
         this.planetId = planetId;
@@ -153,5 +173,45 @@ export class Invasion {
                 break;
             }
         }
+    }
+
+    public serialize(): ISerializedInvasion {
+        return {
+            id: this.id,
+            attacking: this.attacking.id,
+            defending: this.defending.id,
+            planetId: this.planetId,
+            planExpiration: this.planExpiration,
+            startExpiration: this.startExpiration,
+            captureExpiration: this.captureExpiration,
+            startProgress: this.startProgress,
+            captureProgress: this.captureProgress,
+            liberationProgress: this.liberationProgress,
+            invasionPhase: this.invasionPhase,
+            overtime: this.overtime,
+            planetSpawnAllowed: this.planetSpawnAllowed,
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedInvasion) {
+        this.id = data.id;
+        this.attacking = this.instance.factions.get(data.attacking);
+        this.defending = this.instance.factions.get(data.defending);
+        this.planetId = data.planetId;
+        this.planExpiration = data.planExpiration;
+        this.startExpiration = data.startExpiration;
+        this.captureExpiration = data.captureExpiration;
+        this.startProgress = data.startProgress;
+        this.captureProgress = data.captureProgress;
+        this.liberationProgress = data.liberationProgress;
+        this.invasionPhase = data.invasionPhase;
+        this.overtime = data.overtime;
+        this.planetSpawnAllowed = data.planetSpawnAllowed;
+    }
+
+    public static deserialize(game: Game, data: ISerializedInvasion) {
+        const item = new Invasion(game, game.factions.get(data.attacking), game.factions.get(data.defending), data.planetId);
+        item.deserializeUpdate(data);
+        return item;
     }
 }
