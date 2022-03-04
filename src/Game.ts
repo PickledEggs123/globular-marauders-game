@@ -596,7 +596,7 @@ export class Game {
         this.invasions.clear();
         const invasionData = data.invasions.map(d => Invasion.deserialize(this, d));
         for (const invasion of invasionData) {
-            this.invasions.set(invasion.id, invasion);
+            this.invasions.set(invasion.planetId, invasion);
         }
     }
 
