@@ -110,6 +110,11 @@ export interface ISpawnLocation {
     shipType: EShipType;
 }
 
+export interface ISpawnLocationResult {
+    results: ISpawnLocation[];
+    message: string | undefined;
+}
+
 /**
  * The type of message sent to and from the server.
  */
@@ -635,7 +640,7 @@ export class Game {
 
         return spawnPlanets;
     }
-    public getSpawnLocations(playerData: IPlayerData): ISpawnLocation[] {
+    public getSpawnLocations(playerData: IPlayerData): ISpawnLocationResult {
         const spawnLocations: ISpawnLocation[] = [];
 
         // get faction
@@ -671,7 +676,7 @@ export class Game {
 
                 for (const shipType of Object.values(EShipType)) {
                     const numShipsAvailable = planet.getNumShipsAvailable(shipType);
-                    if (numShipsAvailable > 0) {
+                    if (numShipsAvailable > 0 && planet.allowedToSpawn()) {
                         const spawnLocation: ISpawnLocation = {
                             id: planet.id,
                             numShipsAvailable,
@@ -684,7 +689,10 @@ export class Game {
             }
         }
 
-        return spawnLocations;
+        return {
+            results: spawnLocations,
+            message: this.planets.get(playerData.planetId)?.allowedToSpawn() ? undefined : "Not allowed to spawn due to conflict"
+        };
     }
 
     static GetCameraState(viewableObject: ICameraState): ICameraState {

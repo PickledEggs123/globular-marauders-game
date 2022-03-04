@@ -319,6 +319,10 @@ export class Planet implements ICameraState {
         return this.shipyard.shipsAvailable[shipType];
     }
 
+    public allowedToSpawn() {
+        return !(this.instance.invasions.get(this.id) && this.instance.invasions.get(this.id).planetSpawnAllowed === false);
+    }
+
     public serialize(): ISerializedPlanet {
         return {
             id: this.id,
@@ -1727,7 +1731,8 @@ export class Planet implements ICameraState {
             this.moneyAccount &&
             this.moneyAccount.cash.hasEnough(this.shipyard.quoteShip(nextShipTypeToBuild, true)) &&
             this.instance.spawnAiShips &&
-            Object.values(this.explorationGraph).length > 0
+            Object.values(this.explorationGraph).length > 0 &&
+            this.allowedToSpawn()
         ) {
             if ([EServerType.STANDALONE].includes(this.instance.serverType)) {
                 this.spawnShip(this.moneyAccount.cash, nextShipTypeToBuild, true);

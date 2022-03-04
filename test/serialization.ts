@@ -94,7 +94,7 @@ describe("network serialization", () => {
         networkGame.handleServerLoop();
 
         // pick ship
-        const shipType = networkGame.getSpawnLocations(playerData)[0].shipType;
+        const shipType = networkGame.getSpawnLocations(playerData).results[0].shipType;
         const spawn: ISpawnMessage = {
             messageType: EMessageType.SPAWN,
             planetId,
