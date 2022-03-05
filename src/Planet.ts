@@ -1029,14 +1029,14 @@ export class Planet implements ICameraState {
         }
 
         // queue 5 desire events before beginning an invasion
-        if (invasionWorldEntry && invasionTicks.length < 5 && !invasionEvent) {
+        if (invasionWorldEntry && invasionTicks.length < 2 && !invasionEvent) {
             const item: IInvasionTick = {
                 life: 0,
                 maxLife: 5 * 60 * 10
             };
             invasionTicks.push(item);
         }
-        if (invasionWorldEntry && invasionTicks.length >= 5 && !invasionEvent) {
+        if (invasionWorldEntry && invasionTicks.length >= 2 && !invasionEvent) {
             const defendingPlanet = this.instance.planets.get(invasionWorldEntry[0]);
             const defendingFaction = defendingPlanet.county.faction;
             const attackingFaction = this.county.faction;
