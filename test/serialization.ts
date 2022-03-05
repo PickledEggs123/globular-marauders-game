@@ -13,6 +13,7 @@ import {
 } from "../src/Game";
 import {EShipType} from "../src/ShipType";
 import {EFaction} from "../src/EFaction";
+import {ESettlementLevel} from "../src/Interface";
 
 // force verbose deep equal
 config.truncateThreshold = 0;
@@ -32,7 +33,7 @@ describe("network serialization", () => {
             const b = Planet.deserialize(game, a.county, a.serialize());
             expect(a.serialize()).to.deep.equal(b.serialize());
         }
-    });
+    })
     it("VoronoiTerrain", () => {
         const a = game.voronoiTerrain;
         const b = VoronoiTerrain.deserialize(game, a.serialize());
@@ -47,7 +48,6 @@ describe("network serialization", () => {
         const a = new Ship(game, EShipType.CUTTER);
         const b = Ship.deserialize(game, a.serialize());
         expect(a.serialize()).to.deep.equal(b.serialize());
-        expect(a).to.deep.equal(b);
     });
     it("CannonBall", () => {
         const a = new CannonBall(EFaction.DUTCH, "test");
@@ -105,6 +105,56 @@ describe("network serialization", () => {
 
         return playerData;
     };
+    it("should send new planet settlement over the network", function () {
+        this.timeout(30 * 1000);
+        const networkGame = new Game();
+        networkGame.initializeGame();
+        const initializationFrame = networkGame.getInitializationFrame();
+
+        const clientGame = new Game();
+        clientGame.applyGameInitializationFrame(initializationFrame);
+
+        const playerData = shouldSpawnShip(networkGame);
+        let shipPosition: [number, number, number] =
+            networkGame.ships.get(playerData.shipId).position.rotateVector([0, 0, 1]);
+
+        networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
+        networkGame.handleServerLoop();
+
+        let sendUpdatePlanetAtLeastOnce: boolean = false;
+        let updatePlanetAtLeastOnce: boolean = false;
+        for (const planet of networkGame.planets.values()) {
+            if (planet.settlementLevel === ESettlementLevel.UNTAMED) {
+                planet.settlementLevel = ESettlementLevel.OUTPOST;
+                planet.settlementProgress = 5;
+                planet.claim(networkGame.factions.get(EFaction.DUTCH), true);
+            }
+        }
+
+        for (let i = 0; i < 20; i++) {
+            shipPosition =
+                networkGame.ships.get(playerData.shipId).position.rotateVector([0, 0, 1]);
+            const data = networkGame.voronoiTerrain.getClientFrame(playerData, shipPosition);
+            clientGame.applyGameSyncFrame(data);
+
+            // should update at least once
+            if (!sendUpdatePlanetAtLeastOnce) {
+                if (data.planets.update.some(p => p.settlementLevel === ESettlementLevel.OUTPOST && p.settlementProgress === 5 && p.faction === EFaction.DUTCH)) {
+                    sendUpdatePlanetAtLeastOnce = true;
+                }
+            }
+            if (!updatePlanetAtLeastOnce) {
+                if (Array.from(clientGame.planets.values()).some(p => p.settlementLevel === ESettlementLevel.OUTPOST && p.settlementProgress === 5 && p.county.faction?.id === EFaction.DUTCH)) {
+                    updatePlanetAtLeastOnce = true;
+                }
+            }
+
+            networkGame.handleServerLoop();
+        }
+
+        expect(sendUpdatePlanetAtLeastOnce).to.be.true;
+        expect(updatePlanetAtLeastOnce).to.be.true;
+    });
     it("Low enough idle internet to handle 56kbps internet connection", function () {
         this.timeout(30 * 1000);
         const networkGame = new Game();

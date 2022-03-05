@@ -53,6 +53,7 @@ import * as faker from "faker";
 import {DEFAULT_FACTION_PROPERTIES} from "./FactionProperties";
 import {EShipType, GetShipData} from "./ShipType";
 import {EInvasionCaptureState, EInvasionPhase, Invasion} from "./Invasion";
+import {EFaction} from "./EFaction";
 
 export interface IResourceExported {
     resourceType: EResourceType;
@@ -80,6 +81,8 @@ export interface ISerializedPlanet {
 
     settlementProgress: number;
     settlementLevel: ESettlementLevel;
+    faction: EFaction | null;
+    royalRank: ERoyalRank;
 
     pathingNode: ISerializedPathingNode<DelaunayGraph<Planet>> | null;
 
@@ -97,6 +100,8 @@ export interface ISerializedPlanetFull {
 
     settlementProgress: number;
     settlementLevel: ESettlementLevel;
+    faction: EFaction | null;
+    royalRank: ERoyalRank;
 
     pathingNode: ISerializedPathingNode<DelaunayGraph<Planet>> | null;
 
@@ -335,6 +340,8 @@ export class Planet implements ICameraState {
 
             settlementProgress: this.settlementProgress,
             settlementLevel: this.settlementLevel,
+            faction: this.county.faction?.id ?? null,
+            royalRank: this.getRoyalRank(),
 
             pathingNode: this.pathingNode ? this.pathingNode.serialize() : null,
 
@@ -353,6 +360,36 @@ export class Planet implements ICameraState {
 
         this.settlementProgress = data.settlementProgress;
         this.settlementLevel = data.settlementLevel;
+        if (data.faction) {
+            this.county.claim(this.instance.factions.get(data.faction));
+        }
+        switch (data.royalRank) {
+            case ERoyalRank.EMPEROR: {
+                this.county.capital = this;
+                this.county.duchy.capital = this.county;
+                this.county.duchy.kingdom.capital = this.county.duchy;
+                this.county.duchy.kingdom.faction.homeWorldPlanetId = this.id;
+                break;
+            }
+            case ERoyalRank.KING: {
+                this.county.capital = this;
+                this.county.duchy.capital = this.county;
+                this.county.duchy.kingdom.capital = this.county.duchy;
+                break;
+            }
+            case ERoyalRank.DUKE: {
+                this.county.capital = this;
+                this.county.duchy.capital = this.county;
+                break;
+            }
+            case ERoyalRank.COUNT: {
+                this.county.capital = this;
+                break;
+            }
+            case ERoyalRank.UNCLAIMED: {
+                break;
+            }
+        }
 
         if (this.pathingNode && !data.pathingNode) {
             this.pathingNode = null;
@@ -383,6 +420,8 @@ export class Planet implements ICameraState {
 
             settlementProgress: this.settlementProgress,
             settlementLevel: this.settlementLevel,
+            faction: this.county.faction?.id ?? null,
+            royalRank: this.getRoyalRank(),
 
             pathingNode: this.pathingNode ? this.pathingNode.serialize() : null,
 
@@ -441,6 +480,36 @@ export class Planet implements ICameraState {
 
         this.settlementProgress = data.settlementProgress;
         this.settlementLevel = data.settlementLevel;
+        if (data.faction) {
+            this.county.claim(this.instance.factions.get(data.faction));
+        }
+        switch (data.royalRank) {
+            case ERoyalRank.EMPEROR: {
+                this.county.capital = this;
+                this.county.duchy.capital = this.county;
+                this.county.duchy.kingdom.capital = this.county.duchy;
+                this.county.duchy.kingdom.faction.homeWorldPlanetId = this.id;
+                break;
+            }
+            case ERoyalRank.KING: {
+                this.county.capital = this;
+                this.county.duchy.capital = this.county;
+                this.county.duchy.kingdom.capital = this.county.duchy;
+                break;
+            }
+            case ERoyalRank.DUKE: {
+                this.county.capital = this;
+                this.county.duchy.capital = this.county;
+                break;
+            }
+            case ERoyalRank.COUNT: {
+                this.county.capital = this;
+                break;
+            }
+            case ERoyalRank.UNCLAIMED: {
+                break;
+            }
+        }
 
         if (this.pathingNode && !data.pathingNode) {
             this.pathingNode = null;
@@ -523,7 +592,7 @@ export class Planet implements ICameraState {
 
     public static deserializeFull(instance: Game, county: VoronoiCounty, data: ISerializedPlanetFull): Planet {
         const item = new Planet(instance, county);
-        item.deserializeUpdate(data);
+        item.deserializeUpdateFull(data);
         return item;
     }
 
@@ -898,7 +967,7 @@ export class Planet implements ICameraState {
             const worldIsAbleToSettle = this.isAbleToSettle(entry[1].planet);
             const roomToInvadeMore = entry[1].invaderShipIds.length <= 10;
             // settle new worlds which have not been settled yet
-            const invadeAnotherFaction = Array.from(this.instance.factions.values()).some(faction => {
+            const startInvasionOfAnotherFaction = !this.instance.invasions.has(entry[1].planet.id) && Array.from(this.instance.factions.values()).some(faction => {
                 if (homeFaction && homeFaction.planetIds.includes(entry[1].planet.id)) {
                     // do not invade own faction
                     return false;
@@ -907,7 +976,8 @@ export class Planet implements ICameraState {
                     return faction.planetIds.includes(entry[0]);
                 }
             });
-            return worldIsAbleToSettle && roomToInvadeMore && invadeAnotherFaction;
+            const continueInvasionOfAnotherFaction = this.instance.invasions.has(entry[1].planet.id) && this.instance.invasions.get(entry[1].planet.id).attacking === homeFaction;
+            return worldIsAbleToSettle && roomToInvadeMore && (startInvasionOfAnotherFaction || continueInvasionOfAnotherFaction);
         });
 
         return {
@@ -1435,12 +1505,14 @@ export class Planet implements ICameraState {
             Math.max(0, Math.min(colonizeWorldEntries.length, 10));
 
         // invasion demand
-        const factionProperties = DEFAULT_FACTION_PROPERTIES[this.county.faction.id];
-        if (factionProperties) {
-            const lastThreeShipTypes = factionProperties.shipTypes.slice(-3);
-            for (let i = 0; i < lastThreeShipTypes.length; i++) {
-                const shipType = lastThreeShipTypes[i];
-                this.shipsDemand[shipType] = invasionWorldEntries.length * Math.max(3 - i, 1);
+        if (this.county.faction) {
+            const factionProperties = DEFAULT_FACTION_PROPERTIES[this.county.faction.id];
+            if (factionProperties) {
+                const lastThreeShipTypes = factionProperties.shipTypes.slice(-3);
+                for (let i = 0; i < lastThreeShipTypes.length; i++) {
+                    const shipType = lastThreeShipTypes[i];
+                    this.shipsDemand[shipType] = invasionWorldEntries.length * Math.max(3 - i, 1);
+                }
             }
         }
     }
@@ -1483,17 +1555,21 @@ export class Planet implements ICameraState {
         }
 
         // build a distribution of ship types when there is no demand
-        const factionProperty = DEFAULT_FACTION_PROPERTIES[this.county.faction.id];
-        const shipTotalCost = factionProperty.shipTypes.reduce((acc, v) => acc + GetShipData(v, 1).cost, 0);
-        const shipPoints = factionProperty.shipTypes.map((v): [EShipType, number] => [v, shipTotalCost - GetShipData(v, 1).cost]);
-        const shipTotalPoints = shipPoints.reduce((acc, v) => acc + v[1], 0);
-        for (const shipType of factionProperty.shipTypes) {
-            if (this.shipsAvailable[shipType] + this.shipyard.shipsBuilding[shipType] < Math.ceil(this.shipIds.length * (shipPoints.find(s => s[0] === shipType)[1] / shipTotalPoints))) {
-                return shipType;
+        let defaultShipType: EShipType = EShipType.CUTTER;
+        if (this.county.faction) {
+            const factionProperty = DEFAULT_FACTION_PROPERTIES[this.county.faction.id];
+            const shipTotalCost = factionProperty.shipTypes.reduce((acc, v) => acc + GetShipData(v, 1).cost, 0);
+            const shipPoints = factionProperty.shipTypes.map((v): [EShipType, number] => [v, shipTotalCost - GetShipData(v, 1).cost]);
+            const shipTotalPoints = shipPoints.reduce((acc, v) => acc + v[1], 0);
+            for (const shipType of factionProperty.shipTypes) {
+                if (this.shipsAvailable[shipType] + this.shipyard.shipsBuilding[shipType] < Math.ceil(this.shipIds.length * (shipPoints.find(s => s[0] === shipType)[1] / shipTotalPoints))) {
+                    return shipType;
+                }
             }
+            defaultShipType = factionProperty.shipTypes[0];
         }
         const firstEntry = (Object.entries(this.shipyard.shipsAvailable) as [EShipType, number][]).sort((a, b) => GetShipData(b[0], 1).cost - GetShipData(a[0], 1).cost).find(([key, value]) => value > 2);
-        return (firstEntry ? firstEntry[0] : undefined) ?? factionProperty.shipTypes[0];
+        return (firstEntry ? firstEntry[0] : undefined) ?? defaultShipType;
     }
 
     public buildInitialResourceBuildings() {

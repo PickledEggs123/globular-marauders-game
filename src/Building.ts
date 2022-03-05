@@ -2,15 +2,13 @@ import {EResourceType, ICargoItem, IItemRecipe, ITEM_DATA} from "./Resource";
 import {Game} from "./Game";
 import {ICurrency, MoneyAccount} from "./Interface";
 import {Ship} from "./Ship";
-import {
-    Planet
-} from "./Planet";
+import {Planet} from "./Planet";
 import {PlanetaryCurrencySystem} from "./PlanetaryCurrencySystem";
 import {ISerializedPlanetaryMoneyAccount, PlanetaryEconomyDemand} from "./PlanetaryEconomyDemand";
 import {PlanetaryEconomySystem} from "./PlanetaryEconomySystem";
 import {IMarketPrice} from "./Market";
 import {DEFAULT_FACTION_PROPERTIES} from "./FactionProperties";
-import {EShipType, GetShipData, SHIP_DATA} from "./ShipType";
+import {EShipType, GetShipData} from "./ShipType";
 
 export class ShipyardDock {
     public instance: Game;
@@ -262,17 +260,21 @@ export class Shipyard extends Building {
     }
 
     public getNextShipTypeToBuild(): EShipType {
-        const factionProperty = DEFAULT_FACTION_PROPERTIES[this.planet.county.faction.id];
-        const shipTotalCost = factionProperty.shipTypes.reduce((acc, v) => acc + GetShipData(v, 1).cost, 0);
-        const shipPoints = factionProperty.shipTypes.map((v): [EShipType, number] => [v, shipTotalCost - GetShipData(v, 1).cost]);
-        const shipTotalPoints = shipPoints.reduce((acc, v) => acc + v[1], 0);
-        for (const shipType of factionProperty.shipTypes) {
-            if (this.shipsAvailable[shipType] + this.shipsBuilding[shipType] < Math.ceil(this.numberOfDocks * (shipPoints.find(s => s[0] === shipType)[1] / shipTotalPoints))) {
-                return shipType;
+        let defaultShipType: EShipType = EShipType.CUTTER;
+        if (this.planet.county.faction) {
+            const factionProperty = DEFAULT_FACTION_PROPERTIES[this.planet.county.faction.id];
+            const shipTotalCost = factionProperty.shipTypes.reduce((acc, v) => acc + GetShipData(v, 1).cost, 0);
+            const shipPoints = factionProperty.shipTypes.map((v): [EShipType, number] => [v, shipTotalCost - GetShipData(v, 1).cost]);
+            const shipTotalPoints = shipPoints.reduce((acc, v) => acc + v[1], 0);
+            for (const shipType of factionProperty.shipTypes) {
+                if (this.shipsAvailable[shipType] + this.shipsBuilding[shipType] < Math.ceil(this.numberOfDocks * (shipPoints.find(s => s[0] === shipType)[1] / shipTotalPoints))) {
+                    return shipType;
+                }
             }
+            defaultShipType = factionProperty.shipTypes[0];
         }
         const firstEntry = (Object.entries(this.shipsAvailable) as [EShipType, number][]).sort((a, b) => GetShipData(b[0], 1).cost - GetShipData(a[0], 1).cost).find(([key, value]) => value > 2);
-        return (firstEntry ? firstEntry[0] : undefined) ?? factionProperty.shipTypes[0];
+        return (firstEntry ? firstEntry[0] : undefined) ?? defaultShipType;
     }
 
     public getNumberOfDocksAtUpgradeLevel(): number {
@@ -430,8 +432,12 @@ export class Forestry extends Building {
     }
 
     factionBonus(): number {
-        const factionProperty = DEFAULT_FACTION_PROPERTIES[this.planet.county.faction.id];
-        return factionProperty.fastWoodProduction ? (1 + this.planet.settlementLevel * 0.1) : 1;
+        if (this.planet.county.faction) {
+            const factionProperty = DEFAULT_FACTION_PROPERTIES[this.planet.county.faction.id];
+            return factionProperty.fastWoodProduction ? (1 + this.planet.settlementLevel * 0.1) : 1;
+        } else {
+            return 1;
+        }
     }
 
     handleBuildingLoop() {
@@ -608,8 +614,12 @@ export class Mine extends Building {
     }
 
     factionBonus(): number {
-        const factionProperty = DEFAULT_FACTION_PROPERTIES[this.planet.county.faction.id];
-        return factionProperty.fastWoodProduction ? (1 + this.planet.settlementLevel * 0.1) : 1;
+        if (this.planet.county.faction) {
+            const factionProperty = DEFAULT_FACTION_PROPERTIES[this.planet.county.faction.id];
+            return factionProperty.fastWoodProduction ? (1 + this.planet.settlementLevel * 0.1) : 1;
+        } else {
+            return 1;
+        }
     }
 
     handleBuildingLoop() {
