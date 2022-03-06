@@ -1877,8 +1877,8 @@ export class Planet implements ICameraState {
                 case EInvasionPhase.STARTING:
                 case EInvasionPhase.CAPTURING: {
                     const nearbyShips = this.county.ships;
-                    const numFriendlies = nearbyShips.filter(s => s.faction === this.county.faction).length;
-                    const numEnemies = nearbyShips.filter(s => s.faction !== this.county.faction).length;
+                    const numFriendlies = nearbyShips.filter(s => s.faction === invasionEvent.defending).length;
+                    const numEnemies = nearbyShips.filter(s => s.faction === invasionEvent.attacking).length;
                     const total = numFriendlies + numEnemies;
                     const friendlyRatio = total > 0 ? numFriendlies / total : 0;
                     const enemyRatio = total > 0 ? numEnemies / total : 0;

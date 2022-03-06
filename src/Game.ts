@@ -92,12 +92,23 @@ export interface IPlayerData {
     aiNodeName: string | undefined;
 }
 
+export interface ISpawnFaction {
+    factionId: string;
+    numShips: number;
+    numPlanets: number;
+    numInvasions: number;
+}
+
 /**
  * A list of possible spawn planets.
  */
 export interface ISpawnPlanet {
     planetId: string;
     numShipsAvailable: number;
+    numSettlers: number;
+    numTraders: number;
+    numPirates: number;
+    numInvaders: number;
 }
 
 /**
@@ -600,6 +611,15 @@ export class Game {
         }
     }
 
+    public getSpawnFactions(): ISpawnFaction[] {
+        return Array.from(this.factions.values()).map((f): ISpawnFaction => ({
+            factionId: f.id,
+            numPlanets: f.planetIds.length,
+            numShips: f.shipIds.length,
+            numInvasions: Array.from(this.invasions.values()).reduce((acc, i) => acc + (i.attacking === f ? 1 : 0), 0)
+        }));
+    }
+
     public getSpawnPlanets(playerData: IPlayerData): ISpawnPlanet[] {
         const spawnPlanets: ISpawnPlanet[] = [];
 
@@ -633,6 +653,10 @@ export class Game {
                 const spawnPlanet: ISpawnPlanet = {
                     planetId: planet.id,
                     numShipsAvailable: planet.shipyard.numShipsAvailable,
+                    numSettlers: Object.values(planet.explorationGraph).reduce((acc, p) => acc + p.settlerShipIds.length, 0),
+                    numTraders: Object.values(planet.explorationGraph).reduce((acc, p) => acc + p.traderShipIds.length, 0),
+                    numPirates: Object.values(planet.explorationGraph).reduce((acc, p) => acc + p.pirateShipIds.length, 0),
+                    numInvaders: Object.values(planet.explorationGraph).reduce((acc, p) => acc + p.invaderShipIds.length, 0),
                 };
                 spawnPlanets.push(spawnPlanet);
             }
