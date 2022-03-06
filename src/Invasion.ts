@@ -133,6 +133,28 @@ export class Invasion {
         }
     }
 
+    public applyPointsToFactionShips(faction: Faction, numPoints: number) {
+        const planet = this.instance.planets.get(this.planetId);
+        for (const ship of planet.county.ships) {
+            if (ship.faction === faction) {
+                const playerData = Array.from(this.instance.playerData.values()).find(p => p.shipId === ship.id);
+                if (playerData) {
+                    const item = this.instance.scoreBoard.capture.find(i => i.playerId === playerData.id);
+                    if (item) {
+                        item.count += numPoints;
+                    } else {
+                        this.instance.scoreBoard.capture.push({
+                            playerId: playerData.id,
+                            name: playerData.name,
+                            count: numPoints
+                        });
+                    }
+                    this.instance.scoreBoard.capture.sort((a, b) => b.count - a.count);
+                }
+            }
+        }
+    }
+
     public handleInvasionLoop() {
         // handle the state machine involving the invasion
         switch (this.invasionPhase) {
@@ -144,7 +166,10 @@ export class Invasion {
                 break;
             }
             case EInvasionPhase.STARTING: {
-                this.startExpiration -= 1;
+                this.startExpiration -= 1
+                if (this.startProgress % (30 * 10) === (30 * 10 - 1)) {
+                    this.applyPointsToFactionShips(this.attacking, 2);
+                }
                 if (this.startProgress >= 30 * 10) {
                     this.invasionPhase = EInvasionPhase.CAPTURING;
                 }
@@ -155,6 +180,12 @@ export class Invasion {
             }
             case EInvasionPhase.CAPTURING: {
                 this.captureExpiration -= 1;
+                if (this.captureProgress % (30 * 10) === (30 * 10 - 1)) {
+                    this.applyPointsToFactionShips(this.attacking, 1);
+                }
+                if (this.liberationProgress % (30 * 10) === (30 * 10 - 1)) {
+                    this.applyPointsToFactionShips(this.defending, 1);
+                }
                 if (this.captureProgress >= 3 * 60 * 10) {
                     this.invasionPhase = EInvasionPhase.CAPTURED;
                 }
