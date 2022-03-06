@@ -1,4 +1,4 @@
-import {ICameraState} from "./Interface";
+import {ICameraState, IScoreBoard} from "./Interface";
 import {DelaunayGraph, VoronoiCell, VoronoiGraph} from "./Graph";
 import Quaternion from "quaternion";
 import {ISerializedPlanet, ISerializedPlanetFull, Planet} from "./Planet";
@@ -1333,6 +1333,25 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
         }
     }
 
+    public getScoreBoardItemsForPlayer<T extends {playerId: string}>(playerData: IPlayerData, items: T[]): T[] {
+        const playerItem: T = items.find(t => t.playerId === playerData.id);
+        const data: T[] = items.slice(0, 10);
+        if (!data.some(i => i.playerId === playerData.id) && playerItem) {
+            data[data.length - 1] = playerItem;
+        }
+        return data;
+    }
+    public getScoreBoardForPlayer(playerData: IPlayerData): IScoreBoard {
+        return {
+            damage: this.getScoreBoardItemsForPlayer(playerData, this.app.scoreBoard.damage),
+            loot: this.getScoreBoardItemsForPlayer(playerData, this.app.scoreBoard.loot),
+            money: this.getScoreBoardItemsForPlayer(playerData, this.app.scoreBoard.money),
+            land: this.getScoreBoardItemsForPlayer(playerData, this.app.scoreBoard.land),
+            bounty: this.getScoreBoardItemsForPlayer(playerData, this.app.scoreBoard.bounty),
+            capture: this.getScoreBoardItemsForPlayer(playerData, this.app.scoreBoard.capture),
+        }
+    }
+
     public getClientFrame(playerData: IPlayerData, position: [number, number, number], radius: number = 1): IGameSyncFrame {
         const ships: Ship[] = [];
         const cannonBalls: CannonBall[] = [];
@@ -1356,7 +1375,7 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
             crates: crates.map(c => c.serialize()),
             planets: planets.map(p => p.serialize()),
             factions: factions.map(f => f.serialize()),
-            scoreBoard: [{id: "a", ...this.app.scoreBoard}],
+            scoreBoard: [{id: "a", ...this.getScoreBoardForPlayer(playerData)}],
         });
     }
 }
