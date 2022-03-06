@@ -78,6 +78,7 @@ export interface ISerializedPlanet {
     orientationVelocity: ISerializedQuaternion;
     color: string;
     size: number;
+    name: string;
 
     settlementProgress: number;
     settlementLevel: ESettlementLevel;
@@ -97,6 +98,7 @@ export interface ISerializedPlanetFull {
     orientationVelocity: ISerializedQuaternion;
     color: string;
     size: number;
+    name: string;
 
     settlementProgress: number;
     settlementLevel: ESettlementLevel;
@@ -337,6 +339,7 @@ export class Planet implements ICameraState {
             orientationVelocity: SerializeQuaternion(this.orientationVelocity),
             color: this.color,
             size: this.size,
+            name: this.name,
 
             settlementProgress: this.settlementProgress,
             settlementLevel: this.settlementLevel,
@@ -357,6 +360,7 @@ export class Planet implements ICameraState {
         this.orientationVelocity = DeserializeQuaternion(data.orientationVelocity);
         this.color = data.color;
         this.size = data.size;
+        this.name = data.name;
 
         this.settlementProgress = data.settlementProgress;
         this.settlementLevel = data.settlementLevel;
@@ -417,6 +421,7 @@ export class Planet implements ICameraState {
             orientationVelocity: SerializeQuaternion(this.orientationVelocity),
             color: this.color,
             size: this.size,
+            name: this.name,
 
             settlementProgress: this.settlementProgress,
             settlementLevel: this.settlementLevel,
@@ -477,6 +482,7 @@ export class Planet implements ICameraState {
         this.orientationVelocity = DeserializeQuaternion(data.orientationVelocity);
         this.color = data.color;
         this.size = data.size;
+        this.name = data.name;
 
         this.settlementProgress = data.settlementProgress;
         this.settlementLevel = data.settlementLevel;
