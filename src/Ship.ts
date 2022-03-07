@@ -244,7 +244,7 @@ export class Ship implements IAutomatedShip {
         }
 
         // score damage
-        const playerData = this.app.playerData.get(cannonBall.shipId);
+        const playerData = Array.from(this.app.playerData.values()).find(p => p.shipId === cannonBall.shipId);
         if (playerData) {
             if ([EServerType.STANDALONE].includes(this.app.serverType)) {
                 // global scoreboard

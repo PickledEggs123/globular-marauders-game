@@ -2112,7 +2112,7 @@ export class Planet implements ICameraState {
                 this.applyLuxuryBuff(this.moneyAccount.cash, goodToTake, boughtGood.sourcePlanetId, boughtGood.amount);
 
                 // score loot
-                const playerData = this.instance.playerData.get(ship.id);
+                const playerData = Array.from(this.instance.playerData.values()).find(p => p.shipId === ship.id);
                 const count = boughtGood.pirated ? boughtGood.amount : 0;
                 if (playerData && count) {
                     if ([EServerType.STANDALONE].includes(this.instance.serverType)) {
