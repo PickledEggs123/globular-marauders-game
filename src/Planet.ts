@@ -158,6 +158,18 @@ export class Planet implements ICameraState {
     public positionVelocity: Quaternion = Quaternion.ONE;
     public orientation: Quaternion = Quaternion.ONE;
     public orientationVelocity: Quaternion = Quaternion.ONE;
+    public get localOrientation(): Quaternion {
+        return this.position.clone().inverse().mul(this.orientation.clone());
+    }
+    public set localOrientation(i: Quaternion) {
+        this.orientation = this.position.clone().mul(i.clone());
+    }
+    public get localOrientationVelocity(): Quaternion {
+        return this.position.clone().inverse().mul(this.orientationVelocity.clone());
+    }
+    public set localOrientationVelocity(i: Quaternion) {
+        this.orientationVelocity = this.position.clone().mul(i.clone());
+    }
     public color: string = "blue";
     public size: number = 3;
     public name: string;

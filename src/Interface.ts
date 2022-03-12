@@ -425,6 +425,8 @@ export interface ICameraState {
      * Orientation velocity, in north pole reference frame.
      */
     orientationVelocity: Quaternion;
+    localOrientation: Quaternion;
+    localOrientationVelocity: Quaternion;
     /**
      * The color of the camera object.
      */

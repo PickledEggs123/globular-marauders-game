@@ -727,6 +727,8 @@ export class Game {
             positionVelocity: viewableObject.positionVelocity.clone(),
             orientation: viewableObject.orientation.clone(),
             orientationVelocity: viewableObject.orientationVelocity.clone(),
+            localOrientation: viewableObject.localOrientation.clone(),
+            localOrientationVelocity: viewableObject.localOrientationVelocity.clone(),
             cannonLoading: viewableObject.cannonLoading,
             size: viewableObject.size,
         };
@@ -890,8 +892,8 @@ export class Game {
             id: cameraId,
             position: cameraPosition,
             positionVelocity: cameraPositionVelocity,
-            orientation: cameraOrientation,
-            orientationVelocity: cameraOrientationVelocity,
+            localOrientation: cameraOrientation,
+            localOrientationVelocity: cameraOrientationVelocity,
             cannonLoading: cameraCannonLoading,
             cannonCoolDown,
             shipType,
@@ -913,7 +915,7 @@ export class Game {
 
         // handle movement
         if (activeKeys.includes("a")) {
-            const rotation = Quaternion.fromAxisAngle(cameraPosition.rotateVector([0, 0, 1]), Math.PI).pow(rotationSpeed);
+            const rotation = Quaternion.fromAxisAngle([0, 0, 1], Math.PI).pow(rotationSpeed);
             const rotationDrag = cameraOrientationVelocity.pow(Game.ROTATION_DRAG).inverse();
             cameraOrientationVelocity = cameraOrientationVelocity.clone().mul(rotation).mul(rotationDrag);
             if (VoronoiGraph.angularDistanceQuaternion(cameraOrientationVelocity, 1) < Math.PI * rotationSpeed * 0.9) {
@@ -921,7 +923,7 @@ export class Game {
             }
         }
         if (activeKeys.includes("d")) {
-            const rotation = Quaternion.fromAxisAngle(cameraPosition.rotateVector([0, 0, 1]), -Math.PI).pow(rotationSpeed);
+            const rotation = Quaternion.fromAxisAngle([0, 0, 1], -Math.PI).pow(rotationSpeed);
             const rotationDrag = cameraOrientationVelocity.pow(Game.ROTATION_DRAG).inverse();
             cameraOrientationVelocity = cameraOrientationVelocity.clone().mul(rotation).mul(rotationDrag);
             if (VoronoiGraph.angularDistanceQuaternion(cameraOrientationVelocity, 1) < Math.PI * rotationSpeed * 0.9) {
@@ -1039,7 +1041,7 @@ export class Game {
         }
         if (cameraPosition !== this.ships.get(shipId).position) {
             const s = Math.sqrt(1 - cameraOrientation.w ** 2);
-            if (s > 0.05) {
+            if (s > 0.1) {
                 const normal = DelaunayGraph.normalize([
                     cameraOrientation.x,
                     cameraOrientation.y,
@@ -1057,9 +1059,9 @@ export class Game {
         this.ships.get(shipId).handleHealthTick();
 
         this.ships.get(shipId).position = cameraPosition;
-        this.ships.get(shipId).orientation = cameraOrientation;
+        this.ships.get(shipId).localOrientation = cameraOrientation;
         this.ships.get(shipId).positionVelocity = cameraPositionVelocity;
-        this.ships.get(shipId).orientationVelocity = cameraOrientationVelocity;
+        this.ships.get(shipId).localOrientationVelocity = cameraOrientationVelocity;
         this.ships.get(shipId).cannonLoading = cameraCannonLoading;
         this.ships.get(shipId).cannonCoolDown = cannonCoolDown;
         if (clearPathFindingPoints) {
@@ -1077,8 +1079,8 @@ export class Game {
                     messageType: EMessageType.SHIP_STATE,
                     position: SerializeQuaternion(cameraPosition),
                     positionVelocity: SerializeQuaternion(cameraPositionVelocity),
-                    orientation: SerializeQuaternion(cameraOrientation),
-                    orientationVelocity: SerializeQuaternion(cameraOrientationVelocity),
+                    orientation: SerializeQuaternion(this.ships.get(shipId).orientation),
+                    orientationVelocity: SerializeQuaternion(this.ships.get(shipId).orientationVelocity),
                     newCannonBalls: newCannonBalls.map(c => c.serialize())
                 };
                 this.outgoingMessages.push([playerData.id, shipStateMessage]);
@@ -1120,7 +1122,7 @@ export class Game {
         let hitPoint: [number, number, number] | null = null;
         let hitDistance: number | null = null;
         const hull = Game.getPhysicsHull(shipData.hull, worldScale).map((q): Quaternion => {
-            return ship.position.clone().mul(ship.orientation.clone()).mul(q);
+            return ship.position.clone().mul(ship.localOrientation.clone()).mul(q);
         });
         for (let i = 0; i < hull.length; i++) {
             const a = hull[i % hull.length].rotateVector([0, 0, 1]);
@@ -2933,7 +2935,7 @@ export class Game {
     public static addRandomPositionAndOrientationToEntity(entity: ICameraState) {
         entity.position = new Quaternion(0, Game.randomRange(), Game.randomRange(), Game.randomRange());
         entity.position = entity.position.normalize();
-        entity.orientation = Quaternion.fromAxisAngle(entity.position.rotateVector([0, 0, 1]), Math.random() * 2 * Math.PI);
+        entity.localOrientation = Quaternion.fromAxisAngle([0, 0, 1], Math.random() * 2 * Math.PI);
     }
 
     public generateGoodPoints<T extends ICameraState>(numPoints: number, numSteps: number): VoronoiCell[] {
@@ -3073,7 +3075,7 @@ export class Game {
         planet.id = `planet-${planetI}`;
         planet.position = Quaternion.fromBetweenVectors([0, 0, 1], planetPoint);
         planet.position = planet.position.normalize();
-        planet.orientation = Quaternion.fromAxisAngle(planetPoint, Math.random() * 2 * Math.PI);
+        planet.localOrientation = Quaternion.fromAxisAngle([0, 0, 1], Math.random() * 2 * Math.PI);
         const colorValue = Math.random();
         if (colorValue > 0.875)
             planet.color = this.lerpColors(planet.county.duchy.color, "#ff8888", 0.33);
