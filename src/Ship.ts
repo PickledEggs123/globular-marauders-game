@@ -422,7 +422,7 @@ export class Ship implements IAutomatedShip {
     public destroy(): Crate[] {
         const crates: Crate[] = [];
         for (const cargo of this.cargo) {
-            const randomDirection = Quaternion.fromAxisAngle([0, 0, 1], Math.random() * 2 * Math.PI - Math.PI)
+            const randomDirection = Quaternion.fromAxisAngle(this.position.rotateVector([0, 0, 1]), Math.random() * 2 * Math.PI - Math.PI)
                 .rotateVector([1, 0, 0]);
             const randomVelocity = Quaternion.fromBetweenVectors([0, 0, 1], randomDirection).pow(this.getVelocitySpeed() / this.app.worldScale * 0.1);
 
@@ -431,7 +431,7 @@ export class Ship implements IAutomatedShip {
             crate.position = this.position;
             crate.positionVelocity = this.positionVelocity.clone().pow(1 / 50).mul(randomVelocity);
             crate.positionVelocity = Quaternion.ONE;
-            crate.orientation = Quaternion.fromAxisAngle([0, 0, 1], Math.random() * 2 * Math.PI - Math.PI);
+            crate.orientation = Quaternion.fromAxisAngle(this.position.rotateVector([0, 0, 1]), Math.random() * 2 * Math.PI - Math.PI);
             crate.orientationVelocity = Quaternion.fromAxisAngle([0, 0, 1], Math.random() > 0 ? this.getRotation() : -this.getRotation());
             crate.maxLife = 2 * 60 * 10;
             crate.size = 100;
