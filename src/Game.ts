@@ -913,7 +913,7 @@ export class Game {
 
         // handle movement
         if (activeKeys.includes("a")) {
-            const rotation = Quaternion.fromAxisAngle(cameraPosition.rotateVector([0, 0, 1]), Math.PI).pow(rotationSpeed);
+            const rotation = Quaternion.fromAxisAngle([0, 0, 1], Math.PI).pow(rotationSpeed);
             const rotationDrag = cameraOrientationVelocity.pow(Game.ROTATION_DRAG).inverse();
             cameraOrientationVelocity = cameraOrientationVelocity.clone().mul(rotation).mul(rotationDrag);
             if (VoronoiGraph.angularDistanceQuaternion(cameraOrientationVelocity, 1) < Math.PI * rotationSpeed * 0.9) {
@@ -921,7 +921,7 @@ export class Game {
             }
         }
         if (activeKeys.includes("d")) {
-            const rotation = Quaternion.fromAxisAngle(cameraPosition.rotateVector([0, 0, 1]), -Math.PI).pow(rotationSpeed);
+            const rotation = Quaternion.fromAxisAngle([0, 0, 1], -Math.PI).pow(rotationSpeed);
             const rotationDrag = cameraOrientationVelocity.pow(Game.ROTATION_DRAG).inverse();
             cameraOrientationVelocity = cameraOrientationVelocity.clone().mul(rotation).mul(rotationDrag);
             if (VoronoiGraph.angularDistanceQuaternion(cameraOrientationVelocity, 1) < Math.PI * rotationSpeed * 0.9) {
@@ -1039,7 +1039,7 @@ export class Game {
         }
         if (cameraPosition !== this.ships.get(shipId).position) {
             const s = Math.sqrt(1 - cameraOrientation.w ** 2);
-            if (s > 0.05) {
+            if (s > 0.001) {
                 const normal = DelaunayGraph.normalize([
                     cameraOrientation.x,
                     cameraOrientation.y,
@@ -2933,7 +2933,7 @@ export class Game {
     public static addRandomPositionAndOrientationToEntity(entity: ICameraState) {
         entity.position = new Quaternion(0, Game.randomRange(), Game.randomRange(), Game.randomRange());
         entity.position = entity.position.normalize();
-        entity.orientation = Quaternion.fromAxisAngle(entity.position.rotateVector([0, 0, 1]), Math.random() * 2 * Math.PI);
+        entity.orientation = Quaternion.fromAxisAngle([0, 0, 1], Math.random() * 2 * Math.PI);
     }
 
     public generateGoodPoints<T extends ICameraState>(numPoints: number, numSteps: number): VoronoiCell[] {
@@ -3073,7 +3073,7 @@ export class Game {
         planet.id = `planet-${planetI}`;
         planet.position = Quaternion.fromBetweenVectors([0, 0, 1], planetPoint);
         planet.position = planet.position.normalize();
-        planet.orientation = Quaternion.fromAxisAngle(planetPoint, Math.random() * 2 * Math.PI);
+        planet.orientation = Quaternion.fromAxisAngle([0, 0, 1], Math.random() * 2 * Math.PI);
         const colorValue = Math.random();
         if (colorValue > 0.875)
             planet.color = this.lerpColors(planet.county.duchy.color, "#ff8888", 0.33);
