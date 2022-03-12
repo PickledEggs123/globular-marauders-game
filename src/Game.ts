@@ -1040,13 +1040,13 @@ export class Game {
             cameraOrientation = cameraOrientation.clone().mul(cameraOrientationVelocity.clone().pow(speedFactor));
         }
         if (cameraPosition !== this.ships.get(shipId).position) {
-            const rawNormal: [number, number, number] = [
-                cameraOrientation.x,
-                cameraOrientation.y,
-                cameraOrientation.z
-            ];
-            if (DelaunayGraph.distanceFormula([0, 0, 0], rawNormal) > 0.1) {
-                const normal = DelaunayGraph.normalize(rawNormal);
+            const s = Math.sqrt(1 - cameraOrientation.w ** 2);
+            if (s > 0.1) {
+                const normal = DelaunayGraph.normalize([
+                    cameraOrientation.x,
+                    cameraOrientation.y,
+                    cameraOrientation.z
+                ]);
                 const adjustment = Quaternion.fromBetweenVectors(normal, cameraPosition.rotateVector([0, 0, 1]));
                 cameraOrientation = adjustment.clone().mul(cameraOrientation.clone());
             }
