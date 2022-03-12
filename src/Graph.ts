@@ -1159,7 +1159,7 @@ export class PathFinder<T extends IAutomatedShip> {
             const distance = VoronoiGraph.angularDistanceQuaternion(positionDiff, this.owner.app.worldScale);
 
             // compute rotation towards target
-            let targetOrientationPoint = this.owner.position.clone().inverse().mul(this.owner.localOrientation.clone()).inverse()
+            let targetOrientationPoint = this.owner.position.clone().inverse().mul(this.owner.orientation.clone()).inverse()
                 .mul(this.owner.position.clone().inverse())
                 .mul(Quaternion.fromBetweenVectors([0, 0, 1], targetPoint))
                 .rotateVector([0, 0, 1]);

@@ -56,18 +56,6 @@ export class Ship implements IAutomatedShip {
     public positionVelocity: Quaternion = Quaternion.ONE;
     public orientation: Quaternion = Quaternion.ONE;
     public orientationVelocity: Quaternion = Quaternion.ONE;
-    public get localOrientation(): Quaternion {
-        return this.position.clone().inverse().mul(this.orientation.clone());
-    }
-    public set localOrientation(i: Quaternion) {
-        this.orientation = this.position.clone().mul(i.clone());
-    }
-    public get localOrientationVelocity(): Quaternion {
-        return this.position.clone().inverse().mul(this.orientationVelocity.clone());
-    }
-    public set localOrientationVelocity(i: Quaternion) {
-        this.orientationVelocity = this.position.clone().mul(i.clone());
-    }
     public cannonLoading?: Date = undefined;
     public cannonCoolDown: number = 0;
     public cannonadeCoolDown: number[];
@@ -443,8 +431,8 @@ export class Ship implements IAutomatedShip {
             crate.position = this.position;
             crate.positionVelocity = this.positionVelocity.clone().pow(1 / 50).mul(randomVelocity);
             crate.positionVelocity = Quaternion.ONE;
-            crate.localOrientation = Quaternion.fromAxisAngle([0, 0, 1], Math.random() * 2 * Math.PI - Math.PI);
-            crate.localOrientationVelocity = Quaternion.fromAxisAngle([0, 0, 1], Math.random() > 0 ? this.getRotation() : -this.getRotation());
+            crate.orientation = Quaternion.fromAxisAngle(this.position.rotateVector([0, 0, 1]), Math.random() * 2 * Math.PI - Math.PI);
+            crate.orientationVelocity = Quaternion.fromAxisAngle([0, 0, 1], Math.random() > 0 ? this.getRotation() : -this.getRotation());
             crate.maxLife = 2 * 60 * 10;
             crate.size = 100;
             crates.push(crate);
@@ -556,7 +544,7 @@ export class FireControl<T extends IAutomatedShip> {
      * @param target
      */
     public getConeHit(target: Ship): IConeHitTest {
-        const shipPositionPoint = this.owner.localOrientation.clone().inverse()
+        const shipPositionPoint = this.owner.orientation.clone().inverse()
             .mul(this.owner.position.clone().inverse())
             .mul(target.position.clone())
             .rotateVector([0, 0, 1]);
@@ -564,7 +552,7 @@ export class FireControl<T extends IAutomatedShip> {
             (shipPositionPoint[0] / this.app.worldScale),
             (shipPositionPoint[1] / this.app.worldScale)
         ];
-        const shipDirectionPoint = this.owner.localOrientation.clone().inverse()
+        const shipDirectionPoint = this.owner.orientation.clone().inverse()
             .mul(this.owner.position.clone().inverse())
             .mul(this.owner.positionVelocity.clone().inverse().pow(this.owner.getSpeedFactor()))
             .mul(target.position.clone())
@@ -583,7 +571,7 @@ export class FireControl<T extends IAutomatedShip> {
      * @param target
      */
     public getInterceptConeHit(target: ICameraState): [number, number, number] | null {
-        const shipPositionPoint = this.owner.localOrientation.clone().inverse()
+        const shipPositionPoint = this.owner.orientation.clone().inverse()
             .mul(this.owner.position.clone().inverse())
             .mul(target.position.clone())
             .rotateVector([0, 0, 1]);
@@ -591,7 +579,7 @@ export class FireControl<T extends IAutomatedShip> {
             shipPositionPoint[0],
             shipPositionPoint[1]
         ];
-        const shipDirectionPoint = this.owner.localOrientation.clone().inverse()
+        const shipDirectionPoint = this.owner.orientation.clone().inverse()
             .mul(this.owner.position.clone().inverse())
             .mul(this.owner.positionVelocity.clone().inverse().pow(this.owner.getSpeedFactor()))
             .mul(target.position.clone())
@@ -612,7 +600,7 @@ export class FireControl<T extends IAutomatedShip> {
                 interceptConeHit.point[1],
                 Math.sqrt(1 - Math.pow(interceptConeHit.point[0], 2) - Math.pow(interceptConeHit.point[1], 2))
             ];
-            return this.owner.localOrientation.clone()
+            return this.owner.orientation.clone()
                 .mul(this.owner.position.clone())
                 .rotateVector(localReferenceFrame);
         } else {
@@ -749,7 +737,7 @@ export class FireControl<T extends IAutomatedShip> {
             Math.atan2(-targetOrientationPoint[1], -targetOrientationPoint[0]) :
             Math.atan2(targetOrientationPoint[1], targetOrientationPoint[0]);
         orientationDiffAngle = (orientationDiffAngle - Math.PI / 2) % (Math.PI * 2);
-        const orientationSpeed = VoronoiGraph.angularDistanceQuaternion(this.owner.localOrientationVelocity, 1) * (orientationDiffAngle > 0 ? 1 : -1);
+        const orientationSpeed = VoronoiGraph.angularDistanceQuaternion(this.owner.orientationVelocity, 1) * (orientationDiffAngle > 0 ? 1 : -1);
         const desiredOrientationSpeed = Math.max(-this.owner.getRotation() * 10, Math.min(Math.round(
             -(360 / 4) / Math.PI * orientationDiffAngle
         ), this.owner.getRotation() * 10));
