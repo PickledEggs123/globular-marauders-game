@@ -1022,6 +1022,8 @@ export class Planet implements ICameraState {
         const tradeVassalWorldEntry = tradeVassalEntries[0];
         const tradeDealEntry = tradeDealEntries[0];
         const settlementWorldEntry = settlementWorldEntries[0];
+        const settlementWorldEntry2 = settlementWorldEntries[1];
+        const settlementWorldEntry3 = settlementWorldEntries[2];
         const colonizeWorldEntry = colonizeWorldEntries[0];
         const invasionWorldEntry = invasionWorldEntries[0];
         if (invasionWorldEntry && !this.invasionDemand.has(invasionWorldEntry[0])) {
@@ -1164,6 +1166,22 @@ export class Planet implements ICameraState {
             const order = new Order(this.instance, ship, this.county.faction);
             order.orderType = EOrderType.TRIBUTE;
             order.planetId = this.county.duchy.kingdom.faction.homeWorldPlanetId;
+            return order;
+        } else if (settlementWorldEntry2) {
+            // add ship to settle
+            settlementWorldEntry2[1].settlerShipIds.push(ship.id);
+
+            const order = new Order(this.instance, ship, this.county.faction);
+            order.orderType = EOrderType.SETTLE;
+            order.planetId = settlementWorldEntry2[0];
+            return order;
+        } else if (settlementWorldEntry3) {
+            // add ship to settle
+            settlementWorldEntry3[1].settlerShipIds.push(ship.id);
+
+            const order = new Order(this.instance, ship, this.county.faction);
+            order.orderType = EOrderType.SETTLE;
+            order.planetId = settlementWorldEntry3[0];
             return order;
         } else {
             // add ship to explore
