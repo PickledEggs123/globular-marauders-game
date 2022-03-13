@@ -931,7 +931,7 @@ export class Game {
         if (activeKeys.includes("w")) {
             const positionPoint = cameraPosition.clone().rotateVector([0, 0, 1]);
             const forward = cameraPosition.clone().mul(cameraOrientation.clone()).rotateVector([0, 1, 0]);
-            const rotation = Quaternion.fromBetweenVectors(positionPoint, forward).mul(cameraPosition.clone().inverse()).pow(velocityAcceleration / this.worldScale);
+            const rotation = Quaternion.fromBetweenVectors(positionPoint, forward).pow(velocityAcceleration / this.worldScale).mul(cameraPosition.clone().inverse());
             const rotationDrag = cameraPositionVelocity.pow(velocitySpeed / this.worldScale).inverse();
             cameraPositionVelocity = cameraPositionVelocity.clone().mul(rotation).mul(rotationDrag);
             if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * velocityAcceleration / this.worldScale) {
@@ -964,7 +964,7 @@ export class Game {
                 jitterPoint = DelaunayGraph.normalize(jitterPoint);
                 const positionPoint = cameraPosition.clone().rotateVector([0, 0, 1]);
                 const fireDirection = cameraPosition.clone().mul(cameraOrientation.clone()).rotateVector(jitterPoint);
-                const fireVelocity = Quaternion.fromBetweenVectors(positionPoint, fireDirection).mul(cameraPosition.clone().inverse()).pow(Game.PROJECTILE_SPEED / this.worldScale);
+                const fireVelocity = Quaternion.fromBetweenVectors(positionPoint, fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale).mul(cameraPosition.clone().inverse());
 
                 // create a cannon ball
                 const cannonBall = new CannonBall(faction.id, this.ships.get(shipId).id);
