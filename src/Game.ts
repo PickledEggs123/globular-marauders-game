@@ -930,8 +930,8 @@ export class Game {
         }
         if (activeKeys.includes("w")) {
             const positionPoint = cameraPosition.clone().rotateVector([0, 0, 1]);
-            const positionTheta = Math.atan2(positionPoint[1], positionPoint[0]);
-            const forward = Quaternion.fromAxisAngle([0, 0, 1], positionTheta).mul(cameraOrientation.clone()).rotateVector([0, 1, 0]);
+            const positionTheta = Math.atan2(positionPoint[0], positionPoint[1]);
+            const forward = Quaternion.fromAxisAngle([0, 0, 1], -positionTheta).mul(cameraOrientation.clone()).rotateVector([0, 1, 0]);
             const rotation = Quaternion.fromBetweenVectors([0, 0, 1], forward).pow(velocityAcceleration / this.worldScale);
             const rotationDrag = cameraPositionVelocity.pow(velocitySpeed / this.worldScale).inverse();
             cameraPositionVelocity = cameraPositionVelocity.clone().mul(rotation).mul(rotationDrag);
@@ -964,8 +964,8 @@ export class Game {
                 jitterPoint[1] += DelaunayGraph.randomInt() * 0.15;
                 jitterPoint = DelaunayGraph.normalize(jitterPoint);
                 const positionPoint = cameraPosition.clone().rotateVector([0, 0, 1]);
-                const positionTheta = Math.atan2(positionPoint[1], positionPoint[0]);
-                const fireDirection = Quaternion.fromAxisAngle([0, 0, 1], positionTheta).mul(cameraOrientation.clone()).rotateVector(jitterPoint);
+                const positionTheta = Math.atan2(positionPoint[0], positionPoint[1]);
+                const fireDirection = Quaternion.fromAxisAngle([0, 0, 1], -positionTheta).mul(cameraOrientation.clone()).rotateVector(jitterPoint);
                 const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
 
                 // create a cannon ball
