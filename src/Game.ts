@@ -963,7 +963,7 @@ export class Game {
                 jitterPoint = DelaunayGraph.normalize(jitterPoint);
                 const positionPoint = cameraPosition.clone().rotateVector([0, 0, 1]);
                 const positionTheta = Math.atan2(positionPoint[1], positionPoint[0]);
-                const fireDirection = Quaternion.fromAxisAngle([0, 0, 1], positionTheta).mul(cameraOrientation.clone()).rotateVector(jitterPoint);
+                const fireDirection = Quaternion.fromAxisAngle([0, 0, 1], -positionTheta).mul(cameraOrientation.clone()).rotateVector(jitterPoint);
                 const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
 
                 // create a cannon ball
