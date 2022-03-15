@@ -806,7 +806,7 @@ describe("shard tests", () => {
             expect(allShipsMoved).to.be.true;
         };
         describe("traveling between physics shards (normal order)", () => {
-            for (let trial = 0; trial < 100; trial++) {
+            for (let trial = 0; trial < 1000; trial++) {
                 it(`try ${trial + 1}`, testPhysicsNodeTravel);
             }
         });
@@ -817,7 +817,7 @@ describe("shard tests", () => {
             afterEach(() => {
                 randomShardOrder = false;
             });
-            for (let trial = 0; trial < 100; trial++) {
+            for (let trial = 0; trial < 1000; trial++) {
                 it(`try ${trial + 1}`, testPhysicsNodeTravel);
             }
         });
