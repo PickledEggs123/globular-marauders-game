@@ -688,7 +688,9 @@ describe("shard tests", () => {
 
             // run shards for 1 minute
             let setMission: boolean = false;
-            let nearEnglishWorld: boolean = false;
+            let nearEnglishWorld3: boolean = false;
+            let nearEnglishWorld2: boolean = false;
+            let nearEnglishWorld1: boolean = false;
             const dutchHomeWorld = networkGame.planets.get(networkGame.factions.get(EFaction.DUTCH).homeWorldPlanetId);
             const dutchKingdom = dutchHomeWorld.county.duchy.kingdom;
             const neighborKingdom = dutchKingdom.neighborKingdoms[0];
@@ -727,7 +729,35 @@ describe("shard tests", () => {
                             setMission = true;
                         }
                     }
-                } else if (!nearEnglishWorld) {
+                } else if (!nearEnglishWorld3) {
+                    const ship = networkGame.ships.get(Array.from(networkGame.playerData.values())[0].shipId);
+                    expect(ship).to.not.be.undefined;
+                    expect(neighborKingdomPlanet).to.not.be.undefined;
+                    if (ship && neighborKingdomPlanet) {
+                        const distance = VoronoiGraph.angularDistance(
+                            neighborKingdomPlanet.position.rotateVector([0, 0, 1]),
+                            ship.position.rotateVector([0, 0, 1]),
+                            networkGame.worldScale
+                        );
+                        if (distance < 600 * PHYSICS_SCALE) {
+                            nearEnglishWorld3 = true;
+                        }
+                    }
+                } else if (!nearEnglishWorld2) {
+                    const ship = networkGame.ships.get(Array.from(networkGame.playerData.values())[0].shipId);
+                    expect(ship).to.not.be.undefined;
+                    expect(neighborKingdomPlanet).to.not.be.undefined;
+                    if (ship && neighborKingdomPlanet) {
+                        const distance = VoronoiGraph.angularDistance(
+                            neighborKingdomPlanet.position.rotateVector([0, 0, 1]),
+                            ship.position.rotateVector([0, 0, 1]),
+                            networkGame.worldScale
+                        );
+                        if (distance < 400 * PHYSICS_SCALE) {
+                            nearEnglishWorld2 = true;
+                        }
+                    }
+                } else if (!nearEnglishWorld1) {
                     const ship = networkGame.ships.get(Array.from(networkGame.playerData.values())[0].shipId);
                     expect(ship).to.not.be.undefined;
                     expect(neighborKingdomPlanet).to.not.be.undefined;
@@ -738,7 +768,7 @@ describe("shard tests", () => {
                             networkGame.worldScale
                         );
                         if (distance < 200 * PHYSICS_SCALE) {
-                            nearEnglishWorld = true;
+                            nearEnglishWorld1 = true;
                         }
                     }
                 } else {
@@ -749,7 +779,9 @@ describe("shard tests", () => {
                 shipCount = new Map<string, number>();
             }
             expect(setMission).to.be.true;
-            expect(nearEnglishWorld).to.be.true;
+            expect(nearEnglishWorld3).to.be.true;
+            expect(nearEnglishWorld2).to.be.true;
+            expect(nearEnglishWorld1).to.be.true;
             expect(lastShipCountFrames).to.not.contain(0);
         };
         const testMoveFromOriginalSpot = function () {
