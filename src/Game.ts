@@ -848,6 +848,9 @@ export class Game {
             if (this.initialRandomAiShipPoint) {
                 ship.pathFinding.points.push(this.initialRandomAiShipPoint);
             }
+            this.ships.set(ship.id, ship);
+            initialShipFaction.shipIds.push(ship.id);
+            initialShipFaction.shipsAvailable[ship.shipType] += 1;
         }
     }
 
