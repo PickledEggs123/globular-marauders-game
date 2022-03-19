@@ -380,8 +380,18 @@ export interface IExpirableTicks {
     maxLife: number;
 }
 
+export enum EAutomatedShipBuffType {
+    DISABLED = "DISABLED"
+}
+
+export interface IAutomatedShipBuff {
+    buffType: EAutomatedShipBuffType;
+    expireTicks: number;
+}
+
 export interface IAutomatedShip extends ICameraState {
     activeKeys: string[];
+    buffs: IAutomatedShipBuff[];
     app: Game;
 
     isInMissionArea(): boolean;

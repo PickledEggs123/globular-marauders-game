@@ -1,7 +1,9 @@
 import {
+    EAutomatedShipBuffType,
     EServerType,
     EShardMessageType,
     IAutomatedShip,
+    IAutomatedShipBuff,
     ICameraState,
     IDamageScoreShardMessage,
     ISerializedMoneyAccount,
@@ -60,6 +62,7 @@ export class Ship implements IAutomatedShip {
     public cannonCoolDown: number = 0;
     public cannonadeCoolDown: number[];
     public activeKeys: string[] = [];
+    public buffs: IAutomatedShipBuff[] = [];
     public pathFinding: PathFinder<Ship> = new PathFinder<Ship>(this);
     public fireControl: FireControl<Ship>;
     public orders: Order[] = [];
@@ -174,6 +177,15 @@ export class Ship implements IAutomatedShip {
     public getRotation = (): number => {
         const shipData = GetShipData(this.shipType, this.app.worldScale);
         return 1 / ((1 / Game.ROTATION_STEP) * shipData.rotation);
+    }
+
+    public hasDisabledMovement = (): boolean => {
+        const disabledBuff = this.buffs.find(b => b.buffType === EAutomatedShipBuffType.DISABLED);
+        if (disabledBuff) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -336,6 +348,13 @@ export class Ship implements IAutomatedShip {
             // wait to apply health tick
             this.healthTickCoolDown -= 1;
         }
+    }
+
+    public handleBuffTick() {
+        for (const buff of this.buffs) {
+            buff.expireTicks -= 1;
+        }
+        this.buffs = this.buffs.filter(b => b.expireTicks > 0);
     }
 
     /**

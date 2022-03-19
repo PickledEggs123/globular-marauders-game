@@ -39,11 +39,7 @@ import {
     ITributeShipPlanetShardMessage,
     MoneyAccount
 } from "./Interface";
-import {
-    FireControl, ISerializedFireControl,
-    ISerializedShip,
-    Ship
-} from "./Ship";
+import {FireControl, ISerializedFireControl, ISerializedShip, Ship} from "./Ship";
 import {ISerializedVoronoiTerrain, VoronoiCounty, VoronoiKingdom, VoronoiTerrain, VoronoiTree} from "./VoronoiTree";
 import {Faction, ISerializedFaction, LuxuryBuff} from "./Faction";
 import {
@@ -73,7 +69,7 @@ import {IHitTest} from "./Intersection";
 import {EOrderType, ISerializedOrder, Order} from "./Order";
 import {Star} from "./Star";
 import {Market} from "./Market";
-import {EShipType, GetShipData, PHYSICS_SCALE, SHIP_DATA} from "./ShipType";
+import {EShipType, GetShipData, PHYSICS_SCALE} from "./ShipType";
 import {EFaction} from "./EFaction";
 import {Invasion, ISerializedInvasion} from "./Invasion";
 
@@ -276,6 +272,9 @@ export class Game {
     public outgoingMessages: Array<[string, IMessage]> = [];
     public isTestMode: boolean = false;
     public spawnAiShips: boolean = true;
+    public numInitialRandomAiShips: number = 0;
+    public initialRandomAiShipPoint: [number, number, number] | undefined;
+    public disabledShipsCanRotate: boolean = false;
     public serverType: EServerType = EServerType.STANDALONE;
     public physicsKingdomIndex: number | undefined = undefined;
     public aiNodeName: string | undefined = undefined;
@@ -835,6 +834,21 @@ export class Game {
                 }
             }
         }
+
+        // initialize random test ships
+        const initialShipFaction = Array.from(this.factions.values())[0];
+        const initialShipHomeWorld = this.planets.get(initialShipFaction.homeWorldPlanetId);
+        for (let i = 0; i < this.numInitialRandomAiShips; i++) {
+            const ship = new Ship(this, EShipType.CUTTER);
+            ship.faction = initialShipFaction;
+            ship.planet = initialShipHomeWorld;
+            ship.id = `ship-${initialShipHomeWorld.id}-${initialShipFaction.getShipAutoIncrement()}`;
+            Game.addRandomPositionAndOrientationToEntity(ship);
+            ship.color = initialShipFaction.factionColor;
+            if (this.initialRandomAiShipPoint) {
+                ship.pathFinding.points.push(this.initialRandomAiShipPoint);
+            }
+        }
     }
 
     /**
@@ -905,6 +919,7 @@ export class Game {
         const velocityAcceleration = this.ships.get(shipId).getVelocityAcceleration();
         const velocitySpeed = this.ships.get(shipId).getVelocitySpeed();
         const rotationSpeed = this.ships.get(shipId).getRotation();
+        const disabledMovement = this.ships.get(shipId).hasDisabledMovement();
         const newCannonBalls: CannonBall[] = [];
 
         let clearPathFindingPoints: boolean = false;
@@ -912,7 +927,7 @@ export class Game {
         const activeKeys = getActiveKeys();
 
         // handle movement
-        if (activeKeys.includes("a")) {
+        if (!(disabledMovement && !this.disabledShipsCanRotate) && activeKeys.includes("a")) {
             const rotation = Quaternion.fromAxisAngle([0, 0, 1], Math.PI).pow(rotationSpeed);
             const rotationDrag = cameraOrientationVelocity.pow(Game.ROTATION_DRAG).inverse();
             cameraOrientationVelocity = cameraOrientationVelocity.clone().mul(rotation).mul(rotationDrag);
@@ -920,7 +935,7 @@ export class Game {
                 cameraOrientationVelocity = Quaternion.ONE;
             }
         }
-        if (activeKeys.includes("d")) {
+        if (!(disabledMovement && !this.disabledShipsCanRotate) && activeKeys.includes("d")) {
             const rotation = Quaternion.fromAxisAngle([0, 0, 1], -Math.PI).pow(rotationSpeed);
             const rotationDrag = cameraOrientationVelocity.pow(Game.ROTATION_DRAG).inverse();
             cameraOrientationVelocity = cameraOrientationVelocity.clone().mul(rotation).mul(rotationDrag);
@@ -928,7 +943,7 @@ export class Game {
                 cameraOrientationVelocity = Quaternion.ONE;
             }
         }
-        if (activeKeys.includes("w")) {
+        if (!disabledMovement && activeKeys.includes("w")) {
             const forward = cameraOrientation.clone().rotateVector([0, 1, 0]);
             const rotation = Quaternion.fromBetweenVectors([0, 0, 1], forward).pow(velocityAcceleration / this.worldScale);
             const rotationDrag = cameraPositionVelocity.pow(velocitySpeed / this.worldScale).inverse();
@@ -937,7 +952,7 @@ export class Game {
                 cameraPositionVelocity = Quaternion.ONE;
             }
         }
-        if (activeKeys.includes("s")) {
+        if (!disabledMovement && activeKeys.includes("s")) {
             const rotation = cameraPositionVelocity.clone().inverse().pow(Game.BRAKE_POWER / this.worldScale);
             cameraPositionVelocity = cameraPositionVelocity.clone().mul(rotation);
             if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * velocityAcceleration / this.worldScale) {
@@ -946,10 +961,10 @@ export class Game {
         }
 
         // handle main cannons
-        if (activeKeys.includes(" ") && !cameraCannonLoading && cannonCoolDown <= 0) {
+        if (!disabledMovement && activeKeys.includes(" ") && !cameraCannonLoading && cannonCoolDown <= 0) {
             cameraCannonLoading = new Date(Date.now());
         }
-        if (!activeKeys.includes(" ") && cameraCannonLoading && faction && cannonCoolDown <= 0) {
+        if (!disabledMovement && !activeKeys.includes(" ") && cameraCannonLoading && faction && cannonCoolDown <= 0) {
             // cannon fire
             cameraCannonLoading = undefined;
             cannonCoolDown = 20;
@@ -974,7 +989,7 @@ export class Game {
                 newCannonBalls.push(cannonBall);
             }
         }
-        if (activeKeys.includes(" ") && cameraCannonLoading && Date.now() - +cameraCannonLoading > 3000) {
+        if (!disabledMovement && activeKeys.includes(" ") && cameraCannonLoading && Date.now() - +cameraCannonLoading > 3000) {
             // cancel cannon fire
             cameraCannonLoading = undefined;
         }
@@ -982,7 +997,7 @@ export class Game {
         // handle automatic cannonades
         for (let i = 0; i < this.ships.get(shipId).cannonadeCoolDown.length; i++) {
             const cannonadeCoolDown = this.ships.get(shipId).cannonadeCoolDown[i];
-            if (cannonadeCoolDown <= 0) {
+            if (!disabledMovement && cannonadeCoolDown <= 0) {
                 // find nearby ship
                 const targetVector = this.ships.get(shipId).fireControl.getTargetVector();
                 if (!targetVector) {
@@ -1021,7 +1036,7 @@ export class Game {
 
                 // apply a cool down to the cannonades
                 this.ships.get(shipId).cannonadeCoolDown[i] = 45;
-            } else if (cannonadeCoolDown > 0) {
+            } else if (!disabledMovement && cannonadeCoolDown > 0) {
                 this.ships.get(shipId).cannonadeCoolDown[i] = this.ships.get(shipId).cannonadeCoolDown[i] - 1;
             }
         }
@@ -1047,6 +1062,9 @@ export class Game {
             cannonCoolDown -= 1;
         }
         this.ships.get(shipId).handleHealthTick();
+
+        // handle buffs
+        this.ships.get(shipId).handleBuffTick();
 
         this.ships.get(shipId).position = cameraPosition;
         this.ships.get(shipId).orientation = cameraOrientation;
