@@ -2050,6 +2050,9 @@ export class Game {
      * Handle server responsibilities. Move things around and compute collisions.
      */
     public handleServerLoop() {
+        // deep copy the score board
+        this.scoreBoard = JSON.parse(JSON.stringify(this.scoreBoard));
+
         this.handleServerShardPreLoop();
 
         // DONE - should be converted into SHARD FORMAT
