@@ -1008,6 +1008,7 @@ export class Game {
             // cannon fire
             cameraCannonLoading = undefined;
             cannonCoolDown = 20;
+
             this.soundEvents.push({
                 shipId,
                 soundType: ESoundType.FIRE,
@@ -1078,6 +1079,12 @@ export class Game {
                 cannonBall.size = 15;
                 cannonBall.damage = 10;
                 newCannonBalls.push(cannonBall);
+
+                this.soundEvents.push({
+                    shipId,
+                    soundType: ESoundType.FIRE,
+                    soundEventType: ESoundEventType.ONE_OFF
+                });
 
                 // apply a cool down to the cannonades
                 this.ships.get(shipId).cannonadeCoolDown[i] = 45;
