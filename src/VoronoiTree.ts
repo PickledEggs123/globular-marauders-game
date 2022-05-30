@@ -1358,7 +1358,6 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
         const crates: Crate[] = [];
         const planets: Planet[] = [];
         const factions: Faction[] = Array.from(this.app.factions.values());
-        const soundEvents: ISoundEvent[] = this.app.soundEvents.filter(x => ships.some(ship => ship.id === x.shipId));
 
         for (const county of this.getNearestCounties(position, radius)) {
             ships.push.apply(ships, county.ships);
@@ -1368,6 +1367,8 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
                 planets.push(county.planet);
             }
         }
+
+        const soundEvents: ISoundEvent[] = this.app.soundEvents.filter(x => ships.some(ship => ship.id === x.shipId));
 
         return this.app.getSyncFrame(playerData, {
             id: playerData.id,
