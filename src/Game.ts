@@ -236,6 +236,7 @@ export interface IGameSyncFrame {
     factions: IGameSyncFrameDelta<ISerializedFaction>;
     scoreBoard: IGameSyncFrameDelta<IScoreBoard & {id: string}>;
     invasions: ISerializedInvasion[];
+    soundEvents: ISoundEvent[];
 }
 
 /**
@@ -249,6 +250,28 @@ export interface IPlayerSyncState {
     planets: ISerializedPlanet[];
     factions: ISerializedFaction[];
     scoreBoard: (IScoreBoard & {id: string})[];
+    soundEvents: ISoundEvent[];
+}
+
+export enum ESoundType {
+    FIRE = "FIRE",
+    HIT = "HIT",
+    ACCELERATE = "ACCELERATE",
+    DECELERATE = "DECELERATE",
+    MONEY = "MONEY",
+    LAND = "LAND",
+    LOOT = "LOOT",
+}
+
+export enum ESoundEventType {
+    ONE_OFF = "ONE_OFF",
+    CONTINUOUS = "CONTINUOUS",
+}
+
+export interface ISoundEvent {
+    shipId: string;
+    soundType: ESoundType;
+    soundEventType: ESoundEventType;
 }
 
 export class Game {
@@ -297,6 +320,7 @@ export class Game {
         capture: []
     };
     public invasions: Map<string, Invasion> = new Map<string, Invasion>();
+    public soundEvents: Array<ISoundEvent> = [];
 
     /**
      * Velocity step size of ships.
@@ -426,7 +450,8 @@ export class Game {
             planets: this.computeSyncDelta(this.listToMap(oldState.planets), newState.planets, true),
             factions: this.computeSyncDelta(this.listToMap(oldState.factions), newState.factions, true),
             scoreBoard: this.computeSyncDelta(this.listToMap(oldState.scoreBoard), newState.scoreBoard, true),
-            invasions: Array.from(this.invasions.values()).map(i => i.serialize())
+            invasions: Array.from(this.invasions.values()).map(i => i.serialize()),
+            soundEvents: newState.soundEvents,
         };
 
         this.playerSyncState.delete(oldState.id);
@@ -449,6 +474,7 @@ export class Game {
                 crates: [],
                 cannonBalls: [],
                 scoreBoard: [],
+                soundEvents: [],
             };
         }
 
@@ -531,7 +557,7 @@ export class Game {
         Array.from(this.voronoiTerrain.getPlanets()).forEach(p => {
             this.planets.set(p.id, p);
             if (p.county.faction) {
-                p.claim(p.county.faction, false);
+                p.claim(p.county.faction, false, null);
             }
         });
 
@@ -608,6 +634,7 @@ export class Game {
         for (const invasion of invasionData) {
             this.invasions.set(invasion.planetId, invasion);
         }
+        this.soundEvents = data.soundEvents;
     }
 
     public getSpawnFactions(): ISpawnFaction[] {
@@ -814,7 +841,7 @@ export class Game {
             const planet = this.planets.get(planetId);
             if (planet) {
                 planet.setAsStartingCapital();
-                planet.claim(faction, false);
+                planet.claim(faction, false, null);
             }
             if (planet && !this.isTestMode) {
                 for (let numShipsToStartWith = 0; numShipsToStartWith < 10; numShipsToStartWith++) {
@@ -954,6 +981,11 @@ export class Game {
             if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * velocityAcceleration / this.worldScale) {
                 cameraPositionVelocity = Quaternion.ONE;
             }
+            this.soundEvents.push({
+                shipId,
+                soundType: ESoundType.ACCELERATE,
+                soundEventType: ESoundEventType.CONTINUOUS
+            });
         }
         if (!disabledMovement && activeKeys.includes("s")) {
             const rotation = cameraPositionVelocity.clone().inverse().pow(Game.BRAKE_POWER / this.worldScale);
@@ -961,6 +993,11 @@ export class Game {
             if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * velocityAcceleration / this.worldScale) {
                 cameraPositionVelocity = Quaternion.ONE;
             }
+            this.soundEvents.push({
+                shipId,
+                soundType: ESoundType.DECELERATE,
+                soundEventType: ESoundEventType.CONTINUOUS
+            });
         }
 
         // handle main cannons
@@ -971,6 +1008,11 @@ export class Game {
             // cannon fire
             cameraCannonLoading = undefined;
             cannonCoolDown = 20;
+            this.soundEvents.push({
+                shipId,
+                soundType: ESoundType.FIRE,
+                soundEventType: ESoundEventType.ONE_OFF
+            });
 
             // fire cannons
             for (let i = 0; i < shipData.cannons.numCannons; i++) {
@@ -1467,7 +1509,7 @@ export class Game {
 
                                 const faction = this.factions.get(factionId) ?? null;
                                 const planet = this.planets.get(planetId);
-                                planet.claim(faction, false);
+                                planet.claim(faction, false, null);
                                 break;
                             }
                             case EShardMessageType.CREATE_SHIP_FACTION: {
@@ -1578,7 +1620,7 @@ export class Game {
 
                                 const faction = this.factions.get(factionId) ?? null;
                                 const planet = this.planets.get(planetId);
-                                planet.claim(faction, false);
+                                planet.claim(faction, false, null);
 
                                 const claimPlanetMessage: IClaimPlanetMessage = {
                                     messageType: EMessageType.CLAIM_PLANET,
@@ -1692,7 +1734,7 @@ export class Game {
 
                                 const faction = this.factions.get(factionId) ?? null;
                                 const planet = this.planets.get(planetId);
-                                planet.claim(faction, false);
+                                planet.claim(faction, false, null);
                                 break;
                             }
                             case EShardMessageType.DESTROY_SHIP_PLANET: {
@@ -2053,6 +2095,9 @@ export class Game {
         // deep copy the score board
         this.scoreBoard = JSON.parse(JSON.stringify(this.scoreBoard));
 
+        // clear the sound events
+        this.soundEvents = [];
+
         this.handleServerShardPreLoop();
 
         // DONE - should be converted into SHARD FORMAT
@@ -2078,7 +2123,7 @@ export class Game {
                                 planetId: null,
                                 shipId: "",
                                 activeKeys: [],
-                                moneyAccount: new MoneyAccount(20000),
+                                moneyAccount: new MoneyAccount(500),
                                 autoPilotEnabled: true,
                                 aiNodeName: this.aiNodeName
                             };
@@ -2271,7 +2316,7 @@ export class Game {
                             return;
                         }
 
-                        planet.claim(faction, false);
+                        planet.claim(faction, false, null);
                     }
                 } else {
                     // no more messages, continue

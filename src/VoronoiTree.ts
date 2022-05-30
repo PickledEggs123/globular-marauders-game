@@ -3,7 +3,7 @@ import {DelaunayGraph, VoronoiCell, VoronoiGraph} from "./Graph";
 import Quaternion from "quaternion";
 import {ISerializedPlanet, ISerializedPlanetFull, Planet} from "./Planet";
 import {Faction} from "./Faction";
-import {Game, IGameSyncFrame, IPlayerData} from "./Game";
+import {Game, IGameSyncFrame, IPlayerData, ISoundEvent} from "./Game";
 import {Ship} from "./Ship";
 import {CannonBall, Crate} from "./Item";
 import {ISerializedStar, Star} from "./Star";
@@ -1358,6 +1358,7 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
         const crates: Crate[] = [];
         const planets: Planet[] = [];
         const factions: Faction[] = Array.from(this.app.factions.values());
+        const soundEvents: ISoundEvent[] = this.app.soundEvents.filter(x => ships.some(ship => ship.id === x.shipId));
 
         for (const county of this.getNearestCounties(position, radius)) {
             ships.push.apply(ships, county.ships);
@@ -1376,6 +1377,7 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
             planets: planets.map(p => p.serialize()),
             factions: factions.map(f => f.serialize()),
             scoreBoard: [{id: "a", ...this.getScoreBoardForPlayer(playerData)}],
+            soundEvents,
         });
     }
 }

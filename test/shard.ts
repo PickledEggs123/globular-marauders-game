@@ -509,7 +509,7 @@ describe("shard tests", () => {
                 const physicsNodes: Game[] = kingdomIds.map(kingdomId => shards.find(s => s.serverType === EServerType.PHYSICS_NODE && s.physicsKingdomIndex === kingdomId));
                 const kingdoms: VoronoiKingdom[] = physicsNodes.map(n => n.voronoiTerrain.kingdoms[n.physicsKingdomIndex]);
                 for (const kingdom of kingdoms) {
-                    kingdom.duchies.forEach(d => d.counties.forEach(c => c.planet.claim(kingdom.app.factions.get(EFaction.DUTCH), true)));
+                    kingdom.duchies.forEach(d => d.counties.forEach(c => c.planet.claim(kingdom.app.factions.get(EFaction.DUTCH), true, null)));
                 }
                 runGameLoop(shards, shardMap);
                 runGameLoop(shards, shardMap);

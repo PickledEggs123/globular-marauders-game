@@ -17,7 +17,7 @@ import {computeConeLineIntersection, IConeHitTest} from "./Intersection";
 import {Faction} from "./Faction";
 import {CannonBall, Crate, DeserializeQuaternion, ISerializedQuaternion, SerializeQuaternion} from "./Item";
 import {IResourceExported, Planet} from "./Planet";
-import {Game} from "./Game";
+import {ESoundEventType, ESoundType, Game} from "./Game";
 import {EShipType, GetShipData} from "./ShipType";
 import {EFaction} from "./EFaction";
 
@@ -273,6 +273,12 @@ export class Ship implements IAutomatedShip {
                     }
                     this.app.scoreBoard.damage.sort((a, b) => b.damage - a.damage);
                 }
+
+                this.app.soundEvents.push({
+                    shipId: this.id,
+                    soundType: ESoundType.HIT,
+                    soundEventType: ESoundEventType.ONE_OFF
+                });
 
                 // faction bounty list
                 if (this.faction) {

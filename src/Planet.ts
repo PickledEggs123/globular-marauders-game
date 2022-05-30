@@ -32,7 +32,7 @@ import {Ship} from "./Ship";
 import {FeudalGovernment, ISerializedFeudalGovernment, VoronoiCounty} from "./VoronoiTree";
 import {ERoyalRank, Faction, LuxuryBuff} from "./Faction";
 import {EOrderType, Order} from "./Order";
-import {EMessageType, Game, IClaimPlanetMessage} from "./Game";
+import {EMessageType, ESoundEventType, ESoundType, Game, IClaimPlanetMessage} from "./Game";
 import {DeserializeQuaternion, ISerializedQuaternion, SerializeQuaternion} from "./Item";
 import {
     Blacksmith,
@@ -629,7 +629,7 @@ export class Planet implements ICameraState {
         ];
     }
 
-    public claim(faction: Faction, shouldNetwork: boolean) {
+    public claim(faction: Faction, shouldNetwork: boolean, ship: Ship | null) {
         if (shouldNetwork) {
             if ([EServerType.AI_NODE, EServerType.PHYSICS_NODE].includes(this.instance.serverType)) {
                 const claimMessage: IClaimPlanetShardMessage = {
@@ -653,6 +653,15 @@ export class Planet implements ICameraState {
         }
 
         this.county.claim(faction);
+
+        if (ship) {
+            ship.moneyAccount.addMoney({currencyId: "GOLD", amount: 1000});
+            this.instance.soundEvents.push({
+                shipId: ship.id,
+                soundType: ESoundType.LAND,
+                soundEventType: ESoundEventType.ONE_OFF
+            });
+        }
 
         // build exploration graph for which planets to explore and in what order
         this.buildExplorationGraph();
@@ -1463,10 +1472,9 @@ export class Planet implements ICameraState {
     public applyLuxuryBuff(account: MoneyAccount, resourceType: EResourceType, planetId: string, amount: number) {
         // update luxury buff
         const oldLuxuryBuff = this.luxuryBuffs.find(l => l.matches(resourceType, planetId));
-        // let percentReplenished = 1;
+        let percentReplenished = 1;
         if (oldLuxuryBuff) {
-            // percentReplenished = oldLuxuryBuff.replenish();
-            oldLuxuryBuff.replenish();
+            percentReplenished = oldLuxuryBuff.replenish();
             oldLuxuryBuff.amount = amount;
         } else if (this.county.faction) {
             this.luxuryBuffs.push(new LuxuryBuff(this.instance, this.county.faction, this, resourceType, planetId, amount));
@@ -1476,14 +1484,13 @@ export class Planet implements ICameraState {
         if (this.economySystem && this.moneyAccount) {
             this.economySystem.recomputeResources();
 
-            // merchant is not paid for feudal obligation missions
-            // // pay merchant
-            // const goldAmount = Math.floor(this.moneyAccount.computePriceForResourceType(resourceType) * amount * percentReplenished);
-            // const payment: ICurrency[] = [{
-            //     currencyId: "GOLD",
-            //     amount: goldAmount,
-            // }];
-            // this.moneyAccount.cash.makePayment(account, payment);
+            // pay merchant
+            const goldAmount = Math.floor(this.moneyAccount.computePriceForResourceType(resourceType) * amount * percentReplenished);
+            const payment: ICurrency[] = [{
+                currencyId: "GOLD",
+                amount: goldAmount,
+            }];
+            this.moneyAccount.cash.makePayment(account, payment);
         }
     }
 
@@ -1922,7 +1929,7 @@ export class Planet implements ICameraState {
                             ship.health = 0;
                         }
                     }
-                    this.claim(invasionEvent.attacking, true);
+                    this.claim(invasionEvent.attacking, true, null);
                     this.instance.invasions.delete(this.id);
                     break;
                 }
@@ -2008,6 +2015,13 @@ export class Planet implements ICameraState {
 
         // add ship to new planet roster
         this.addNewShip(ship);
+
+        ship.moneyAccount.addMoney({currencyId: "GOLD", amount: 100});
+        this.instance.soundEvents.push({
+            shipId: ship.id,
+            soundType: ESoundType.MONEY,
+            soundEventType: ESoundEventType.ONE_OFF
+        });
     }
 
     /**
@@ -2155,6 +2169,13 @@ export class Planet implements ICameraState {
                         const globalShard = Array.from(this.instance.shardList.values()).find(s => s.type === EServerType.GLOBAL_STATE_NODE);
                         this.instance.outgoingShardMessages.push([globalShard.name, globalScoreBoardMessage]);
                     }
+
+                    ship.moneyAccount.addMoney({currencyId: "GOLD", amount: 1000});
+                    this.instance.soundEvents.push({
+                        shipId: ship.id,
+                        soundType: ESoundType.LOOT,
+                        soundEventType: ESoundEventType.ONE_OFF
+                    });
                 }
             }
         }
@@ -2163,6 +2184,13 @@ export class Planet implements ICameraState {
                 this.feudalObligationResourceCycle = (this.feudalObligationResourceCycle + 1) % this.feudalObligationResources.length;
             }
         }
+
+        ship.moneyAccount.addMoney({currencyId: "GOLD", amount: 100});
+        this.instance.soundEvents.push({
+            shipId: ship.id,
+            soundType: ESoundType.MONEY,
+            soundEventType: ESoundEventType.ONE_OFF
+        });
     }
 
     /**

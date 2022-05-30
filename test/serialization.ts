@@ -127,7 +127,7 @@ describe("network serialization", () => {
             if (planet.settlementLevel === ESettlementLevel.UNTAMED) {
                 planet.settlementLevel = ESettlementLevel.OUTPOST;
                 planet.settlementProgress = 5;
-                planet.claim(networkGame.factions.get(EFaction.DUTCH), true);
+                planet.claim(networkGame.factions.get(EFaction.DUTCH), true, null);
             }
         }
 

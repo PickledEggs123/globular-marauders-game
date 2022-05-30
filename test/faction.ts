@@ -286,8 +286,8 @@ describe("faction", () => {
             const duchyId = homeWorld.county.duchy.capital.capital.id;
             const countyId = homeWorld.county.capital.id;
             const playerId = "test";
-            homeWorld.county.duchy.kingdom.duchies.forEach(d => d.counties.forEach(p => p.planet.claim(game.factions.get(factionId), true)));
-            homeWorld.county.duchy.kingdom.neighborKingdoms[0].duchies[0].counties[0].planet.claim(game.factions.get(factionId), true);
+            homeWorld.county.duchy.kingdom.duchies.forEach(d => d.counties.forEach(p => p.planet.claim(game.factions.get(factionId), true, null)));
+            homeWorld.county.duchy.kingdom.neighborKingdoms[0].duchies[0].counties[0].planet.claim(game.factions.get(factionId), true, null);
             game.factions.get(factionId).factionPlanetRoster.push({
                 factionId,
                 kingdomId,

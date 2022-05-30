@@ -321,7 +321,7 @@ export class Order {
             }
             if (!this.faction.planetIds.includes(this.planetId)) {
                 this.faction.planetIds.push(this.planetId);
-                colonyWorld.claim(this.faction, true);
+                colonyWorld.claim(this.faction, true, this.owner);
             }
 
             // trade with homeWorld
