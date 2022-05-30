@@ -2776,7 +2776,7 @@ export class Game {
                 let amount = 0;
                 for (const currency of playerData.moneyAccount.currencies) {
                     if (currency.currencyId === "GOLD") {
-                        amount += currency.amount * 1000;
+                        amount += currency.amount;
                     }
                 }
 

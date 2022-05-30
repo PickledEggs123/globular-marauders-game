@@ -655,7 +655,12 @@ export class Planet implements ICameraState {
         this.county.claim(faction);
 
         if (ship) {
-            ship.moneyAccount.addMoney({currencyId: "GOLD", amount: 1000});
+            const payment = {currencyId: "GOLD", amount: 1000};
+            ship.moneyAccount.addMoney(payment);
+            const playerData = Array.from(this.instance.playerData.values()).find(x => x.shipId == ship.id);
+            if (playerData) {
+                playerData.moneyAccount.addMoney(payment)
+            }
             this.instance.soundEvents.push({
                 shipId: ship.id,
                 soundType: ESoundType.LAND,
@@ -2016,7 +2021,12 @@ export class Planet implements ICameraState {
         // add ship to new planet roster
         this.addNewShip(ship);
 
-        ship.moneyAccount.addMoney({currencyId: "GOLD", amount: 100});
+        const payment = {currencyId: "GOLD", amount: 100};
+        ship.moneyAccount.addMoney(payment);
+        const playerData = Array.from(this.instance.playerData.values()).find(x => x.shipId == ship.id);
+        if (playerData) {
+            playerData.moneyAccount.addMoney(payment)
+        }
         this.instance.soundEvents.push({
             shipId: ship.id,
             soundType: ESoundType.MONEY,
@@ -2170,7 +2180,10 @@ export class Planet implements ICameraState {
                         this.instance.outgoingShardMessages.push([globalShard.name, globalScoreBoardMessage]);
                     }
 
-                    ship.moneyAccount.addMoney({currencyId: "GOLD", amount: 1000});
+                    const payment = {currencyId: "GOLD", amount: 1000};
+                    ship.moneyAccount.addMoney(payment);
+                    playerData.moneyAccount.addMoney(payment)
+
                     this.instance.soundEvents.push({
                         shipId: ship.id,
                         soundType: ESoundType.LOOT,
@@ -2185,7 +2198,12 @@ export class Planet implements ICameraState {
             }
         }
 
-        ship.moneyAccount.addMoney({currencyId: "GOLD", amount: 100});
+        const payment = {currencyId: "GOLD", amount: 100};
+        ship.moneyAccount.addMoney(payment);
+        const playerData = Array.from(this.instance.playerData.values()).find(x => x.shipId == ship.id);
+        if (playerData) {
+            playerData.moneyAccount.addMoney(payment)
+        }
         this.instance.soundEvents.push({
             shipId: ship.id,
             soundType: ESoundType.MONEY,
