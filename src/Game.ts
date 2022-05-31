@@ -209,6 +209,7 @@ export interface IShipStateMessage extends IMessage {
  * The initial game data sent from server to client. Used to set up terrain.
  */
 export interface IGameInitializationFrame {
+    worldScale: number;
     factions: ISerializedFaction[];
     voronoiTerrain: ISerializedVoronoiTerrain;
     ships: ISerializedShip[];
@@ -384,6 +385,7 @@ export class Game {
      */
     public getInitializationFrame(): IGameInitializationFrame {
         return {
+            worldScale: this.worldScale,
             factions: Array.from(this.factions.values()).map(f => f.serialize()),
             voronoiTerrain: this.voronoiTerrain.serialize(),
             ships: Array.from(this.ships.values()).map(s => s.serialize()),
@@ -544,6 +546,8 @@ export class Game {
      * @param data
      */
     public applyGameInitializationFrame(data: IGameInitializationFrame) {
+        this.worldScale = data.worldScale;
+
         for (const factionData of data.factions) {
             if (this.factions.has(factionData.id)) {
                 this.factions.get(factionData.id).deserializeUpdate(factionData);
@@ -657,7 +661,7 @@ export class Game {
 
         if (faction) {
             // get planets of faction
-            const planetsToSpawnAt = Array.from(this.planets.values()).filter(p => faction && faction.planetIds.includes(p.id))
+            const planetsToSpawnAt = Array.from(this.planets.values()).filter(p => faction && faction.planetIds.includes(p.id) && p.allowedToSpawn())
                 .sort((a, b) => {
                     const settlementLevelDifference = b.settlementLevel - a.settlementLevel;
                     if (settlementLevelDifference !== 0) {
@@ -726,7 +730,7 @@ export class Game {
 
                 for (const shipType of Object.values(EShipType)) {
                     const numShipsAvailable = planet.getNumShipsAvailable(shipType);
-                    if (numShipsAvailable > 0 && planet.allowedToSpawn()) {
+                    if (numShipsAvailable > 0 && planet.allowedToSpawn() && (playerData.moneyAccount.hasEnough(planet.shipyard.quoteShip(shipType)) || shipType === EShipType.CUTTER)) {
                         const spawnLocation: ISpawnLocation = {
                             id: planet.id,
                             numShipsAvailable,
@@ -1722,7 +1726,8 @@ export class Game {
                                 if (!player) {
                                     continue;
                                 }
-                                const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType);
+                                const asFaction = !player.moneyAccount.hasEnough(planet.shipyard.quoteShip(shipType));
+                                const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType, asFaction);
                                 player.shipId = playerShip.id;
 
                                 const spawnShipResultMessage: ISpawnResultShardMessage = {
@@ -2185,9 +2190,10 @@ export class Game {
                             continue;
                         }
 
-                        if (planet && player && player.moneyAccount.hasEnough(planet.shipyard.quoteShip(shipType))) {
+                        if (planet && player && (player.moneyAccount.hasEnough(planet.shipyard.quoteShip(shipType)) || shipType === EShipType.CUTTER)) {
                             if ([EServerType.STANDALONE].includes(this.serverType)) {
-                                const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType);
+                                const asFaction = !player.moneyAccount.hasEnough(planet.shipyard.quoteShip(shipType));
+                                const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType, asFaction);
                                 player.shipId = playerShip.id;
                             } else if ([EServerType.AI_NODE].includes(this.serverType) && this.playerIdAliases.has(player.name)) { // check
                                 const loadBalancer = Array.from(this.shardList.values()).find(s => s.type === EServerType.LOAD_BALANCER);

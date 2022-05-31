@@ -1138,8 +1138,12 @@ interface IVoronoiTerrainItem<T extends ICameraState> {
  */
 export class VoronoiTerrain extends VoronoiTree<ICameraState> {
     kingdoms: VoronoiKingdom[] = [];
+    private nodeLevels: number[] = [20, 3, 3];
     recursionNodeLevels(): number[] {
-        return [20, 3, 3];
+        return this.nodeLevels;
+    }
+    setRecursionNodeLevels(nodeLevels: number[]) {
+        this.nodeLevels = nodeLevels;
     }
 
     ships: Record<string, IVoronoiTerrainItem<Ship>> = {};
