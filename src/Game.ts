@@ -83,6 +83,7 @@ export interface IPlayerData {
     planetId: string | null;
     shipId: string;
     activeKeys: string[];
+    filterActiveKeys?: string[];
     moneyAccount: MoneyAccount;
     autoPilotEnabled: boolean;
     aiNodeName: string | undefined;
@@ -322,6 +323,7 @@ export class Game {
     };
     public invasions: Map<string, Invasion> = new Map<string, Invasion>();
     public soundEvents: Array<ISoundEvent> = [];
+    public scriptEvents: Array<IterableIterator<void>> = [];
 
     /**
      * Velocity step size of ships.
@@ -1260,6 +1262,7 @@ export class Game {
                     planetId: o.planetId,
                     shipId: o.shipId,
                     activeKeys: [...o.activeKeys],
+                    filterActiveKeys: !!o.filterActiveKeys ? [...o.filterActiveKeys] : o.filterActiveKeys,
                     moneyAccount,
                     autoPilotEnabled: o.autoPilotEnabled,
                     aiNodeName: o.aiNodeName
@@ -1273,6 +1276,7 @@ export class Game {
                 o.planetId = d.planetId;
                 o.shipId = d.shipId;
                 o.activeKeys = d.activeKeys;
+                o.filterActiveKeys = d.filterActiveKeys;
                 o.moneyAccount.currencies = d.moneyAccount.currencies;
                 o.autoPilotEnabled = d.autoPilotEnabled;
                 o.aiNodeName = d.aiNodeName;
@@ -2101,6 +2105,21 @@ export class Game {
     }
 
     /**
+     * Handle scripts which modify the game environment. An example is a tutorial script which plays audio files and
+     * spawn enemy ships.
+     */
+    public handleServerScriptEvents() {
+        const continueScriptEvents: Array<IterableIterator<void>> = [];
+        for (const scriptEvent of this.scriptEvents) {
+            const result = scriptEvent.next();
+            if (!result.done) {
+                continueScriptEvents.push(scriptEvent);
+            }
+        }
+        this.scriptEvents = continueScriptEvents;
+    }
+
+    /**
      * Handle server responsibilities. Move things around and compute collisions.
      */
     public handleServerLoop() {
@@ -2607,7 +2626,13 @@ export class Game {
                     const playerData = Array.from(this.playerData.values()).find(p => p.shipId === ship.id);
                     if (playerData && !playerData.autoPilotEnabled) {
                         // ship is player ship which has no autopilot, accept player control
-                        this.handleShipLoop(shipId, () => playerData.activeKeys, false);
+                        this.handleShipLoop(shipId, () => {
+                            if (playerData.filterActiveKeys) {
+                                return playerData.activeKeys.filter(x => playerData.filterActiveKeys.includes(x));
+                            } else {
+                                return playerData.activeKeys;
+                            }
+                        }, false);
                     } else {
                         // ship is npc ship if autoPilot is not enabled
                         this.handleShipLoop(shipId, () => ship.activeKeys, true);
@@ -2843,6 +2868,9 @@ export class Game {
             }, [] as IScoreBoardLandItem[]);
             this.scoreBoard.land.sort(((a, b) => b.amount - a.amount));
         }
+
+        this.handleServerScriptEvents();
+
         this.handleServerShardPostLoop();
     }
 

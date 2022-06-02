@@ -2224,6 +2224,11 @@ export class Planet implements ICameraState {
         return this.shipyard.buyShip(account, shipType, asFaction);
     }
 
+    public spawnEventShip(account: MoneyAccount, shipType: EShipType, callback: (ship: Ship) => void): void {
+        const ship = this.shipyard.buyShip(new MoneyAccount(1000 * 1000), shipType, true);
+        callback(ship);
+    }
+
     addNewShip(ship: Ship) {
         this.shipIds.push(ship.id);
         this.shipsAvailable[ship.shipType] += 1;
