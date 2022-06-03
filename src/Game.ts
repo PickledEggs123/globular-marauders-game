@@ -36,8 +36,7 @@ import {
     ISpawnResultShardMessage,
     ISpawnShardMessage,
     ITradeShipPlanetShardMessage,
-    ITributeShipPlanetShardMessage,
-    MoneyAccount
+    ITributeShipPlanetShardMessage
 } from "./Interface";
 import {FireControl, ISerializedFireControl, ISerializedShip, Ship} from "./Ship";
 import {ISerializedVoronoiTerrain, VoronoiCounty, VoronoiKingdom, VoronoiTerrain, VoronoiTree} from "./VoronoiTree";
@@ -72,6 +71,7 @@ import {Market} from "./Market";
 import {EShipType, GetShipData, PHYSICS_SCALE} from "./ShipType";
 import {EFaction} from "./EFaction";
 import {Invasion, ISerializedInvasion} from "./Invasion";
+import {MoneyAccount} from "./MoneyAccount";
 
 /**
  * A list of player specific data for the server to store.

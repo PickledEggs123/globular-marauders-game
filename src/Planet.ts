@@ -5,7 +5,6 @@ import {
     ICameraState,
     IClaimPlanetShardMessage,
     ICreateShipFactionShardMessage,
-    ICurrency,
     IDestroyShipPlanetShardMessage,
     IExpirableTicks,
     IExplorationGraphData,
@@ -14,8 +13,7 @@ import {
     ISpawnAiShardMessage,
     ITradeDeal,
     ITradeShipPlanetShardMessage,
-    ITributeShipPlanetShardMessage,
-    MoneyAccount
+    ITributeShipPlanetShardMessage
 } from "./Interface";
 import Quaternion from "quaternion";
 import {DelaunayGraph, ISerializedPathingNode, PathingNode, VoronoiGraph} from "./Graph";
@@ -54,6 +52,7 @@ import {DEFAULT_FACTION_PROPERTIES} from "./FactionProperties";
 import {EShipType, GetShipData} from "./ShipType";
 import {EInvasionCaptureState, EInvasionPhase, Invasion} from "./Invasion";
 import {EFaction} from "./EFaction";
+import {ICurrency, MoneyAccount} from "./MoneyAccount";
 
 export interface IResourceExported {
     resourceType: EResourceType;

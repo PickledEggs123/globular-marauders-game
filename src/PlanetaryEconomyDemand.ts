@@ -1,9 +1,9 @@
 import {CONSUMABLE_RESOURCES, EResourceType} from "./Resource";
-import {ISerializedMoneyAccount} from "./Interface";
 import {Game} from "./Game";
 import {EBuildingType, Manufactory} from "./Building";
 import {Planet} from "./Planet";
 import {IMarketPrice} from "./Market";
+import {ISerializedMoneyAccount} from "./MoneyAccount";
 
 export interface IEconomyDemand {
     resourceType: EResourceType;

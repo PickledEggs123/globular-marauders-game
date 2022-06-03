@@ -1,6 +1,5 @@
 import {EResourceType, ICargoItem, IItemRecipe, ITEM_DATA} from "./Resource";
 import {Game} from "./Game";
-import {ICurrency, MoneyAccount} from "./Interface";
 import {Ship} from "./Ship";
 import {Planet} from "./Planet";
 import {PlanetaryCurrencySystem} from "./PlanetaryCurrencySystem";
@@ -9,6 +8,7 @@ import {PlanetaryEconomySystem} from "./PlanetaryEconomySystem";
 import {IMarketPrice} from "./Market";
 import {DEFAULT_FACTION_PROPERTIES} from "./FactionProperties";
 import {EShipType, GetShipData} from "./ShipType";
+import {ICurrency, MoneyAccount} from "./MoneyAccount";
 
 export class ShipyardDock {
     public instance: Game;

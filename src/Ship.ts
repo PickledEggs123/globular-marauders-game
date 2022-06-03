@@ -5,9 +5,7 @@ import {
     IAutomatedShip,
     IAutomatedShipBuff,
     ICameraState,
-    IDamageScoreShardMessage,
-    ISerializedMoneyAccount,
-    MoneyAccount
+    IDamageScoreShardMessage
 } from "./Interface";
 import Quaternion from "quaternion";
 import {EResourceType, ICargoItem} from "./Resource";
@@ -20,6 +18,7 @@ import {IResourceExported, Planet} from "./Planet";
 import {ESoundEventType, ESoundType, Game} from "./Game";
 import {EShipType, GetShipData} from "./ShipType";
 import {EFaction} from "./EFaction";
+import {ISerializedMoneyAccount, MoneyAccount} from "./MoneyAccount";
 
 export interface ISerializedShip {
     id: string;
