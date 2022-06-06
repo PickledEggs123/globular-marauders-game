@@ -1033,11 +1033,16 @@ export class Planet implements ICameraState {
         const offerVassalEntry = offerVassalEntries[0];
         const pirateWorldEntry = pirateWorldEntries[0];
         const tradeVassalWorldEntry = tradeVassalEntries[0];
+        const tradeVassalWorldEntry2 = tradeVassalEntries[1];
+        const tradeVassalWorldEntry3 = tradeVassalEntries[2];
         const tradeDealEntry = tradeDealEntries[0];
         const settlementWorldEntry = settlementWorldEntries[0];
         const settlementWorldEntry2 = settlementWorldEntries[1];
         const settlementWorldEntry3 = settlementWorldEntries[2];
+        const settlementWorldEntry4 = settlementWorldEntries[3];
+        const settlementWorldEntry5 = settlementWorldEntries[4];
         const colonizeWorldEntry = colonizeWorldEntries[0];
+        const colonizeWorldEntry2 = colonizeWorldEntries[1];
         const invasionWorldEntry = invasionWorldEntries[0];
         if (invasionWorldEntry && !this.invasionDemand.has(invasionWorldEntry[0])) {
             this.invasionDemand.set(invasionWorldEntry[0], []);
@@ -1083,6 +1088,24 @@ export class Planet implements ICameraState {
             order.planetId = tradeVassalWorldEntry[0];
             order.expireTicks = 10 * 60 * 20; // trade for 20 minutes before signing a new contract
             return order;
+        } else if (tradeVassalWorldEntry2 && shipData.cannons.numCannons <= 4) {
+            // found a trade slot, add ship to trade
+            tradeVassalWorldEntry2[1].traderShipIds.push(ship.id);
+
+            const order = new Order(this.instance, ship, this.county.faction);
+            order.orderType = EOrderType.FEUDAL_TRADE;
+            order.planetId = tradeVassalWorldEntry2[0];
+            order.expireTicks = 10 * 60 * 20; // trade for 20 minutes before signing a new contract
+            return order;
+        } else if (tradeVassalWorldEntry3 && shipData.cannons.numCannons <= 4) {
+            // found a trade slot, add ship to trade
+            tradeVassalWorldEntry3[1].traderShipIds.push(ship.id);
+
+            const order = new Order(this.instance, ship, this.county.faction);
+            order.orderType = EOrderType.FEUDAL_TRADE;
+            order.planetId = tradeVassalWorldEntry3[0];
+            order.expireTicks = 10 * 60 * 20; // trade for 20 minutes before signing a new contract
+            return order;
         } else if (tradeDealEntry && shipData.cannons.numCannons <= 4) {
             // found a trade slot, add ship to trade
             tradeDealEntry[0][1].traderShipIds.push(ship.id);
@@ -1115,7 +1138,7 @@ export class Planet implements ICameraState {
 
             const order = new Order(this.instance, ship, this.county.faction);
             order.orderType = EOrderType.ROAM;
-            order.expireTicks = invasionEvent.planExpiration + 10; // wait for invasion to start
+            order.expireTicks = (invasionEvent.planExpiration / 2) + 10; // wait for invasion to start
             return order;
         } else if (colonizeWorldEntry) {
             // add ship to colonize
@@ -1125,6 +1148,14 @@ export class Planet implements ICameraState {
             order.orderType = EOrderType.SETTLE;
             order.planetId = colonizeWorldEntry[0];
             return order;
+        } else if (colonizeWorldEntry2) {
+            // add ship to colonize
+            colonizeWorldEntry2[1].settlerShipIds.push(ship.id);
+
+            const order = new Order(this.instance, ship, this.county.faction);
+            order.orderType = EOrderType.SETTLE;
+            order.planetId = colonizeWorldEntry2[0];
+            return order;
         } else if (settlementWorldEntry) {
             // add ship to settle
             settlementWorldEntry[1].settlerShipIds.push(ship.id);
@@ -1132,6 +1163,22 @@ export class Planet implements ICameraState {
             const order = new Order(this.instance, ship, this.county.faction);
             order.orderType = EOrderType.SETTLE;
             order.planetId = settlementWorldEntry[0];
+            return order;
+        } else if (settlementWorldEntry2) {
+            // add ship to settle
+            settlementWorldEntry2[1].settlerShipIds.push(ship.id);
+
+            const order = new Order(this.instance, ship, this.county.faction);
+            order.orderType = EOrderType.SETTLE;
+            order.planetId = settlementWorldEntry2[0];
+            return order;
+        } else if (settlementWorldEntry3) {
+            // add ship to settle
+            settlementWorldEntry3[1].settlerShipIds.push(ship.id);
+
+            const order = new Order(this.instance, ship, this.county.faction);
+            order.orderType = EOrderType.SETTLE;
+            order.planetId = settlementWorldEntry3[0];
             return order;
         } else if (offerVassalEntry) {
             // offer a ship to a vassal
@@ -1180,21 +1227,21 @@ export class Planet implements ICameraState {
             order.orderType = EOrderType.TRIBUTE;
             order.planetId = this.county.duchy.kingdom.faction.homeWorldPlanetId;
             return order;
-        } else if (settlementWorldEntry2) {
+        } else if (settlementWorldEntry4) {
             // add ship to settle
-            settlementWorldEntry2[1].settlerShipIds.push(ship.id);
+            settlementWorldEntry4[1].settlerShipIds.push(ship.id);
 
             const order = new Order(this.instance, ship, this.county.faction);
             order.orderType = EOrderType.SETTLE;
-            order.planetId = settlementWorldEntry2[0];
+            order.planetId = settlementWorldEntry4[0];
             return order;
-        } else if (settlementWorldEntry3) {
+        } else if (settlementWorldEntry5) {
             // add ship to settle
-            settlementWorldEntry3[1].settlerShipIds.push(ship.id);
+            settlementWorldEntry5[1].settlerShipIds.push(ship.id);
 
             const order = new Order(this.instance, ship, this.county.faction);
             order.orderType = EOrderType.SETTLE;
-            order.planetId = settlementWorldEntry3[0];
+            order.planetId = settlementWorldEntry5[0];
             return order;
         } else {
             // add ship to explore
