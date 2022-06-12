@@ -2062,10 +2062,9 @@ export class Planet implements ICameraState {
         }
 
         // handle player forms
-        for (const ship of this.county.ships) {
-            const playerId = Array.from(this.instance.playerData.values()).find(x => x.shipId === ship.id)?.id;
+        const handleTradeScreen = (playerId: string, ship: Ship) => {
             const canTrade = ship.faction === this.county.faction;
-            const hasTradeScreen = this.tradeScreens.has(playerId);
+            const hasTradeScreen = this.tradeScreens.has(playerId) && VoronoiGraph.angularDistanceQuaternion(ship.positionVelocity.clone(), this.instance.worldScale) < Game.VELOCITY_STEP;
             if (canTrade && !hasTradeScreen) {
                 this.tradeScreens.set(playerId, {isTrading: false});
                 this.instance.formEmitters.set(playerId, [{type: EFormEmitterType.PLANET, id: this.id}]);
@@ -2073,6 +2072,19 @@ export class Planet implements ICameraState {
             if (!canTrade && hasTradeScreen) {
                 this.tradeScreens.delete(playerId);
                 this.instance.formEmitters.delete(playerId);
+            }
+        };
+        for (const ship of this.county.ships) {
+            const playerId = Array.from(this.instance.playerData.values()).find(x => x.shipId === ship.id)?.id;
+            handleTradeScreen(playerId, ship);
+        }
+        for (const playerId of Array.from(this.tradeScreens.keys())) {
+            const playerData = this.instance.playerData.get(playerId);
+            if (playerData) {
+                const ship = this.instance.ships.get(playerData.shipId);
+                if (ship) {
+                    handleTradeScreen(playerId, ship);
+                }
             }
         }
     }
