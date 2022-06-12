@@ -2106,6 +2106,7 @@ export class Planet implements ICameraState {
             bankBalanceAmount: 0,
             investment: 0,
             maturity: 0,
+            investmentMinimum: 100,
         };
 
         const playerData = this.instance.playerData.get(playerId);
@@ -2122,6 +2123,7 @@ export class Planet implements ICameraState {
         const bankBalanceAmount = this.bankAccounts.get(playerId)?.balance ?? 0;
         const investment = this.investmentAccounts.get(playerId)?.lots.reduce((acc, lot) => acc + lot.amount, 0) ?? 0;
         const maturity = this.investmentAccounts.get(playerId)?.lots.reduce((acc, lot) => acc + (lot.ticksRemaining === 0 ? lot.matureAmount : 0), 0) ?? 0;
+        const investmentMinimum = 100;
 
         return {
             playerData,
@@ -2130,7 +2132,8 @@ export class Planet implements ICameraState {
             repairAmount,
             bankBalanceAmount,
             investment,
-            maturity
+            maturity,
+            investmentMinimum,
         };
     }
 
@@ -2143,7 +2146,8 @@ export class Planet implements ICameraState {
                     repairAmount,
                     bankBalanceAmount,
                     investment,
-                    maturity
+                    maturity,
+                    investmentMinimum,
                 } = this.getTradeScreenVariablesForPlayer(playerId);
 
                 return [{
@@ -2229,6 +2233,12 @@ export class Planet implements ICameraState {
                         isReadOnly: true,
                         buttonPath: undefined
                     }], [{
+                        label: "Minimum",
+                        dataField: "investmentMinimum",
+                        type: EFormFieldType.NUMBER,
+                        isReadOnly: true,
+                        buttonPath: undefined
+                    }], [{
                         label: "Amount",
                         dataField: "amount",
                         type: EFormFieldType.NUMBER,
@@ -2251,6 +2261,7 @@ export class Planet implements ICameraState {
                         cashAmount,
                         investment,
                         maturity,
+                        investmentMinimum,
                     }
                 }];
             } else {
@@ -2277,7 +2288,8 @@ export class Planet implements ICameraState {
             cashAmount,
             repairAmount,
             bankBalanceAmount,
-            maturity
+            maturity,
+            investmentMinimum,
         } = this.getTradeScreenVariablesForPlayer(playerId);
 
         switch (request.buttonPath as EPlanetFormActions) {
@@ -2312,6 +2324,9 @@ export class Planet implements ICameraState {
             }
             case EPlanetFormActions.INVEST: {
                 const amount = Math.min(cashAmount, request.data.amount);
+                if (amount < investmentMinimum) {
+                    break;
+                }
                 if (playerData) {
                     this.depositInvestment(playerId, playerData.moneyAccount, {currencyId: "GOLD", amount});
                 }
