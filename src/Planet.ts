@@ -2063,8 +2063,8 @@ export class Planet implements ICameraState {
 
         // handle player forms
         const handleTradeScreen = (playerId: string, ship: Ship) => {
-            const canTrade = ship.faction === this.county.faction;
-            const hasTradeScreen = this.tradeScreens.has(playerId) && VoronoiGraph.angularDistanceQuaternion(ship.positionVelocity.clone(), this.instance.worldScale) < Game.VELOCITY_STEP;
+            const canTrade = ship.faction === this.county.faction && VoronoiGraph.angularDistanceQuaternion(ship.positionVelocity.clone(), this.instance.worldScale) < Game.VELOCITY_STEP;
+            const hasTradeScreen = this.tradeScreens.has(playerId);
             if (canTrade && !hasTradeScreen) {
                 this.tradeScreens.set(playerId, {isTrading: false});
                 this.instance.formEmitters.set(playerId, [{type: EFormEmitterType.PLANET, id: this.id}]);
