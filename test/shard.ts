@@ -454,8 +454,8 @@ describe("shard tests", () => {
                 // check final amount after 10 minutes
                 const finalAmount = (
                     Array.from(globalShard.playerData.values())[0].moneyAccount.currencies.find(c => c.currencyId === "GOLD").amount +
-                    dutchHomeWorld.investmentAccounts.get("blah2").amount
-                    ) * 1000;
+                    dutchHomeWorld.investmentAccounts.get("blah2")!.lots.reduce((acc, lot) => acc + (lot.ticksRemaining === 0 ? lot.matureAmount : lot.amount), 0)
+                    );
                 expect(globalShard.scoreBoard.money).to.deep.equal([{
                     playerId: Array.from(globalShard.playerData.values())[0].id,
                     name: Array.from(globalShard.playerData.values())[0].name,
@@ -464,7 +464,7 @@ describe("shard tests", () => {
                 expect(finalAmount).to.be.greaterThan(initialAmount);
 
                 // withdraw money
-                const withdrawalAmount = dutchHomeWorld.investmentAccounts.get("blah2").amount;
+                const withdrawalAmount = dutchHomeWorld.investmentAccounts.get("blah2")!.lots.reduce((acc, lot) => acc + (lot.ticksRemaining === 0 ? lot.matureAmount : 0), 0);
                 const withdrawalMessage: IInvestWithdrawalMessage = {
                     messageType: EMessageType.INVEST_WITHDRAWAL,
                     planetId: dutchHomeWorldId,

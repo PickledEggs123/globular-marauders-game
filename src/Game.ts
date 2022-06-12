@@ -3,6 +3,7 @@
  */
 import {ISerializedPlanet, ISerializedPlanetFull, Planet} from "./Planet";
 import {
+    EFormEmitterType,
     EServerType,
     EShardMessageType,
     IAIPlayerDataStateShardMessage,
@@ -18,7 +19,9 @@ import {
     IDirectedMarketTrade,
     IExpirableTicks,
     IFetchOrderResultShardMessage,
-    IFetchOrderShardMessage,
+    IFetchOrderShardMessage, IFormCard,
+    IFormEmitter, IFormRequest,
+    IFormResult,
     IGlobalStateShardMessage,
     IInvestDepositShardMessage,
     IInvestWithdrawShardMessage,
@@ -324,6 +327,7 @@ export class Game {
     public invasions: Map<string, Invasion> = new Map<string, Invasion>();
     public soundEvents: Array<ISoundEvent> = [];
     public scriptEvents: Array<IterableIterator<void>> = [];
+    public formEmitters: Map<string, IFormEmitter[]> = new Map<string, IFormEmitter[]>();
 
     /**
      * Velocity step size of ships.
@@ -2822,7 +2826,7 @@ export class Game {
                 for (const moneyScore of this.scoreBoard.money) {
                     const investmentAccount = planet.investmentAccounts.get(moneyScore.playerId);
                     if (investmentAccount) {
-                        moneyScore.amount += investmentAccount.amount * 1000;
+                        moneyScore.amount += investmentAccount.lots.reduce((acc, lot) => acc + (lot.ticksRemaining === 0 ? lot.matureAmount : lot.amount), 0);
                     }
                 }
             }
@@ -3211,6 +3215,47 @@ export class Game {
         if (!this.invasions.has(planetId)) {
             const invasion = new Invasion(this, attacking, defending, planetId);
             this.invasions.set(planetId, invasion);
+        }
+    }
+
+    public getFormsForPlayer(playerData: IPlayerData): IFormResult {
+        const playerId = playerData.id;
+        const cards: IFormCard[] = [];
+
+        if (this.formEmitters.has(playerId)) {
+            for (const formEmitter of this.formEmitters.get(playerId)!) {
+                switch (formEmitter.type) {
+                    case EFormEmitterType.PLANET: {
+                        const planet = this.planets.get(formEmitter.id);
+                        if (planet) {
+                            cards.push(...planet.getTradeScreenForPlayer(playerId));
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        return {
+            cards
+        };
+    }
+
+    public handleFormApiRequestForPlayer(playerData: IPlayerData, request: IFormRequest): void {
+        const playerId = playerData.id;
+
+        if (this.formEmitters.has(playerId)) {
+            for (const formEmitter of this.formEmitters.get(playerId)!) {
+                switch (formEmitter.type) {
+                    case EFormEmitterType.PLANET: {
+                        const planet = this.planets.get(formEmitter.id);
+                        if (planet) {
+                            planet.handleTradeScreenRequestsForPlayer(playerId, request);
+                        }
+                        break;
+                    }
+                }
+            }
         }
     }
 }

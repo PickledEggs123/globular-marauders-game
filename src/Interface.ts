@@ -10,6 +10,43 @@ import {ISerializedOrder} from "./Order";
 import {EShipType} from "./ShipType";
 import {EFaction} from "./EFaction";
 
+export enum EFormFieldType {
+    NUMBER = "NUMBER",
+    BUTTON = "BUTTON"
+}
+
+export enum EFormEmitterType {
+    PLANET = "PLANET",
+}
+
+export interface IFormField {
+    label: string;
+    dataField: string | undefined;
+    type: EFormFieldType;
+    buttonPath: string | undefined;
+    isReadOnly: boolean;
+}
+
+export interface IFormCard {
+    title: string;
+    fields: Array<IFormField[]>;
+    data: {[key: string]: any};
+}
+
+export interface IFormRequest {
+    buttonPath: string;
+    data: {[key: string]: any};
+}
+
+export interface IFormResult {
+    cards: IFormCard[];
+}
+
+export interface IFormEmitter {
+    type: EFormEmitterType;
+    id: string;
+}
+
 /**
  * An interface used to represent an attribute of a mesh.
  */

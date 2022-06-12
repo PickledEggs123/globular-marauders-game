@@ -1,4 +1,6 @@
 import {
+    EFormEmitterType,
+    EFormFieldType,
     EServerType,
     ESettlementLevel,
     EShardMessageType,
@@ -8,6 +10,8 @@ import {
     IDestroyShipPlanetShardMessage,
     IExpirableTicks,
     IExplorationGraphData,
+    IFormCard,
+    IFormRequest,
     ILootScoreShardMessage,
     ISerializedExplorationGraphData,
     ISpawnAiShardMessage,
@@ -53,6 +57,15 @@ import {EShipType, GetShipData} from "./ShipType";
 import {EInvasionCaptureState, EInvasionPhase, Invasion} from "./Invasion";
 import {EFaction} from "./EFaction";
 import {ICurrency, MoneyAccount} from "./MoneyAccount";
+
+export enum EPlanetFormActions {
+    ENTER_PORT = "PlanetPortEnter",
+    REPAIR = "PlanetRepairRepair",
+    DEPOSIT = "PlanetBankingDeposit",
+    WITHDRAW = "PlanetBankingWithdraw",
+    INVEST = "PlanetInvestmentInvest",
+    RETURN = "PlanetInvestmentReturn",
+}
 
 export interface IResourceExported {
     resourceType: EResourceType;
@@ -141,11 +154,20 @@ export interface ISerializedPlanetFull {
     explorationGraph: Record<string, ISerializedExplorationGraphData>;
 }
 
+export interface IBankAccount {
+    playerId: string;
+    balance: number;
+}
+
+export interface IInvestmentAccountLot {
+    amount: number;
+    ticksRemaining: number;
+    matureAmount: number;
+}
+
 export interface IInvestmentAccount {
     playerId: string;
-    amount: number;
-    interestRate: number;
-    compoundingTicks: number;
+    lots: IInvestmentAccountLot[];
 }
 
 export class Planet implements ICameraState {
@@ -228,6 +250,9 @@ export class Planet implements ICameraState {
     // money account keeping track of money
     public moneyAccount: PlanetaryMoneyAccount | null = null;
 
+    // trade screens
+    public tradeScreens: Map<string, {isTrading: boolean}> = new Map<string, {isTrading: boolean}>();
+
     // real estate properties, used to manufacture stuff
     // a building which builds ships
     public get shipyard(): Shipyard {
@@ -272,6 +297,7 @@ export class Planet implements ICameraState {
     private numTicks: number = 0;
 
     // players can open an investment account on the planet to generate passive income.
+    public bankAccounts: Map<string, IBankAccount> = new Map<string, IBankAccount>();
     public investmentAccounts: Map<string, IInvestmentAccount> = new Map<string, IInvestmentAccount>();
 
     /**
@@ -1804,30 +1830,66 @@ export class Planet implements ICameraState {
         }
     }
 
+    public depositBank(playerId: string, moneyAccount: MoneyAccount, payment: ICurrency) {
+        moneyAccount.removeMoney(payment);
+        if (!this.bankAccounts.has(playerId)) {
+            this.bankAccounts.set(playerId, {
+                playerId,
+                balance: 0
+            });
+        }
+        this.bankAccounts.get(playerId)!.balance += payment.amount;
+    }
+
+    public withdrawBank(playerId: string, moneyAccount: MoneyAccount, payment: ICurrency) {
+        if ((this.bankAccounts.get(playerId)?.balance ?? 0) >= payment.amount) {
+            if (!this.bankAccounts.has(playerId)) {
+                this.bankAccounts.set(playerId, {
+                    playerId,
+                    balance: 0
+                });
+            }
+            this.bankAccounts.get(playerId)!.balance -= payment.amount;
+            moneyAccount.addMoney(payment);
+        }
+    }
+
     public depositInvestment(playerId: string, moneyAccount: MoneyAccount, payment: ICurrency) {
         moneyAccount.removeMoney(payment);
         if (!this.investmentAccounts.has(playerId)) {
             this.investmentAccounts.set(playerId, {
                 playerId,
-                amount: 0,
-                compoundingTicks: 36 * 10,
-                interestRate: 1.01
+                lots: []
             });
         }
-        this.investmentAccounts.get(playerId).amount += payment.amount;
+        this.investmentAccounts.get(playerId).lots.push({
+            amount: payment.amount,
+            matureAmount: Math.ceil(payment.amount * 1.1),
+            ticksRemaining: 10 * 60 * 10
+        });
     }
 
     public withdrawInvestment(playerId: string, moneyAccount: MoneyAccount, payment: ICurrency) {
-        if (this.investmentAccounts.get(playerId).amount >= payment.amount) {
+        if ((this.investmentAccounts.get(playerId)?.lots.reduce((acc, lot) => acc + (lot.ticksRemaining === 0 ? lot.matureAmount : 0), 0) ?? 0) >= payment.amount) {
             if (!this.investmentAccounts.has(playerId)) {
                 this.investmentAccounts.set(playerId, {
                     playerId,
-                    amount: 0,
-                    compoundingTicks: 36 * 10,
-                    interestRate: 1.01
+                    lots: []
                 });
             }
-            this.investmentAccounts.get(playerId).amount -= payment.amount;
+            let paymentAmount = payment.amount;
+            for (const lot of this.investmentAccounts.get(playerId)!.lots) {
+                if (lot.ticksRemaining > 0) {
+                    continue;
+                }
+                const takeAmount = Math.min(lot.matureAmount, paymentAmount);
+                lot.matureAmount -= takeAmount;
+                paymentAmount -= takeAmount;
+                if (paymentAmount === 0) {
+                    break;
+                }
+            }
+            this.investmentAccounts.get(playerId)!.lots = this.investmentAccounts.get(playerId)!.lots.filter(x => x.matureAmount > 0);
             moneyAccount.addMoney(payment);
         }
     }
@@ -1924,8 +1986,10 @@ export class Planet implements ICameraState {
 
         // handle player investment accounts
         for (const [key, value] of [...this.investmentAccounts.entries()]) {
-            if (this.numTicks % value.compoundingTicks === 0) {
-                value.amount = Math.ceil(value.amount * value.interestRate);
+            for (const lot of value.lots) {
+                if (lot.ticksRemaining > 0) {
+                    lot.ticksRemaining -= 1;
+                }
             }
         }
 
@@ -1995,6 +2059,251 @@ export class Planet implements ICameraState {
         // handle resource economy
         if (this.moneyAccount) {
             this.moneyAccount.handlePlanetaryEconomy();
+        }
+
+        // handle player forms
+        for (const ship of this.county.ships) {
+            const playerId = Array.from(this.instance.playerData.values()).find(x => x.shipId === ship.id)?.id;
+            const canTrade = ship.faction === this.county.faction;
+            const hasTradeScreen = this.tradeScreens.has(playerId);
+            if (canTrade && !hasTradeScreen) {
+                this.tradeScreens.set(playerId, {isTrading: false});
+                this.instance.formEmitters.set(playerId, [{type: EFormEmitterType.PLANET, id: this.id}]);
+            }
+            if (!canTrade && hasTradeScreen) {
+                this.tradeScreens.delete(playerId);
+                this.instance.formEmitters.delete(playerId);
+            }
+        }
+    }
+
+    private getTradeScreenVariablesForPlayer(playerId: string) {
+        const defaultValues = {
+            playerData: undefined,
+            playerShip: undefined,
+            cashAmount: 0,
+            repairAmount: 0,
+            bankBalanceAmount: 0,
+            investment: 0,
+            maturity: 0,
+        };
+
+        const playerData = this.instance.playerData.get(playerId);
+        if (!playerData) {
+            return defaultValues;
+        }
+        const playerShip = this.instance.ships.get(playerData.shipId);
+        if (!playerShip) {
+            return defaultValues;
+        }
+
+        const cashAmount = playerData.moneyAccount.getGold();
+        const repairAmount = playerShip.maxHealth - playerShip.health - playerShip.burnTicks.reduce((acc, x) => acc + x, 0);
+        const bankBalanceAmount = this.bankAccounts.get(playerId)?.balance ?? 0;
+        const investment = this.investmentAccounts.get(playerId)?.lots.reduce((acc, lot) => acc + lot.amount, 0) ?? 0;
+        const maturity = this.investmentAccounts.get(playerId)?.lots.reduce((acc, lot) => acc + (lot.ticksRemaining === 0 ? lot.matureAmount : 0), 0) ?? 0;
+
+        return {
+            playerData,
+            playerShip,
+            cashAmount,
+            repairAmount,
+            bankBalanceAmount,
+            investment,
+            maturity
+        };
+    }
+
+    public getTradeScreenForPlayer(playerId: string): IFormCard[] {
+        const state = this.tradeScreens.get(playerId);
+        if (state) {
+            if (state.isTrading) {
+                const {
+                    cashAmount,
+                    repairAmount,
+                    bankBalanceAmount,
+                    investment,
+                    maturity
+                } = this.getTradeScreenVariablesForPlayer(playerId);
+
+                return [{
+                    title: "Repair",
+                    fields: [[{
+                        label: "Cash",
+                        dataField: "cashAmount",
+                        type: EFormFieldType.NUMBER,
+                        isReadOnly: true,
+                        buttonPath: undefined
+                    }], [{
+                        label: "Amount",
+                        dataField: "repairAmount",
+                        type: EFormFieldType.NUMBER,
+                        isReadOnly: true,
+                        buttonPath: undefined
+                    }], [{
+                        label: "Repair",
+                        dataField: undefined,
+                        type: EFormFieldType.BUTTON,
+                        isReadOnly: false,
+                        buttonPath: EPlanetFormActions.REPAIR
+                    }]],
+                    data: {
+                        cashAmount,
+                        repairAmount,
+                    }
+                }, {
+                    title: "Banking",
+                    fields: [[{
+                        label: "Cash",
+                        dataField: "cashAmount",
+                        type: EFormFieldType.NUMBER,
+                        isReadOnly: true,
+                        buttonPath: undefined
+                    }], [{
+                        label: "Balance",
+                        dataField: "bankBalanceAmount",
+                        type: EFormFieldType.NUMBER,
+                        isReadOnly: true,
+                        buttonPath: undefined
+                    }], [{
+                        label: "Amount",
+                        dataField: "amount",
+                        type: EFormFieldType.NUMBER,
+                        isReadOnly: false,
+                        buttonPath: undefined
+                    }], [{
+                        label: "Deposit",
+                        dataField: undefined,
+                        type: EFormFieldType.BUTTON,
+                        isReadOnly: false,
+                        buttonPath: EPlanetFormActions.DEPOSIT
+                    }], [{
+                        label: "Withdraw",
+                        dataField: undefined,
+                        type: EFormFieldType.BUTTON,
+                        isReadOnly: false,
+                        buttonPath: EPlanetFormActions.WITHDRAW
+                    }]],
+                    data: {
+                        cashAmount,
+                        bankBalanceAmount,
+                    }
+                }, {
+                    title: "Investment",
+                    fields: [[{
+                        label: "Cash",
+                        dataField: "cashAmount",
+                        type: EFormFieldType.NUMBER,
+                        isReadOnly: true,
+                        buttonPath: undefined
+                    }], [{
+                        label: "Investment",
+                        dataField: "investment",
+                        type: EFormFieldType.NUMBER,
+                        isReadOnly: true,
+                        buttonPath: undefined
+                    }], [{
+                        label: "Maturity",
+                        dataField: "maturity",
+                        type: EFormFieldType.NUMBER,
+                        isReadOnly: true,
+                        buttonPath: undefined
+                    }], [{
+                        label: "Amount",
+                        dataField: "amount",
+                        type: EFormFieldType.NUMBER,
+                        isReadOnly: false,
+                        buttonPath: undefined
+                    }], [{
+                        label: "Invest",
+                        dataField: undefined,
+                        type: EFormFieldType.BUTTON,
+                        isReadOnly: false,
+                        buttonPath: EPlanetFormActions.INVEST
+                    }], [{
+                        label: "Return",
+                        dataField: undefined,
+                        type: EFormFieldType.BUTTON,
+                        isReadOnly: false,
+                        buttonPath: EPlanetFormActions.RETURN
+                    }]],
+                    data: {
+                        cashAmount,
+                        investment,
+                        maturity,
+                    }
+                }];
+            } else {
+                return [{
+                    title: "Port of " + this.name,
+                    fields: [[{
+                        label: "Enter",
+                        dataField: undefined,
+                        type: EFormFieldType.BUTTON,
+                        isReadOnly: false,
+                        buttonPath: EPlanetFormActions.ENTER_PORT
+                    }]],
+                    data: {}
+                }];
+            }
+        }
+        return [];
+    }
+
+    public handleTradeScreenRequestsForPlayer(playerId: string, request: IFormRequest) {
+        const {
+            playerData,
+            playerShip,
+            cashAmount,
+            repairAmount,
+            bankBalanceAmount,
+            maturity
+        } = this.getTradeScreenVariablesForPlayer(playerId);
+
+        switch (request.buttonPath as EPlanetFormActions) {
+            case EPlanetFormActions.ENTER_PORT: {
+                const playerTradeScreen = this.tradeScreens.get(playerId);
+                if (playerTradeScreen) {
+                    playerTradeScreen.isTrading = true;
+                }
+                break;
+            }
+            case EPlanetFormActions.REPAIR: {
+                const amount = Math.min(cashAmount, repairAmount);
+                if (playerData && playerShip) {
+                    playerData.moneyAccount.makePayment(this.moneyAccount.cash, [{ currencyId: "GOLD", amount }]);
+                    playerShip.health += amount;
+                }
+                break;
+            }
+            case EPlanetFormActions.DEPOSIT: {
+                const amount = Math.min(cashAmount, request.data.amount);
+                if (playerData) {
+                    this.depositBank(playerId, playerData.moneyAccount, {currencyId: "GOLD", amount});
+                }
+                break;
+            }
+            case EPlanetFormActions.WITHDRAW: {
+                const amount = Math.min(bankBalanceAmount, request.data.amount);
+                if (playerData) {
+                    this.withdrawBank(playerId, playerData.moneyAccount, {currencyId: "GOLD", amount});
+                }
+                break;
+            }
+            case EPlanetFormActions.INVEST: {
+                const amount = Math.min(cashAmount, request.data.amount);
+                if (playerData) {
+                    this.depositInvestment(playerId, playerData.moneyAccount, {currencyId: "GOLD", amount});
+                }
+                break;
+            }
+            case EPlanetFormActions.RETURN: {
+                const amount = Math.min(maturity, request.data.amount);
+                if (playerData) {
+                    this.withdrawInvestment(playerId, playerData.moneyAccount, {currencyId: "GOLD", amount});
+                }
+                break;
+            }
         }
     }
 
