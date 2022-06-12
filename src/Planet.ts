@@ -1884,6 +1884,7 @@ export class Planet implements ICameraState {
                 }
                 const takeAmount = Math.min(lot.matureAmount, paymentAmount);
                 lot.matureAmount -= takeAmount;
+                lot.amount -= takeAmount;
                 paymentAmount -= takeAmount;
                 if (paymentAmount === 0) {
                     break;
