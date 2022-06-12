@@ -162,6 +162,7 @@ export interface IBankAccount {
 export interface IInvestmentAccountLot {
     amount: number;
     ticksRemaining: number;
+    maturityTicks: number;
     matureAmount: number;
 }
 
@@ -1864,8 +1865,9 @@ export class Planet implements ICameraState {
         }
         this.investmentAccounts.get(playerId).lots.push({
             amount: payment.amount,
-            matureAmount: Math.ceil(payment.amount * 1.1),
-            ticksRemaining: 10 * 60 * 10
+            matureAmount: payment.amount,
+            ticksRemaining: 10 * 60 * 10,
+            maturityTicks: 10 * 60 * 10,
         });
     }
 
@@ -1884,7 +1886,7 @@ export class Planet implements ICameraState {
                 }
                 const takeAmount = Math.min(lot.matureAmount, paymentAmount);
                 lot.matureAmount -= takeAmount;
-                lot.amount -= takeAmount;
+                lot.amount -= Math.min(lot.amount, takeAmount);
                 paymentAmount -= takeAmount;
                 if (paymentAmount === 0) {
                     break;
@@ -1990,6 +1992,11 @@ export class Planet implements ICameraState {
             for (const lot of value.lots) {
                 if (lot.ticksRemaining > 0) {
                     lot.ticksRemaining -= 1;
+                }
+                lot.maturityTicks -= 1;
+                if (lot.maturityTicks <= 0) {
+                    lot.maturityTicks = 10 * 60 * 10;
+                    lot.matureAmount += Math.ceil(lot.amount * 1.1);
                 }
             }
         }
