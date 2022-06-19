@@ -273,6 +273,48 @@ export class Ship implements IAutomatedShip {
                     this.app.scoreBoard.damage.sort((a, b) => b.damage - a.damage);
                 }
 
+                const nearestPlanet = this.app.voronoiTerrain.getNearestPlanet(this.position.rotateVector([0, 0, 1]));
+                if (nearestPlanet) {
+                    const invasion = this.app.invasions.get(nearestPlanet.id);
+                    if (invasion) {
+                        if (invasion.attacking === this.faction) {
+                            const invasionItem = invasion.attackerScores.find(i => i.playerId === playerData.id);
+                            if (invasionItem) {
+                                invasionItem.damage += cannonBall.damage;
+                            } else {
+                                invasion.attackerScores.push({
+                                    playerId: playerData.id,
+                                    name: playerData.name,
+                                    capture: 0,
+                                    damage: cannonBall.damage
+                                });
+                            }
+                            invasion.attackerScores.sort((a, b) => {
+                                const captureDiff = b.capture - a.capture;
+                                if (captureDiff) {
+                                    return captureDiff;
+                                }
+                                return b.damage - a.damage;
+                            });
+                        }
+                        if (invasion.defending === this.faction) {
+                            const invasionItem = invasion.defenderScores.find(i => i.playerId === playerData.id);
+                            if (invasionItem) {
+                                invasionItem.damage += cannonBall.damage;
+                            } else {
+                                invasion.defenderScores.push({
+                                    playerId: playerData.id,
+                                    name: playerData.name,
+                                    damage: cannonBall.damage
+                                });
+                            }
+                            invasion.defenderScores.sort((a, b) => {
+                                return b.damage - a.damage;
+                            });
+                        }
+                    }
+                }
+
                 this.app.soundEvents.push({
                     shipId: this.id,
                     soundType: ESoundType.HIT,

@@ -19,8 +19,10 @@ import {
     IDirectedMarketTrade,
     IExpirableTicks,
     IFetchOrderResultShardMessage,
-    IFetchOrderShardMessage, IFormCard,
-    IFormEmitter, IFormRequest,
+    IFetchOrderShardMessage,
+    IFormCard,
+    IFormEmitter,
+    IFormRequest,
     IFormResult,
     IGlobalStateShardMessage,
     IInvestDepositShardMessage,
@@ -385,6 +387,25 @@ export class Game {
      * THe number of seconds between each trade tick.
      */
     public static TRADE_TICK_COOL_DOWN: number = 10 * 60 * 10;
+
+    public addFormEmitter(playerId: string, formEmitter: IFormEmitter): void {
+        if (!this.formEmitters.has(playerId)) {
+            this.formEmitters.set(playerId, []);
+        }
+        if (!this.formEmitters.get(playerId)!.some(x => x.type === formEmitter.type && x.id === formEmitter.id)) {
+            this.formEmitters.get(playerId)!.push(formEmitter);
+        }
+    }
+
+    public removeFormEmitter(playerId: string, formEmitter: IFormEmitter): void {
+        if (!this.formEmitters.has(playerId)) {
+            this.formEmitters.set(playerId, []);
+        }
+        const index = this.formEmitters.get(playerId)!.findIndex(x => x.type === formEmitter.type && x.id === formEmitter.id);
+        if (index >= 0) {
+            this.formEmitters.get(playerId)!.splice(index, 1);
+        }
+    }
 
     /**
      * Get the initial game load for multiplayer purposes.
@@ -3223,7 +3244,7 @@ export class Game {
         const cards: IFormCard[] = [];
 
         if (this.formEmitters.has(playerId)) {
-            for (const formEmitter of this.formEmitters.get(playerId)!) {
+            for (const formEmitter of [...this.formEmitters.get(playerId)!]) {
                 switch (formEmitter.type) {
                     case EFormEmitterType.PLANET: {
                         const planet = this.planets.get(formEmitter.id);
@@ -3231,6 +3252,17 @@ export class Game {
                             cards.push(...planet.getTradeScreenForPlayer(playerId));
                         }
                         break;
+                    }
+                    case EFormEmitterType.INVASION: {
+                        const invasion = this.invasions.get(formEmitter.id);
+                        if (invasion) {
+                            cards.push(...invasion.getInvasionResultForPlayer(playerId));
+                        } else {
+                            const index = this.formEmitters.get(playerId)!.indexOf(formEmitter);
+                            if (index >= 0) {
+                                this.formEmitters.get(playerId)!.splice(index, 1);
+                            }
+                        }
                     }
                 }
             }

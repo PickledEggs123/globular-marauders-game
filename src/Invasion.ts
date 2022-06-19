@@ -1,6 +1,7 @@
 import {Faction, ISerializedFaction} from "./Faction";
 import {EFaction} from "./EFaction";
 import {Game} from "./Game";
+import {IFormCard} from "./Interface";
 
 export enum EInvasionPhase {
     PLANNING = "PLANNING",
@@ -17,6 +18,20 @@ export enum EInvasionCaptureState {
     LIBERATING = "LIBERATING",
 }
 
+export interface IInvasionAttackerScore {
+    playerId: string;
+    name: string;
+    capture: number;
+    damage: number;
+}
+
+export interface IInvasionDefenderScore {
+    playerId: string;
+    name: string;
+    damage: number;
+}
+
+
 export interface ISerializedInvasion {
     id: string;
     attacking: EFaction;
@@ -31,6 +46,9 @@ export interface ISerializedInvasion {
     invasionPhase: EInvasionPhase;
     overtime: boolean;
     planetSpawnAllowed: boolean;
+    attackerScores: IInvasionAttackerScore[];
+    defenderScores: IInvasionDefenderScore[];
+    captureDoneTick: number;
 }
 
 export class Invasion {
@@ -48,6 +66,9 @@ export class Invasion {
     public invasionPhase: EInvasionPhase = EInvasionPhase.PLANNING;
     public overtime: boolean = false;
     public planetSpawnAllowed: boolean = true;
+    public attackerScores: IInvasionAttackerScore[] = [];
+    public defenderScores: IInvasionDefenderScore[] = [];
+    public captureDoneTick: number = -10;
 
     public constructor(instance: Game, attacking: Faction, defending: Faction, planetId: string) {
         this.instance = instance;
@@ -150,6 +171,25 @@ export class Invasion {
                         });
                     }
                     this.instance.scoreBoard.capture.sort((a, b) => b.count - a.count);
+
+                    const invasionItem = this.attackerScores.find(i => i.playerId === playerData.id);
+                    if (invasionItem) {
+                        invasionItem.capture += numPoints;
+                    } else {
+                        this.attackerScores.push({
+                            playerId: playerData.id,
+                            name: playerData.name,
+                            capture: numPoints,
+                            damage: 0
+                        });
+                    }
+                    this.attackerScores.sort((a, b) => {
+                        const captureDiff = b.capture - a.capture;
+                        if (captureDiff) {
+                            return captureDiff;
+                        }
+                        return b.damage - a.damage;
+                    });
                 }
             }
         }
@@ -201,9 +241,88 @@ export class Invasion {
             }
             case EInvasionPhase.CAPTURED:
             case EInvasionPhase.REPELLED: {
+                this.captureDoneTick += 1;
                 break;
             }
         }
+    }
+
+    public getRewardMoney(index: number, success: boolean): number {
+        let rewardMoney = 1000;
+        if (index === 0) {
+            rewardMoney = 10000;
+        } else if (index === 1) {
+            rewardMoney = 8000;
+        } else if (index === 2) {
+            rewardMoney = 5000;
+        } else if (index === 3) {
+            rewardMoney = 3000;
+        } else if (index === 4) {
+            rewardMoney = 2000;
+        }
+        if (!success) {
+            rewardMoney *= 0.5;
+        }
+        return rewardMoney;
+    }
+
+    public getInvasionResultForPlayer(playerId: string): IFormCard[] {
+        const playerData = this.instance.playerData.get(playerId);
+        if (!playerData) {
+            return [];
+        }
+        const faction = this.instance.factions.get(playerData.factionId);
+        if (!faction) {
+            return [];
+        }
+
+        const cards: IFormCard[] = [];
+        if (this.attacking === faction) {
+            const index = this.attackerScores.findIndex(x => x.playerId === playerId);
+            if (this.invasionPhase === EInvasionPhase.CAPTURED) {
+                const rewardMoney = this.getRewardMoney(index, true);
+                if (index === 0) {
+                    cards.push({
+                        title: "You were given feudal ownership of the planet for your success",
+                        fields: [],
+                        data: {}
+                    });
+                }
+                cards.push({
+                    title: "You were given " + rewardMoney + " Gold for your successful attack",
+                    fields: [],
+                    data: {}
+                });
+            }
+            if (this.invasionPhase === EInvasionPhase.REPELLED) {
+                const rewardMoney = this.getRewardMoney(index, false);
+                cards.push({
+                    title: "You were given " + rewardMoney + " Gold for your failed attack",
+                    fields: [],
+                    data: {}
+                });
+            }
+        }
+        if (this.defending === faction) {
+            const index = this.defenderScores.findIndex(x => x.playerId === playerId);
+            if (this.invasionPhase === EInvasionPhase.CAPTURED) {
+                const rewardMoney = this.getRewardMoney(index, false);
+                cards.push({
+                    title: "You were given " + rewardMoney + " Gold for your failed defense",
+                    fields: [],
+                    data: {}
+                });
+            }
+            if (this.invasionPhase === EInvasionPhase.REPELLED) {
+                const rewardMoney = this.getRewardMoney(index, true);
+                cards.push({
+                    title: "You were given " + rewardMoney + " Gold for your successful defense",
+                    fields: [],
+                    data: {}
+                });
+            }
+        }
+        return cards;
     }
 
     public serialize(): ISerializedInvasion {
@@ -221,6 +340,9 @@ export class Invasion {
             invasionPhase: this.invasionPhase,
             overtime: this.overtime,
             planetSpawnAllowed: this.planetSpawnAllowed,
+            attackerScores: this.attackerScores,
+            defenderScores: this.defenderScores,
+            captureDoneTick: this.captureDoneTick,
         };
     }
 
@@ -238,6 +360,9 @@ export class Invasion {
         this.invasionPhase = data.invasionPhase;
         this.overtime = data.overtime;
         this.planetSpawnAllowed = data.planetSpawnAllowed;
+        this.attackerScores = data.attackerScores;
+        this.defenderScores = data.defenderScores;
+        this.captureDoneTick = data.captureDoneTick;
     }
 
     public static deserialize(game: Game, data: ISerializedInvasion) {

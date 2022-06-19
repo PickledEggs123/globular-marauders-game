@@ -1897,6 +1897,71 @@ export class Planet implements ICameraState {
         }
     }
 
+    public rewardAttackers(invasionEvent: Invasion, success: boolean) {
+        const bestAttackers = invasionEvent.attackerScores;
+        for (const attackerItem of bestAttackers) {
+            const index = bestAttackers.indexOf(attackerItem);
+            const rewardMoney = invasionEvent.getRewardMoney(index, success);
+
+            const playerData = this.instance.playerData.get(attackerItem.playerId);
+            if (playerData) {
+                const ship = this.instance.ships.get(playerData.shipId);
+                if (ship) {
+                    const payment = {currencyId: "GOLD", amount: rewardMoney};
+                    ship.moneyAccount.addMoney(payment);
+                    playerData.moneyAccount.addMoney(payment);
+                    this.instance.soundEvents.push({
+                        shipId: ship.id,
+                        soundType: ESoundType.MONEY,
+                        soundEventType: ESoundEventType.ONE_OFF
+                    });
+
+                    this.instance.addFormEmitter(playerData.id, {type: EFormEmitterType.INVASION, id: invasionEvent.planetId})
+                }
+
+                if (index === 0 && success) {
+                    const faction = this.instance.factions.get(playerData.factionId);
+                    if (faction) {
+                        faction.factionPlanetRoster.push({
+                            factionId: faction.id,
+                            kingdomId: this.county.duchy.kingdom.capital.capital.capital.id,
+                            duchyId: this.county.duchy.capital.capital.id,
+                            countyId: this.county.capital.id,
+                            playerId: playerData.id,
+                        });
+                        this.instance.soundEvents.push({
+                            shipId: ship.id,
+                            soundType: ESoundType.LAND,
+                            soundEventType: ESoundEventType.ONE_OFF
+                        });
+                    }
+                }
+            }
+        }
+    }
+    public rewardDefenders(invasionEvent: Invasion, success: boolean) {
+        const bestDefenders = invasionEvent.defenderScores;
+        for (const bestDefender of bestDefenders) {
+            const index = bestDefenders.indexOf(bestDefender);
+            const rewardMoney = invasionEvent.getRewardMoney(index, success);
+
+            const playerData = this.instance.playerData.get(bestDefender.playerId);
+            if (playerData) {
+                const ship = this.instance.ships.get(playerData.shipId);
+                if (ship) {
+                    const payment = {currencyId: "GOLD", amount: rewardMoney};
+                    ship.moneyAccount.addMoney(payment);
+                    playerData.moneyAccount.addMoney(payment);
+                    this.instance.soundEvents.push({
+                        shipId: ship.id,
+                        soundType: ESoundType.MONEY,
+                        soundEventType: ESoundEventType.ONE_OFF
+                    });
+                }
+            }
+        }
+    }
+
     public handlePlanetLoop() {
         if (this.settlementLevel < ESettlementLevel.OUTPOST) {
             // planets smaller than colonies do nothing
@@ -2044,21 +2109,35 @@ export class Planet implements ICameraState {
                     break;
                 }
                 case EInvasionPhase.CAPTURED: {
-                    // give rewards
-                    for (const shipId of [...this.shipIds]) {
-                        const ship = this.instance.ships.get(shipId);
-                        if (ship) {
-                            // to lazy to make ships free ships, I'll self-destruct them on failure instead.
-                            ship.health = 0;
+                    if (invasionEvent.captureDoneTick === 0) {
+                        // give rewards
+                        for (const shipId of [...this.shipIds]) {
+                            const ship = this.instance.ships.get(shipId);
+                            if (ship) {
+                                // to lazy to make ships free ships, I'll self-destruct them on failure instead.
+                                ship.health = 0;
+                            }
                         }
+
+                        this.claim(invasionEvent.attacking, true, null);
+
+                        this.rewardAttackers(invasionEvent, true);
+                        this.rewardDefenders(invasionEvent, false);
                     }
-                    this.claim(invasionEvent.attacking, true, null);
-                    this.instance.invasions.delete(this.id);
+                    if (invasionEvent.captureDoneTick === 100) {
+                        this.instance.invasions.delete(this.id);
+                    }
                     break;
                 }
                 case EInvasionPhase.REPELLED: {
                     // remove invasion
-                    this.instance.invasions.delete(this.id);
+                    if (invasionEvent.captureDoneTick === 0) {
+                        this.rewardAttackers(invasionEvent, false);
+                        this.rewardDefenders(invasionEvent, true);
+                    }
+                    if (invasionEvent.captureDoneTick === 100) {
+                        this.instance.invasions.delete(this.id);
+                    }
                     break;
                 }
             }
@@ -2075,11 +2154,11 @@ export class Planet implements ICameraState {
             const hasTradeScreen = this.tradeScreens.has(playerId);
             if (canTrade && !hasTradeScreen) {
                 this.tradeScreens.set(playerId, {isTrading: false});
-                this.instance.formEmitters.set(playerId, [{type: EFormEmitterType.PLANET, id: this.id}]);
+                this.instance.addFormEmitter(playerId, {type: EFormEmitterType.PLANET, id: this.id});
             }
             if (!canTrade && hasTradeScreen) {
                 this.tradeScreens.delete(playerId);
-                this.instance.formEmitters.delete(playerId);
+                this.instance.removeFormEmitter(playerId, {type: EFormEmitterType.PLANET, id: this.id});
             }
         };
         for (const ship of this.county.ships) {
