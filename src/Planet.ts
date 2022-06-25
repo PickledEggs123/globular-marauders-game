@@ -2015,7 +2015,7 @@ export class Planet implements ICameraState {
             (this.getRoyalRank() === ERoyalRank.EMPEROR ? true : this.shipIds.length < 3) &&
             this.county.faction &&
             this.getNumShipsAvailable(nextShipTypeToBuild) > 1 &&
-            this.county.faction.shipIds.length < Faction.MAX_SHIPS &&
+            this.county.faction.shipIds.length < this.county.faction.maxShips &&
             this.moneyAccount &&
             this.moneyAccount.cash.hasEnough(this.shipyard.quoteShip(nextShipTypeToBuild, true)) &&
             this.instance.spawnAiShips &&

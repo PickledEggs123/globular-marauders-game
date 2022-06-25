@@ -789,7 +789,7 @@ export class Game {
         };
     }
 
-    public initializeGame() {
+    public initializeGame(maxShips: number = 200) {
         // initialize 3d terrain stuff
         this.voronoiTerrain.generateTerrain();
 
@@ -868,6 +868,7 @@ export class Game {
                 throw new Error("Could not find planet to make faction");
             }
             const faction = new Faction(this, factionData.id, factionData.color, planetId);
+            faction.maxShips = maxShips;
             this.factions.set(factionData.id, faction);
             const planet = this.planets.get(planetId);
             if (planet) {

@@ -132,6 +132,7 @@ export interface ISerializedFaction {
     shipIds: string[];
     shipsAvailable: Record<EShipType, number>;
     bounties: IFactionBounty[];
+    maxShips: number;
 }
 
 /**
@@ -186,6 +187,7 @@ export class Faction {
         [EShipType.FRIGATE]: 0,
         [EShipType.GALLEON]: 0,
     };
+    public maxShips: number = 200;
 
     public bounties: IFactionBounty[] = [];
 
@@ -200,6 +202,7 @@ export class Faction {
             shipIds: this.shipIds,
             shipsAvailable: this.shipsAvailable,
             bounties: this.bounties,
+            maxShips: this.maxShips,
         };
     }
 
@@ -213,6 +216,7 @@ export class Faction {
         this.shipIds = [...data.shipIds];
         this.shipsAvailable = {...data.shipsAvailable};
         this.bounties = [...data.bounties];
+        this.maxShips = data.maxShips;
     }
 
     public static deserialize(game: Game, data: ISerializedFaction): Faction {
@@ -226,8 +230,6 @@ export class Faction {
      * @private
      */
     private shipIdAutoIncrement: number = 0;
-
-    public static MAX_SHIPS: number = 200;
 
     public getShipAutoIncrement(): number {
         return this.shipIdAutoIncrement++;
