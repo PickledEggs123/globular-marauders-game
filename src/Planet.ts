@@ -1546,8 +1546,9 @@ export class Planet implements ICameraState {
      * @param resourceType The resource type affects the buff.
      * @param planetId The source world of the goods.
      * @param amount The amount multiplier of the resource.
+     * @param isPirated The goods were pirated.
      */
-    public applyLuxuryBuff(account: MoneyAccount, resourceType: EResourceType, planetId: string, amount: number) {
+    public applyLuxuryBuff(account: MoneyAccount, resourceType: EResourceType, planetId: string, amount: number, isPirated: boolean) {
         // update luxury buff
         const oldLuxuryBuff = this.luxuryBuffs.find(l => l.matches(resourceType, planetId));
         let percentReplenished = 1;
@@ -1565,10 +1566,12 @@ export class Planet implements ICameraState {
             // pay merchant
             const goldAmount = Math.floor(this.moneyAccount.computePriceForResourceType(resourceType) * amount * percentReplenished);
             const payment: ICurrency[] = [{
-                currencyId: "GOLD",
+                currencyId: "GOLD", // OK
                 amount: goldAmount,
             }];
-            this.moneyAccount.cash.makePayment(account, payment);
+            const moneyAccount = new MoneyAccount(goldAmount);
+            PlanetaryMoneyAccount.MakePaymentWithTaxes(moneyAccount, this.moneyAccount, payment, this.feudalGovernment.feudalObligationRatio); // pay government
+            PlanetaryMoneyAccount.PayBonusFromBalance(account, this.moneyAccount, payment, isPirated ? 1 / 50 : 1 / 100); // sell goods bonus 1% of government balance
         }
     }
 
@@ -1910,6 +1913,7 @@ export class Planet implements ICameraState {
                     const payment = {currencyId: "GOLD", amount: rewardMoney};
                     ship.moneyAccount.addMoney(payment);
                     playerData.moneyAccount.addMoney(payment);
+                    PlanetaryMoneyAccount.PayBonusFromBalance(playerData.moneyAccount, ship.planet.moneyAccount, [payment], 1 / 10 / bestAttackers.length);
                     this.instance.soundEvents.push({
                         shipId: ship.id,
                         soundType: ESoundType.MONEY,
@@ -1952,6 +1956,7 @@ export class Planet implements ICameraState {
                     const payment = {currencyId: "GOLD", amount: rewardMoney};
                     ship.moneyAccount.addMoney(payment);
                     playerData.moneyAccount.addMoney(payment);
+                    PlanetaryMoneyAccount.PayBonusFromBalance(playerData.moneyAccount, ship.planet.moneyAccount, [payment], 1 / 10 / bestDefenders.length);
                     this.instance.soundEvents.push({
                         shipId: ship.id,
                         soundType: ESoundType.MONEY,
@@ -2146,6 +2151,12 @@ export class Planet implements ICameraState {
         // handle resource economy
         if (this.moneyAccount) {
             this.moneyAccount.handlePlanetaryEconomy();
+        }
+
+        // handle feudal lord taxes
+        if (this.numTicks % 600 === 0) {
+            const payment = this.moneyAccount.taxes.currencies.filter(x => ({...x}));
+            this.moneyAccount.taxes.makePayment(this.getLordWorld().moneyAccount.cash, payment);
         }
 
         // handle player forms
@@ -2382,7 +2393,7 @@ export class Planet implements ICameraState {
             case EPlanetFormActions.REPAIR: {
                 const amount = Math.min(cashAmount, repairAmount);
                 if (playerData && playerShip) {
-                    playerData.moneyAccount.makePayment(this.moneyAccount.cash, [{ currencyId: "GOLD", amount }]);
+                    PlanetaryMoneyAccount.MakePaymentWithTaxes(playerData.moneyAccount, this.moneyAccount, [{ currencyId: "GOLD", amount }], this.feudalGovernment.feudalObligationRatio); // repairs
                     playerShip.health += amount;
                 }
                 break;
@@ -2390,14 +2401,14 @@ export class Planet implements ICameraState {
             case EPlanetFormActions.DEPOSIT: {
                 const amount = Math.min(cashAmount, request.data.amount);
                 if (playerData) {
-                    this.depositBank(playerId, playerData.moneyAccount, {currencyId: "GOLD", amount});
+                    this.depositBank(playerId, playerData.moneyAccount, {currencyId: "GOLD", amount}); // OK
                 }
                 break;
             }
             case EPlanetFormActions.WITHDRAW: {
                 const amount = Math.min(bankBalanceAmount, request.data.amount);
                 if (playerData) {
-                    this.withdrawBank(playerId, playerData.moneyAccount, {currencyId: "GOLD", amount});
+                    this.withdrawBank(playerId, playerData.moneyAccount, {currencyId: "GOLD", amount}); // OK
                 }
                 break;
             }
@@ -2407,14 +2418,14 @@ export class Planet implements ICameraState {
                     break;
                 }
                 if (playerData) {
-                    this.depositInvestment(playerId, playerData.moneyAccount, {currencyId: "GOLD", amount});
+                    this.depositInvestment(playerId, playerData.moneyAccount, {currencyId: "GOLD", amount}); // OK
                 }
                 break;
             }
             case EPlanetFormActions.RETURN: {
                 const amount = Math.min(maturity, request.data.amount);
                 if (playerData) {
-                    this.withdrawInvestment(playerId, playerData.moneyAccount, {currencyId: "GOLD", amount});
+                    this.withdrawInvestment(playerId, playerData.moneyAccount, {currencyId: "GOLD", amount}); // OK
                 }
                 break;
             }
@@ -2494,7 +2505,8 @@ export class Planet implements ICameraState {
         ship.moneyAccount.addMoney(payment);
         const playerData = Array.from(this.instance.playerData.values()).find(x => x.shipId == ship.id);
         if (playerData) {
-            playerData.moneyAccount.addMoney(payment)
+            playerData.moneyAccount.addMoney(payment);
+            PlanetaryMoneyAccount.PayBonusFromBalance(playerData.moneyAccount, ship.planet.moneyAccount, [payment], 1 / 100);
         }
         this.instance.soundEvents.push({
             shipId: ship.id,
@@ -2620,7 +2632,7 @@ export class Planet implements ICameraState {
         for (const goodToTake of goodsToTake) {
             const boughtGood = ship.buyGoodFromShip(goodToTake);
             if (boughtGood && this.moneyAccount) {
-                this.applyLuxuryBuff(this.moneyAccount.cash, goodToTake, boughtGood.sourcePlanetId, boughtGood.amount);
+                this.applyLuxuryBuff(this.moneyAccount.cash, goodToTake, boughtGood.sourcePlanetId, boughtGood.amount, boughtGood.pirated);
 
                 // score loot
                 const playerData = Array.from(this.instance.playerData.values()).find(p => p.shipId === ship.id);
@@ -2651,7 +2663,7 @@ export class Planet implements ICameraState {
 
                     const payment = {currencyId: "GOLD", amount: 1000};
                     ship.moneyAccount.addMoney(payment);
-                    playerData.moneyAccount.addMoney(payment)
+                    playerData.moneyAccount.addMoney(payment);
 
                     this.instance.soundEvents.push({
                         shipId: ship.id,

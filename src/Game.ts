@@ -1831,7 +1831,7 @@ export class Game {
                                     continue;
                                 }
 
-                                const payment = {currencyId: "GOLD", amount};
+                                const payment = {currencyId: "GOLD", amount}; // OK
                                 if (planet && player && player.moneyAccount.hasEnough([payment])) {
                                     planet.depositInvestment(playerId, player.moneyAccount, payment);
                                 }

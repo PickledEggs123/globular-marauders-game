@@ -361,7 +361,7 @@ export class Shipyard extends Building {
         if (!this.planet.moneyAccount) {
             throw new Error("Shipyard building ships without money account");
         }
-        PlanetaryMoneyAccount.MakePaymentWithTaxes(account, this.planet.moneyAccount, shipPrice, 0.5);
+        PlanetaryMoneyAccount.MakePaymentWithTaxes(account, this.planet.moneyAccount, shipPrice, 0.5); // buy ship
 
         // spawn the ship
         const doneDockIndex = this.docks.findIndex(d => d.isDone() && d.shipType === shipType);
@@ -394,7 +394,7 @@ export class Shipyard extends Building {
         const price = Math.ceil(shipData.cost * (3 / (this.shipsAvailable[shipData.shipType] / this.getNumberOfDocksAtUpgradeLevel() * 10)));
         const goldAmount = Math.max(priceFloor, Math.min(price, priceCeiling));
         return [{
-            currencyId: "GOLD",
+            currencyId: "GOLD", // OK
             amount: goldAmount
         }];
     }
@@ -1194,6 +1194,23 @@ export class PlanetaryMoneyAccount {
         }, [] as ICurrency[]);
         account.makePayment(other.taxes, taxesPayment);
         account.makePayment(other.cash, profitPayment);
+    }
+
+    public static PayBonusFromBalance(account: MoneyAccount, other: PlanetaryMoneyAccount, payment: ICurrency[], bonusRatio: number) {
+        const bonusPayment = payment.reduce((acc, p) => {
+            const currencyId = p.currencyId;
+            const balance = other.cash.currencies.find(c => c.currencyId === currencyId);
+            if (balance) {
+                const balanceAmount = balance.amount;
+                const amount = Math.floor(balanceAmount * bonusRatio);
+                acc.push({
+                    currencyId,
+                    amount
+                });
+            }
+            return acc;
+        }, [] as ICurrency[]);
+        other.cash.makePayment(account, bonusPayment);
     }
 
     /**

@@ -35,7 +35,7 @@ export class MoneyAccount {
 
     constructor(startingGold: number = 0) {
         this.currencies.push({
-            currencyId: "GOLD",
+            currencyId: "GOLD", // OK
             amount: startingGold
         });
     }

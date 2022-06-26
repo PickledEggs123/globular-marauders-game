@@ -19,6 +19,7 @@ import {ESoundEventType, ESoundType, Game} from "./Game";
 import {EShipType, GetShipData} from "./ShipType";
 import {EFaction} from "./EFaction";
 import {ISerializedMoneyAccount, MoneyAccount} from "./MoneyAccount";
+import {PlanetaryMoneyAccount} from "./Building";
 
 export interface ISerializedShip {
     id: string;
@@ -356,6 +357,7 @@ export class Ship implements IAutomatedShip {
                             });
                         }
                         this.app.scoreBoard.bounty.sort((a, b) => b.bountyAmount - a.bountyAmount);
+                        PlanetaryMoneyAccount.PayBonusFromBalance(playerData.moneyAccount, this.planet.moneyAccount, [{currencyId: "GOLD", amount: playerFactionBounty.bounty}], 1 / 10);
                     }
                 }
             } else if ([EServerType.PHYSICS_NODE].includes(this.app.serverType)) {
