@@ -165,12 +165,12 @@ export const SHIP_DATA: IShipData[] = [{
     hull: GalleonHull,
     hullStrength: 1280,
     cannons: {
-        numCannons: 80,
+        numCannons: 82,
         numCannonades: 24,
-        startY: 70,
-        endY: -70,
-        leftWall: 25,
-        rightWall: -25
+        startY: 32,
+        endY: -32,
+        leftWall: 7,
+        rightWall: -7
     },
     topSpeed: 0.75,
     acceleration: 0.66,
@@ -185,10 +185,10 @@ export const SHIP_DATA: IShipData[] = [{
     cannons: {
         numCannons: 28,
         numCannonades: 8,
-        startY: 45,
-        endY: -45,
-        leftWall: 20,
-        rightWall: -20
+        startY: 32,
+        endY: -30,
+        leftWall: 5,
+        rightWall: -5
     },
     topSpeed: 0.80,
     acceleration: 0.80,
@@ -203,10 +203,10 @@ export const SHIP_DATA: IShipData[] = [{
     cannons: {
         numCannons: 24,
         numCannonades: 6,
-        startY: 40,
-        endY: -40,
-        leftWall: 18,
-        rightWall: -18
+        startY: 30,
+        endY: -30,
+        leftWall: 5,
+        rightWall: -5
     },
     topSpeed: 0.85,
     acceleration: 0.85,
@@ -221,10 +221,10 @@ export const SHIP_DATA: IShipData[] = [{
     cannons: {
         numCannons: 18,
         numCannonades: 6,
-        startY: 30,
-        endY: -30,
-        leftWall: 14,
-        rightWall: -14
+        startY: 24,
+        endY: -24,
+        leftWall: 4,
+        rightWall: -4
     },
     topSpeed: 0.88,
     acceleration: 0.88,
@@ -239,10 +239,10 @@ export const SHIP_DATA: IShipData[] = [{
     cannons: {
         numCannons: 14,
         numCannonades: 6,
-        startY: 20,
-        endY: -20,
-        leftWall: 10,
-        rightWall: -10
+        startY: 22,
+        endY: -22,
+        leftWall: 4,
+        rightWall: -4
     },
     topSpeed: 0.92,
     acceleration: 0.92,
@@ -257,10 +257,10 @@ export const SHIP_DATA: IShipData[] = [{
     cannons: {
         numCannons: 8,
         numCannonades: 4,
-        startY: 15,
-        endY: -15,
-        leftWall: 5,
-        rightWall: -5
+        startY: 16,
+        endY: -16,
+        leftWall: 3,
+        rightWall: -3
     },
     topSpeed: 0.95,
     acceleration: 0.95,
@@ -275,8 +275,8 @@ export const SHIP_DATA: IShipData[] = [{
     cannons: {
         numCannons: 4,
         numCannonades: 2,
-        startY: 10,
-        endY: -10,
+        startY: 14,
+        endY: -14,
         leftWall: 3,
         rightWall: -3
     },
