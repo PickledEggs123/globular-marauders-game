@@ -7,91 +7,91 @@ export const PHYSICS_SCALE = 1 / 1000;
  * The galleon class ship hull. This format allows rendering in graphics and computing the physics hull.
  */
 export const GalleonHull: Array<[number, number]> = [
-    [0, -90],
-    [25, -65],
-    [25, 75],
-    [15, 90],
-    [0, 75],
-    [-15, 90],
-    [-25, 75],
-    [-25, -65]
+    [0, -32],
+    [7, -26],
+    [7, 28],
+    [5, 26],
+    [0, 28],
+    [-5, 32],
+    [-7, 28],
+    [-7, -26]
 ];
 /**
  * The frigate class ship hull. This format allows rendering in graphics and computing the physics hull.
  */
 export const FrigateHull: Array<[number, number]> = [
-    [0, -60],
-    [20, -50],
-    [20, 55],
-    [10, 60],
-    [0, 55],
-    [-10, 60],
-    [-20, 55],
-    [-20, -50]
+    [0, -32],
+    [5, -26],
+    [5, 28],
+    [4, 26],
+    [0, 28],
+    [-4, 32],
+    [-5, 28],
+    [-5, -26]
 ];
 /**
  * The brig class ship hull. This format allows rendering in graphics and computing the physics hull.
  */
 export const BrigHull: Array<[number, number]> = [
-    [0, -50],
-    [18, -40],
-    [18, 45],
-    [9, 50],
-    [0, 45],
-    [-9, 50],
-    [-18, 45],
-    [-18, -40]
+    [0, -30],
+    [5, -24],
+    [5, 26],
+    [4, 24],
+    [0, 26],
+    [-4, 30],
+    [-5, 26],
+    [-5, -24]
 ];
 /**
  * The brigantine class ship hull. This format allows rendering in graphics and computing the physics hull.
  */
 export const BrigantineHull: Array<[number, number]> = [
-    [0, -40],
-    [14, -30],
-    [14, 35],
-    [7, 40],
-    [0, 35],
-    [-7, 40],
-    [-14, 35],
-    [-14, -30]
+    [0, -24],
+    [4, -20],
+    [4, 18],
+    [2, 24],
+    [0, 20],
+    [-2, 24],
+    [-4, 18],
+    [-4, -24]
 ];
 /**
  * The corvette class ship hull. This format allows rendering in graphics and computing the physics hull.
  */
 export const CorvetteHull: Array<[number, number]> = [
-    [0, -30],
-    [10, -20],
-    [10, 25],
-    [5, 30],
-    [0, 25],
-    [-5, 30],
-    [-10, 25],
-    [-10, -20]
+    [0, -22],
+    [4, -18],
+    [4, 15],
+    [2, 22],
+    [0, 18],
+    [-2, 22],
+    [-2, 15],
+    [-4, -22]
 ];
 /**
  * The hull of the sloop class ships. This format allows for rendering and physics hull computations.
  */
 export const SloopHull: Array<[number, number]> = [
-    [0, -20],
-    [5, -15],
-    [5, 20],
-    [3, 15],
-    [0, 18],
-    [-3, 15],
-    [-5, 20],
-    [-5, -15]
+    [0, -16],
+    [3, -10],
+    [3, 16],
+    [1.5, 10],
+    [0, 14],
+    [-1.5, 10],
+    [-3, 16],
+    [-3, -10]
 ];
 /**
  * The hull of the cutter class ships. This format allows for rendering and physics hull computations.
  */
 export const CutterHull: Array<[number, number]> = [
-    [0, -15],
+    [0, -14],
     [3, -10],
-    [3, 15],
+    [3, 14],
     [1.5, 10],
     [0, 12],
     [-1.5, 10],
-    [-3, 15],
+    [-3, 14],
     [-3, -10]
 ];
 
