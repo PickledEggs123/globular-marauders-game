@@ -2199,14 +2199,14 @@ export class Planet implements ICameraState {
                         newPlayerData.moneyAccount.makePayment(oldPlayerData.moneyAccount, payment)
                     }
                 }
-                if (oldPlayerData.shipId) {
+                if (oldPlayerData && oldPlayerData.shipId) {
                     this.instance.soundEvents.push({
                         shipId: oldPlayerData.shipId,
                         soundType: ESoundType.MONEY,
                         soundEventType: ESoundEventType.ONE_OFF
                     });
                 }
-                if (newPlayerData.shipId) {
+                if (newPlayerData && newPlayerData.shipId) {
                     this.instance.soundEvents.push({
                         shipId: newPlayerData.shipId,
                         soundType: ESoundType.LAND,
