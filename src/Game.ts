@@ -994,7 +994,7 @@ export class Game {
             const rotation = Quaternion.fromAxisAngle([0, 0, 1], Math.PI).pow(rotationSpeed * delta);
             const rotationDrag = cameraOrientationVelocity.pow(Game.ROTATION_DRAG * delta).inverse();
             cameraOrientationVelocity = cameraOrientationVelocity.clone().mul(rotation).mul(rotationDrag);
-            if (VoronoiGraph.angularDistanceQuaternion(cameraOrientationVelocity, 1) < Math.PI * rotationSpeed * 0.9) {
+            if (VoronoiGraph.angularDistanceQuaternion(cameraOrientationVelocity, 1) < Math.PI * rotationSpeed * 0.9 * delta) {
                 cameraOrientationVelocity = Quaternion.ONE;
             }
         }
@@ -1002,7 +1002,7 @@ export class Game {
             const rotation = Quaternion.fromAxisAngle([0, 0, 1], -Math.PI).pow(rotationSpeed * delta);
             const rotationDrag = cameraOrientationVelocity.pow(Game.ROTATION_DRAG * delta).inverse();
             cameraOrientationVelocity = cameraOrientationVelocity.clone().mul(rotation).mul(rotationDrag);
-            if (VoronoiGraph.angularDistanceQuaternion(cameraOrientationVelocity, 1) < Math.PI * rotationSpeed * 0.9) {
+            if (VoronoiGraph.angularDistanceQuaternion(cameraOrientationVelocity, 1) < Math.PI * rotationSpeed * 0.9 * delta) {
                 cameraOrientationVelocity = Quaternion.ONE;
             }
         }
@@ -1011,7 +1011,7 @@ export class Game {
             const rotation = Quaternion.fromBetweenVectors([0, 0, 1], forward).pow(velocityAcceleration / this.worldScale * delta);
             const rotationDrag = cameraPositionVelocity.pow(velocitySpeed / this.worldScale * delta).inverse();
             cameraPositionVelocity = cameraPositionVelocity.clone().mul(rotation).mul(rotationDrag);
-            if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * velocityAcceleration / this.worldScale) {
+            if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * velocityAcceleration / this.worldScale * delta) {
                 cameraPositionVelocity = Quaternion.ONE;
             }
             this.soundEvents.push({
@@ -1023,7 +1023,7 @@ export class Game {
         if (!disabledMovement && activeKeys.includes("s")) {
             const rotation = cameraPositionVelocity.clone().inverse().pow(Game.BRAKE_POWER / this.worldScale * delta);
             cameraPositionVelocity = cameraPositionVelocity.clone().mul(rotation);
-            if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * velocityAcceleration / this.worldScale) {
+            if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * velocityAcceleration / this.worldScale * delta) {
                 cameraPositionVelocity = Quaternion.ONE;
             }
             this.soundEvents.push({
@@ -1135,7 +1135,7 @@ export class Game {
             cameraPosition = cameraPosition.clone().mul(cameraPositionVelocity.clone().pow(speedFactor * delta));
         }
         if (cameraOrientationVelocity !== Quaternion.ONE) {
-            cameraOrientation = cameraOrientation.clone().mul(cameraOrientationVelocity.clone().pow(speedFactor));
+            cameraOrientation = cameraOrientation.clone().mul(cameraOrientationVelocity.clone().pow(speedFactor * delta));
         }
         if (cameraPosition !== this.ships.get(shipId).position && false) {
             const diffQuaternion = this.ships.get(shipId).position.clone().inverse().mul(cameraPosition.clone());
