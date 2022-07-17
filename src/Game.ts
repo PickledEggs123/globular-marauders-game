@@ -959,9 +959,10 @@ export class Game {
      * @param shipId id to get ship's state.
      * @param getActiveKeys Get the ship's active keys.
      * @param isAutomated If the function is called by AI, which shouldn't clear pathfinding logic.
+     * @param delta The amount to adjust ship movement based on the amount of time passed.
      * @private
      */
-    public handleShipLoop(shipId: string, getActiveKeys: () => string[], isAutomated: boolean) {
+    public handleShipLoop(shipId: string, getActiveKeys: () => string[], isAutomated: boolean, delta: number = 1) {
         let {
             id: cameraId,
             position: cameraPosition,
@@ -1121,7 +1122,7 @@ export class Game {
                 // apply a cool down to the cannonades
                 this.ships.get(shipId).cannonadeCoolDown[i] = 45;
             } else if (!disabledMovement && cannonadeCoolDown > 0) {
-                this.ships.get(shipId).cannonadeCoolDown[i] = this.ships.get(shipId).cannonadeCoolDown[i] - 1;
+                this.ships.get(shipId).cannonadeCoolDown[i] = this.ships.get(shipId).cannonadeCoolDown[i] - delta;
             }
         }
 
@@ -1131,10 +1132,10 @@ export class Game {
 
         // apply velocity
         if (cameraPositionVelocity !== Quaternion.ONE) {
-            cameraPosition = cameraPosition.clone().mul(cameraPositionVelocity.clone().pow(speedFactor));
+            cameraPosition = cameraPosition.clone().mul(cameraPositionVelocity.clone().pow(speedFactor * delta));
         }
         if (cameraOrientationVelocity !== Quaternion.ONE) {
-            cameraOrientation = cameraOrientation.clone().mul(cameraOrientationVelocity.clone().pow(speedFactor));
+            cameraOrientation = cameraOrientation.clone().mul(cameraOrientationVelocity.clone().pow(speedFactor * delta));
         }
         if (cameraPosition !== this.ships.get(shipId).position && false) {
             const diffQuaternion = this.ships.get(shipId).position.clone().inverse().mul(cameraPosition.clone());
@@ -1143,12 +1144,12 @@ export class Game {
 
         // handle cool downs
         if (cannonCoolDown > 0) {
-            cannonCoolDown -= 1;
+            cannonCoolDown -= delta;
         }
-        this.ships.get(shipId).handleHealthTick();
+        this.ships.get(shipId).handleHealthTick(delta);
 
         // handle buffs
-        this.ships.get(shipId).handleBuffTick();
+        this.ships.get(shipId).handleBuffTick(delta);
 
         this.ships.get(shipId).position = cameraPosition;
         this.ships.get(shipId).orientation = cameraOrientation;
