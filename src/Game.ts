@@ -1135,7 +1135,7 @@ export class Game {
             cameraPosition = cameraPosition.clone().mul(cameraPositionVelocity.clone().pow(speedFactor * delta));
         }
         if (cameraOrientationVelocity !== Quaternion.ONE) {
-            cameraOrientation = cameraOrientation.clone().mul(cameraOrientationVelocity.clone().pow(speedFactor * delta));
+            cameraOrientation = cameraOrientation.clone().mul(cameraOrientationVelocity.clone().pow(speedFactor));
         }
         if (cameraPosition !== this.ships.get(shipId).position && false) {
             const diffQuaternion = this.ships.get(shipId).position.clone().inverse().mul(cameraPosition.clone());
