@@ -65,6 +65,15 @@ export enum EPlanetFormActions {
     WITHDRAW = "PlanetBankingWithdraw",
     INVEST = "PlanetInvestmentInvest",
     RETURN = "PlanetInvestmentReturn",
+    OWNERSHIP_SALE = "PlanetOwnershipSale",
+    OWNERSHIP_SALE_CANCEL = "PlanetOwnershipSaleCancel",
+    OWNERSHIP_BID = "PlanetOwnershipBid",
+}
+
+export enum EPlanetOwnershipStage {
+    OWNED = "Owned",
+    BEGIN_AUCTION = "BeginAuction",
+    ACTIVE_AUCTION = "ActiveAuction",
 }
 
 export interface IResourceExported {
@@ -152,6 +161,8 @@ export interface ISerializedPlanetFull {
     investmentAccounts: [string, IInvestmentAccount][];
 
     explorationGraph: Record<string, ISerializedExplorationGraphData>;
+
+    ownershipStage: EPlanetOwnershipStage;
 }
 
 export interface IBankAccount {
@@ -253,6 +264,10 @@ export class Planet implements ICameraState {
 
     // trade screens
     public tradeScreens: Map<string, {isTrading: boolean}> = new Map<string, {isTrading: boolean}>();
+
+    public ownershipStage: EPlanetOwnershipStage = EPlanetOwnershipStage.OWNED;
+    public ownershipAuctionBid: {playerId: string, amount: number} | null = null;
+    public ownershipAuctionTick: number = 60 * 10;
 
     // real estate properties, used to manufacture stuff
     // a building which builds ships
@@ -497,6 +512,8 @@ export class Planet implements ICameraState {
                 enemyStrength: value.enemyStrength,
                 planetId: value.planet?.id,
             }})).filter(item => !!item.planetId)),
+
+            ownershipStage: this.ownershipStage,
         };
     }
 
@@ -620,6 +637,8 @@ export class Planet implements ICameraState {
             enemyStrength: value.enemyStrength,
             planet: this.instance.planets.get(value.planetId)
         }})));
+
+        this.ownershipStage = data.ownershipStage;
     }
 
     public static deserializeFull(instance: Game, county: VoronoiCounty, data: ISerializedPlanetFull): Planet {
@@ -2159,6 +2178,63 @@ export class Planet implements ICameraState {
             this.moneyAccount.taxes.makePayment(this.getLordWorld().moneyAccount.cash, payment);
         }
 
+        // handle ownership auctions
+        if (!this.ownedByPlayer() && this.ownershipStage === EPlanetOwnershipStage.OWNED) {
+            this.ownershipAuctionBid = null;
+            this.ownershipStage = EPlanetOwnershipStage.BEGIN_AUCTION;
+        }
+        if (this.ownershipStage === EPlanetOwnershipStage.ACTIVE_AUCTION) {
+            if (this.ownershipAuctionTick > 0) {
+                this.ownershipAuctionTick -= 1;
+            }
+            if (this.ownershipAuctionTick <= 0 && this.ownershipAuctionBid) {
+                // transfer money
+                const oldPlayerId = this.county.faction.factionPlanetRoster.find(r => r.countyId === this.id)?.playerId;
+                const newPlayerId = this.ownershipAuctionBid.playerId;
+                if (oldPlayerId && newPlayerId) {
+                    const oldPlayerData = this.instance.playerData.get(oldPlayerId);
+                    const newPlayerData = this.instance.playerData.get(newPlayerId);
+
+                    const payment = [{currencyId: "GOLD", amount: this.ownershipAuctionBid.amount}];
+                    if (oldPlayerData && newPlayerData) {
+                        newPlayerData.moneyAccount.makePayment(oldPlayerData.moneyAccount, payment)
+                    }
+
+                    if (oldPlayerData.shipId) {
+                        this.instance.soundEvents.push({
+                            shipId: oldPlayerData.shipId,
+                            soundType: ESoundType.MONEY,
+                            soundEventType: ESoundEventType.ONE_OFF
+                        });
+                    }
+                    if (newPlayerData.shipId) {
+                        this.instance.soundEvents.push({
+                            shipId: newPlayerData.shipId,
+                            soundType: ESoundType.LAND,
+                            soundEventType: ESoundEventType.ONE_OFF
+                        });
+                    }
+
+                    // transfer planet
+                    const oldIndex = this.county.faction.factionPlanetRoster.findIndex(r => r.countyId === this.id);
+                    if (oldIndex >= 0) {
+                        this.county.faction.factionPlanetRoster.splice(0, 1);
+                    }
+                    this.county.faction.factionPlanetRoster.push({
+                        playerId: this.ownershipAuctionBid.playerId,
+                        factionId: this.county.faction.id,
+                        countyId: this.county.capital.id,
+                        duchyId: this.county.duchy.capital.capital.id,
+                        kingdomId: this.county.duchy.kingdom.capital.capital.capital.id
+                    });
+                }
+
+                this.ownershipStage = EPlanetOwnershipStage.OWNED;
+                this.ownershipAuctionBid = null;
+                this.ownershipAuctionTick = 60 * 10;
+            }
+        }
+
         // handle player forms
         const handleTradeScreen = (playerId: string, ship: Ship) => {
             const canTrade = ship.faction === this.county.faction && VoronoiGraph.angularDistanceQuaternion(ship.positionVelocity.clone(), this.instance.worldScale) < Game.VELOCITY_STEP;
@@ -2187,6 +2263,10 @@ export class Planet implements ICameraState {
         }
     }
 
+    private ownedByPlayer(): boolean {
+        return this.county.faction.factionPlanetRoster.some(r => r.countyId === this.id && !!r.playerId);
+    }
+
     private getTradeScreenVariablesForPlayer(playerId: string) {
         const defaultValues = {
             playerData: undefined,
@@ -2197,6 +2277,7 @@ export class Planet implements ICameraState {
             investment: 0,
             maturity: 0,
             investmentMinimum: 100,
+            bidAmount: 0,
         };
 
         const playerData = this.instance.playerData.get(playerId);
@@ -2215,6 +2296,9 @@ export class Planet implements ICameraState {
         const maturity = this.investmentAccounts.get(playerId)?.lots.reduce((acc, lot) => acc + (lot.ticksRemaining === 0 ? lot.matureAmount : 0), 0) ?? 0;
         const investmentMinimum = 100;
 
+        const latestAuctionBid = this.ownershipAuctionBid;
+        const bidAmount = latestAuctionBid?.amount;
+
         return {
             playerData,
             playerShip,
@@ -2224,7 +2308,130 @@ export class Planet implements ICameraState {
             investment,
             maturity,
             investmentMinimum,
+            bidAmount,
         };
+    }
+
+    public getOwnershipCard(playerId: string, cashAmount: number, bidAmount: number): IFormCard[] {
+        const isOwner = Array.from(this.instance.factions.values()).some(f => f.factionPlanetRoster.some(r => r.countyId === this.id && r.playerId === playerId));
+        if (isOwner) {
+            switch (this.ownershipStage) {
+                case EPlanetOwnershipStage.OWNED: {
+                    return [{
+                        title: "Ownership",
+                        fields: [[{
+                            label: "Sell",
+                            dataField: undefined,
+                            type: EFormFieldType.BUTTON,
+                            isReadOnly: false,
+                            buttonPath: EPlanetFormActions.OWNERSHIP_SALE
+                        }]],
+                        data: {}
+                    }];
+                }
+                case EPlanetOwnershipStage.BEGIN_AUCTION: {
+                    return [{
+                        title: "Ownership - Begin Auction",
+                        fields: [[{
+                            label: "Cancel",
+                            dataField: undefined,
+                            type: EFormFieldType.BUTTON,
+                            isReadOnly: false,
+                            buttonPath: EPlanetFormActions.OWNERSHIP_SALE_CANCEL
+                        }]],
+                        data: {}
+                    }];
+                }
+                case EPlanetOwnershipStage.ACTIVE_AUCTION: {
+                    return [{
+                        title: "Ownership - Active Auction",
+                        fields: [[{
+                            label: "Bid Amount",
+                            dataField: undefined,
+                            type: EFormFieldType.BUTTON,
+                            isReadOnly: false,
+                            buttonPath: EPlanetFormActions.OWNERSHIP_BID
+                        }]],
+                        data: {
+                            bidAmount,
+                        }
+                    }];
+                }
+                default: {
+                    return [];
+                }
+            }
+        } else {
+            switch (this.ownershipStage) {
+                case EPlanetOwnershipStage.OWNED: {
+                    return [] as IFormCard[];
+                }
+                case EPlanetOwnershipStage.BEGIN_AUCTION: {
+                    return [{
+                        title: "Begin Auction",
+                        fields: [[{
+                            label: "Cash",
+                            dataField: "cashAmount",
+                            type: EFormFieldType.NUMBER,
+                            isReadOnly: true,
+                            buttonPath: undefined
+                        }], [{
+                            label: "Amount",
+                            dataField: "amount",
+                            type: EFormFieldType.NUMBER,
+                            isReadOnly: false,
+                            buttonPath: undefined
+                        }], [{
+                            label: "Bid",
+                            dataField: undefined,
+                            type: EFormFieldType.BUTTON,
+                            isReadOnly: false,
+                            buttonPath: EPlanetFormActions.OWNERSHIP_BID
+                        }]],
+                        data: {
+                            cashAmount,
+                        }
+                    }];
+                }
+                case EPlanetOwnershipStage.ACTIVE_AUCTION: {
+                    return [{
+                        title: "Active Auction",
+                        fields: [[{
+                            label: "Cash",
+                            dataField: "cashAmount",
+                            type: EFormFieldType.NUMBER,
+                            isReadOnly: true,
+                            buttonPath: undefined
+                        }], [{
+                            label: "Bid Amount",
+                            dataField: "bidAmount",
+                            type: EFormFieldType.NUMBER,
+                            isReadOnly: true,
+                            buttonPath: undefined
+                        }], [{
+                            label: "Amount",
+                            dataField: "amount",
+                            type: EFormFieldType.NUMBER,
+                            isReadOnly: false,
+                            buttonPath: undefined
+                        }], [{
+                            label: "Bid",
+                            dataField: undefined,
+                            type: EFormFieldType.BUTTON,
+                            isReadOnly: false,
+                            buttonPath: EPlanetFormActions.OWNERSHIP_BID
+                        }]],
+                        data: {
+                            cashAmount,
+                            bidAmount,
+                        }
+                    }];
+                }
+                default: {
+                    return [] as IFormCard[];
+                }
+            }
+        }
     }
 
     public getTradeScreenForPlayer(playerId: string): IFormCard[] {
@@ -2238,9 +2445,10 @@ export class Planet implements ICameraState {
                     investment,
                     maturity,
                     investmentMinimum,
+                    bidAmount,
                 } = this.getTradeScreenVariablesForPlayer(playerId);
 
-                return [{
+                const cards: IFormCard[] = [{
                     title: "Repair",
                     fields: [[{
                         label: "Cash",
@@ -2354,6 +2562,10 @@ export class Planet implements ICameraState {
                         investmentMinimum,
                     }
                 }];
+
+                cards.splice(0, 0, ...this.getOwnershipCard(playerId, cashAmount, bidAmount));
+
+                return cards;
             } else {
                 return [{
                     title: "Port of " + this.name,
@@ -2426,6 +2638,31 @@ export class Planet implements ICameraState {
                 const amount = Math.min(maturity, request.data.amount);
                 if (playerData) {
                     this.withdrawInvestment(playerId, playerData.moneyAccount, {currencyId: "GOLD", amount}); // OK
+                }
+                break;
+            }
+            case EPlanetFormActions.OWNERSHIP_SALE: {
+                this.ownershipAuctionBid = null;
+                this.ownershipStage = EPlanetOwnershipStage.BEGIN_AUCTION;
+                break;
+            }
+            case EPlanetFormActions.OWNERSHIP_SALE_CANCEL: {
+                this.ownershipAuctionBid = null;
+                this.ownershipStage = EPlanetOwnershipStage.OWNED;
+                break;
+            }
+            case EPlanetFormActions.OWNERSHIP_BID: {
+                const amount = Math.min(cashAmount, request.data.amount);
+
+                const firstBid = this.ownershipAuctionBid === null;
+                if (amount > 0 && (firstBid || amount > this.ownershipAuctionBid.amount))
+                this.ownershipAuctionBid = {
+                    playerId,
+                    amount
+                };
+                if (firstBid) {
+                    this.ownershipAuctionTick = 60 * 10;
+                    this.ownershipStage = EPlanetOwnershipStage.ACTIVE_AUCTION;
                 }
                 break;
             }
