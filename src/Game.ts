@@ -1122,7 +1122,7 @@ export class Game {
                 // apply a cool down to the cannonades
                 this.ships.get(shipId).cannonadeCoolDown[i] = 45;
             } else if (!disabledMovement && cannonadeCoolDown > 0) {
-                this.ships.get(shipId).cannonadeCoolDown[i] = this.ships.get(shipId).cannonadeCoolDown[i] - delta;
+                this.ships.get(shipId).cannonadeCoolDown[i] = this.ships.get(shipId).cannonadeCoolDown[i] - 1;
             }
         }
 
@@ -1144,12 +1144,12 @@ export class Game {
 
         // handle cool downs
         if (cannonCoolDown > 0) {
-            cannonCoolDown -= delta;
+            cannonCoolDown -= 1;
         }
-        this.ships.get(shipId).handleHealthTick(delta);
+        this.ships.get(shipId).handleHealthTick();
 
         // handle buffs
-        this.ships.get(shipId).handleBuffTick(delta);
+        this.ships.get(shipId).handleBuffTick();
 
         this.ships.get(shipId).position = cameraPosition;
         this.ships.get(shipId).orientation = cameraOrientation;
