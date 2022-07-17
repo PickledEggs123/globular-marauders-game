@@ -991,16 +991,16 @@ export class Game {
 
         // handle movement
         if (!(disabledMovement && !this.disabledShipsCanRotate) && activeKeys.includes("a")) {
-            const rotation = Quaternion.fromAxisAngle([0, 0, 1], Math.PI).pow(rotationSpeed);
-            const rotationDrag = cameraOrientationVelocity.pow(Game.ROTATION_DRAG).inverse();
+            const rotation = Quaternion.fromAxisAngle([0, 0, 1], Math.PI).pow(rotationSpeed * delta);
+            const rotationDrag = cameraOrientationVelocity.pow(Game.ROTATION_DRAG * delta).inverse();
             cameraOrientationVelocity = cameraOrientationVelocity.clone().mul(rotation).mul(rotationDrag);
             if (VoronoiGraph.angularDistanceQuaternion(cameraOrientationVelocity, 1) < Math.PI * rotationSpeed * 0.9) {
                 cameraOrientationVelocity = Quaternion.ONE;
             }
         }
         if (!(disabledMovement && !this.disabledShipsCanRotate) && activeKeys.includes("d")) {
-            const rotation = Quaternion.fromAxisAngle([0, 0, 1], -Math.PI).pow(rotationSpeed);
-            const rotationDrag = cameraOrientationVelocity.pow(Game.ROTATION_DRAG).inverse();
+            const rotation = Quaternion.fromAxisAngle([0, 0, 1], -Math.PI).pow(rotationSpeed * delta);
+            const rotationDrag = cameraOrientationVelocity.pow(Game.ROTATION_DRAG * delta).inverse();
             cameraOrientationVelocity = cameraOrientationVelocity.clone().mul(rotation).mul(rotationDrag);
             if (VoronoiGraph.angularDistanceQuaternion(cameraOrientationVelocity, 1) < Math.PI * rotationSpeed * 0.9) {
                 cameraOrientationVelocity = Quaternion.ONE;
@@ -1008,8 +1008,8 @@ export class Game {
         }
         if (!disabledMovement && activeKeys.includes("w")) {
             const forward = cameraOrientation.clone().rotateVector([0, 1, 0]);
-            const rotation = Quaternion.fromBetweenVectors([0, 0, 1], forward).pow(velocityAcceleration / this.worldScale);
-            const rotationDrag = cameraPositionVelocity.pow(velocitySpeed / this.worldScale).inverse();
+            const rotation = Quaternion.fromBetweenVectors([0, 0, 1], forward).pow(velocityAcceleration / this.worldScale * delta);
+            const rotationDrag = cameraPositionVelocity.pow(velocitySpeed / this.worldScale * delta).inverse();
             cameraPositionVelocity = cameraPositionVelocity.clone().mul(rotation).mul(rotationDrag);
             if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * velocityAcceleration / this.worldScale) {
                 cameraPositionVelocity = Quaternion.ONE;
@@ -1021,7 +1021,7 @@ export class Game {
             });
         }
         if (!disabledMovement && activeKeys.includes("s")) {
-            const rotation = cameraPositionVelocity.clone().inverse().pow(Game.BRAKE_POWER / this.worldScale);
+            const rotation = cameraPositionVelocity.clone().inverse().pow(Game.BRAKE_POWER / this.worldScale * delta);
             cameraPositionVelocity = cameraPositionVelocity.clone().mul(rotation);
             if (VoronoiGraph.angularDistanceQuaternion(cameraPositionVelocity, this.worldScale) < Math.PI / 2 * velocityAcceleration / this.worldScale) {
                 cameraPositionVelocity = Quaternion.ONE;
@@ -1132,10 +1132,10 @@ export class Game {
 
         // apply velocity
         if (cameraPositionVelocity !== Quaternion.ONE) {
-            cameraPosition = cameraPosition.clone().mul(cameraPositionVelocity.clone().pow(speedFactor));
+            cameraPosition = cameraPosition.clone().mul(cameraPositionVelocity.clone().pow(speedFactor * delta));
         }
         if (cameraOrientationVelocity !== Quaternion.ONE) {
-            cameraOrientation = cameraOrientation.clone().mul(cameraOrientationVelocity.clone().pow(speedFactor));
+            cameraOrientation = cameraOrientation.clone().mul(cameraOrientationVelocity.clone().pow(speedFactor * delta));
         }
         if (cameraPosition !== this.ships.get(shipId).position && false) {
             const diffQuaternion = this.ships.get(shipId).position.clone().inverse().mul(cameraPosition.clone());
