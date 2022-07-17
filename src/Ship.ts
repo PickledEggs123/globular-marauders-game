@@ -375,8 +375,9 @@ export class Ship implements IAutomatedShip {
 
     /**
      * Handle the health tick of the ship.
+     * @param delta The amount to reduce tick
      */
-    public handleHealthTick() {
+    public handleHealthTick(delta: number = 1) {
         if (this.healthTickCoolDown <= 0) {
             // apply health tick
             this.healthTickCoolDown = Game.HEALTH_TICK_COOL_DOWN;
@@ -395,13 +396,13 @@ export class Ship implements IAutomatedShip {
             }
         } else {
             // wait to apply health tick
-            this.healthTickCoolDown -= 1;
+            this.healthTickCoolDown -= delta;
         }
     }
 
-    public handleBuffTick() {
+    public handleBuffTick(delta: number = 1) {
         for (const buff of this.buffs) {
-            buff.expireTicks -= 1;
+            buff.expireTicks -= delta;
         }
         this.buffs = this.buffs.filter(b => b.expireTicks > 0);
     }
