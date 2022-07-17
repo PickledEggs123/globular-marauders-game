@@ -2191,30 +2191,29 @@ export class Planet implements ICameraState {
                 // transfer money
                 const oldPlayerId = this.county.faction.factionPlanetRoster.find(r => r.countyId === this.id)?.playerId;
                 const newPlayerId = this.ownershipAuctionBid.playerId;
-                if (oldPlayerId && newPlayerId) {
-                    const oldPlayerData = this.instance.playerData.get(oldPlayerId);
-                    const newPlayerData = this.instance.playerData.get(newPlayerId);
-
+                const oldPlayerData = oldPlayerId && this.instance.playerData.get(oldPlayerId);
+                const newPlayerData = newPlayerId && this.instance.playerData.get(newPlayerId);
+                if (oldPlayerData && newPlayerData) {
                     const payment = [{currencyId: "GOLD", amount: this.ownershipAuctionBid.amount}];
                     if (oldPlayerData && newPlayerData) {
                         newPlayerData.moneyAccount.makePayment(oldPlayerData.moneyAccount, payment)
                     }
-
-                    if (oldPlayerData.shipId) {
-                        this.instance.soundEvents.push({
-                            shipId: oldPlayerData.shipId,
-                            soundType: ESoundType.MONEY,
-                            soundEventType: ESoundEventType.ONE_OFF
-                        });
-                    }
-                    if (newPlayerData.shipId) {
-                        this.instance.soundEvents.push({
-                            shipId: newPlayerData.shipId,
-                            soundType: ESoundType.LAND,
-                            soundEventType: ESoundEventType.ONE_OFF
-                        });
-                    }
-
+                }
+                if (oldPlayerData.shipId) {
+                    this.instance.soundEvents.push({
+                        shipId: oldPlayerData.shipId,
+                        soundType: ESoundType.MONEY,
+                        soundEventType: ESoundEventType.ONE_OFF
+                    });
+                }
+                if (newPlayerData.shipId) {
+                    this.instance.soundEvents.push({
+                        shipId: newPlayerData.shipId,
+                        soundType: ESoundType.LAND,
+                        soundEventType: ESoundEventType.ONE_OFF
+                    });
+                }
+                if (newPlayerData)
                     // transfer planet
                     const oldIndex = this.county.faction.factionPlanetRoster.findIndex(r => r.countyId === this.id);
                     if (oldIndex >= 0) {
