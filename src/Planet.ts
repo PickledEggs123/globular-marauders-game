@@ -2213,7 +2213,7 @@ export class Planet implements ICameraState {
                         soundEventType: ESoundEventType.ONE_OFF
                     });
                 }
-                if (newPlayerData)
+                if (newPlayerData) {
                     // transfer planet
                     const oldIndex = this.county.faction.factionPlanetRoster.findIndex(r => r.countyId === this.id);
                     if (oldIndex >= 0) {
