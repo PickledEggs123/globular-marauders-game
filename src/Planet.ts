@@ -2606,13 +2606,13 @@ export class Planet implements ICameraState {
         if (this.ownedByPlayer() && this.ownershipAuctionResultTick > 0) {
             if (this.county.faction.factionPlanetRoster.some(r => r.countyId === this.id && r.playerId === playerId)) {
                 cards.push({
-                    title: "You won the auction for " + this.name,
+                    title: "You won the auction for " + this.name + " County",
                     fields: [],
                     data: {}
                 });
             } else {
                 cards.push({
-                    title: "You lost the auction for " + this.name,
+                    title: "You lost the auction for " + this.name + " County",
                     fields: [],
                     data: {}
                 });
