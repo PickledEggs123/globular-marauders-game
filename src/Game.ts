@@ -3255,6 +3255,26 @@ export class Game {
                         }
                         break;
                     }
+                    case EFormEmitterType.PLANET_AUCTION: {
+                        const planet = this.planets.get(formEmitter.id);
+                        if (planet) {
+                            const auctionCards = planet.getAuctionResultForPlayer(playerId);
+                            if (auctionCards.length > 0) {
+                                cards.push(...auctionCards);
+                            } else {
+                                const index = this.formEmitters.get(playerId)!.indexOf(formEmitter);
+                                if (index >= 0) {
+                                    this.formEmitters.get(playerId)!.splice(index, 1);
+                                }
+                            }
+                        } else {
+                            const index = this.formEmitters.get(playerId)!.indexOf(formEmitter);
+                            if (index >= 0) {
+                                this.formEmitters.get(playerId)!.splice(index, 1);
+                            }
+                        }
+                        break;
+                    }
                     case EFormEmitterType.INVASION: {
                         const invasion = this.invasions.get(formEmitter.id);
                         if (invasion) {

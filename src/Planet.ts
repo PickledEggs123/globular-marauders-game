@@ -266,8 +266,9 @@ export class Planet implements ICameraState {
     public tradeScreens: Map<string, {isTrading: boolean}> = new Map<string, {isTrading: boolean}>();
 
     public ownershipStage: EPlanetOwnershipStage = EPlanetOwnershipStage.OWNED;
-    public ownershipAuctionBid: {playerId: string, amount: number} | null = null;
+    public ownershipAuctionBid: {playerId: string, amount: number, playerIds: string[]} | null = null;
     public ownershipAuctionTick: number = 60 * 10;
+    public ownershipAuctionResultTick: number = 0;
 
     // real estate properties, used to manufacture stuff
     // a building which builds ships
@@ -1939,7 +1940,7 @@ export class Planet implements ICameraState {
                         soundEventType: ESoundEventType.ONE_OFF
                     });
 
-                    this.instance.addFormEmitter(playerData.id, {type: EFormEmitterType.INVASION, id: invasionEvent.planetId})
+                    this.instance.addFormEmitter(playerData.id, {type: EFormEmitterType.INVASION, id: invasionEvent.planetId});
                 }
 
                 if (index === 0 && success) {
@@ -2179,6 +2180,9 @@ export class Planet implements ICameraState {
         }
 
         // handle ownership auctions
+        if (this.ownershipAuctionResultTick > 0) {
+            this.ownershipAuctionResultTick -= 1;
+        }
         if (!this.ownedByPlayer() && this.ownershipStage === EPlanetOwnershipStage.OWNED) {
             this.ownershipAuctionBid = null;
             this.ownershipStage = EPlanetOwnershipStage.BEGIN_AUCTION;
@@ -2228,9 +2232,15 @@ export class Planet implements ICameraState {
                     });
                 }
 
+                // notify all players of the result
+                for (const playerId of this.ownershipAuctionBid.playerIds) {
+                    this.instance.addFormEmitter(playerId, {type: EFormEmitterType.PLANET_AUCTION, id: this.id});
+                }
+
                 this.ownershipStage = EPlanetOwnershipStage.OWNED;
                 this.ownershipAuctionBid = null;
                 this.ownershipAuctionTick = 60 * 10;
+                this.ownershipAuctionResultTick = 10 * 10;
             }
         }
 
@@ -2582,6 +2592,35 @@ export class Planet implements ICameraState {
         return [];
     }
 
+    public getAuctionResultForPlayer(playerId: string): IFormCard[] {
+        const playerData = this.instance.playerData.get(playerId);
+        if (!playerData) {
+            return [];
+        }
+        const faction = this.instance.factions.get(playerData.factionId);
+        if (!faction) {
+            return [];
+        }
+
+        const cards: IFormCard[] = [];
+        if (this.ownedByPlayer() && this.ownershipAuctionResultTick > 0) {
+            if (this.county.faction.factionPlanetRoster.some(r => r.countyId === this.id && r.playerId === playerId)) {
+                cards.push({
+                    title: "You won the auction for " + this.name,
+                    fields: [],
+                    data: {}
+                });
+            } else {
+                cards.push({
+                    title: "You lost the auction for " + this.name,
+                    fields: [],
+                    data: {}
+                });
+            }
+        }
+        return cards;
+    }
+
     public handleTradeScreenRequestsForPlayer(playerId: string, request: IFormRequest) {
         const {
             playerData,
@@ -2657,11 +2696,15 @@ export class Planet implements ICameraState {
                 if (amount > 0 && (firstBid || amount > this.ownershipAuctionBid.amount))
                 this.ownershipAuctionBid = {
                     playerId,
-                    amount
+                    amount,
+                    playerIds: [] as string[]
                 };
                 if (firstBid) {
                     this.ownershipAuctionTick = 60 * 10;
                     this.ownershipStage = EPlanetOwnershipStage.ACTIVE_AUCTION;
+                }
+                if (!this.ownershipAuctionBid.playerIds.includes(playerId)) {
+                    this.ownershipAuctionBid.playerIds.push(playerId);
                 }
                 break;
             }
