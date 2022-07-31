@@ -45,6 +45,7 @@ export interface ISerializedShip {
     repairTicks: number[];
     healthTickCoolDown: number;
     moneyAccount: ISerializedMoneyAccount;
+    voronoiIndices: number[];
 }
 
 export class Ship implements IAutomatedShip {
@@ -73,6 +74,7 @@ export class Ship implements IAutomatedShip {
     public repairTicks: number[] = new Array(Game.NUM_REPAIR_TICKS).fill(0);
     public healthTickCoolDown = Game.HEALTH_TICK_COOL_DOWN;
     public moneyAccount: MoneyAccount = new MoneyAccount();
+    public voronoiIndices: number[] = [] as number[];
 
     public serialize(): ISerializedShip {
         return {
@@ -98,7 +100,8 @@ export class Ship implements IAutomatedShip {
             burnTicks: this.burnTicks,
             repairTicks: this.repairTicks,
             healthTickCoolDown: this.healthTickCoolDown,
-            moneyAccount: this.moneyAccount.serialize()
+            moneyAccount: this.moneyAccount.serialize(),
+            voronoiIndices: this.voronoiIndices,
         };
     }
 
@@ -127,6 +130,7 @@ export class Ship implements IAutomatedShip {
         this.repairTicks = data.repairTicks;
         this.healthTickCoolDown = data.healthTickCoolDown;
         this.moneyAccount.deserializeUpdate(data.moneyAccount);
+        this.voronoiIndices = data.voronoiIndices;
     }
 
     public static deserialize(game: Game, data: ISerializedShip): Ship {

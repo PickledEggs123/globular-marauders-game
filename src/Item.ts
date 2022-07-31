@@ -54,6 +54,7 @@ export interface ISerializedCrate {
     maxLife: number;
     life: number;
     factionId: EFaction | null;
+    voronoiIndices: number[];
 }
 
 export class Crate implements ICameraState, ICargoItem, IExpirableTicks, ICollidable {
@@ -71,6 +72,7 @@ export class Crate implements ICameraState, ICargoItem, IExpirableTicks, ICollid
     public maxLife: number = 10 * 60;
     public life: number = 0;
     public factionId: EFaction | null = null;
+    public voronoiIndices: number[] = [];
 
     public serialize(): ISerializedCrate {
         return {
@@ -88,6 +90,7 @@ export class Crate implements ICameraState, ICargoItem, IExpirableTicks, ICollid
             maxLife: this.maxLife,
             life: this.life,
             factionId: this.factionId,
+            voronoiIndices: this.voronoiIndices,
         };
     }
 
@@ -106,6 +109,7 @@ export class Crate implements ICameraState, ICargoItem, IExpirableTicks, ICollid
         this.maxLife = data.maxLife;
         this.life = data.life;
         this.factionId = data.factionId;
+        this.voronoiIndices = data.voronoiIndices;
     }
 
     public static deserialize(data: ISerializedCrate): Crate {
@@ -134,6 +138,7 @@ export interface ISerializedCannonBall {
     life: number;
     factionId: EFaction | null;
     shipId: string;
+    voronoiIndices: number[];
 }
 
 export class CannonBall implements ICameraState, IExpirableTicks, ICollidable {
@@ -147,6 +152,7 @@ export class CannonBall implements ICameraState, IExpirableTicks, ICollidable {
     public damage: number = 10;
     public maxLife: number = Game.PROJECTILE_LIFE;
     public life: number = 0;
+    public voronoiIndices: number[] = [];
     /**
      * Cannon balls have a faction, to avoid team killing teammates.
      */
@@ -170,6 +176,7 @@ export class CannonBall implements ICameraState, IExpirableTicks, ICollidable {
             life: this.life,
             factionId: this.factionId,
             shipId: this.shipId,
+            voronoiIndices: this.voronoiIndices,
         };
     }
 
@@ -186,6 +193,7 @@ export class CannonBall implements ICameraState, IExpirableTicks, ICollidable {
         this.life = data.life;
         this.factionId = data.factionId;
         this.shipId = data.shipId;
+        this.voronoiIndices = data.voronoiIndices;
     }
 
     public static deserialize(data: ISerializedCannonBall): CannonBall {

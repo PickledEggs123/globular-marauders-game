@@ -22,6 +22,7 @@ export class Star implements ICameraState {
     public orientationVelocity: Quaternion = Quaternion.ONE;
     public color: string = "blue";
     public size: number = 3;
+    public voronoiIndices: number[] = [] as number[];
 
     public serialize(): ISerializedStar {
         return {

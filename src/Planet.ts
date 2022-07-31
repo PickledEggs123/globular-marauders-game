@@ -100,6 +100,7 @@ export interface ISerializedPlanet {
     color: string;
     size: number;
     name: string;
+    voronoiIndices: number[]
 
     settlementProgress: number;
     settlementLevel: ESettlementLevel;
@@ -120,6 +121,7 @@ export interface ISerializedPlanetFull {
     color: string;
     size: number;
     name: string;
+    voronoiIndices: number[]
 
     settlementProgress: number;
     settlementLevel: ESettlementLevel;
@@ -194,6 +196,7 @@ export class Planet implements ICameraState {
     public color: string = "blue";
     public size: number = 3;
     public name: string;
+    public voronoiIndices: number[] = [];
 
     // population properties
     public settlementProgress: number = 0;
@@ -382,6 +385,7 @@ export class Planet implements ICameraState {
             color: this.color,
             size: this.size,
             name: this.name,
+            voronoiIndices: this.voronoiIndices,
 
             settlementProgress: this.settlementProgress,
             settlementLevel: this.settlementLevel,
@@ -403,6 +407,7 @@ export class Planet implements ICameraState {
         this.color = data.color;
         this.size = data.size;
         this.name = data.name;
+        this.voronoiIndices = data.voronoiIndices;
 
         this.settlementProgress = data.settlementProgress;
         this.settlementLevel = data.settlementLevel;
@@ -464,6 +469,7 @@ export class Planet implements ICameraState {
             color: this.color,
             size: this.size,
             name: this.name,
+            voronoiIndices: this.voronoiIndices,
 
             settlementProgress: this.settlementProgress,
             settlementLevel: this.settlementLevel,
@@ -527,6 +533,7 @@ export class Planet implements ICameraState {
         this.color = data.color;
         this.size = data.size;
         this.name = data.name;
+        this.voronoiIndices = data.voronoiIndices;
 
         this.settlementProgress = data.settlementProgress;
         this.settlementLevel = data.settlementLevel;
@@ -2169,7 +2176,7 @@ export class Planet implements ICameraState {
         }
 
         // handle resource economy
-        if (this.moneyAccount) {
+        if (this.numTicks % 600 === 0 && this.moneyAccount) {
             this.moneyAccount.handlePlanetaryEconomy();
         }
 

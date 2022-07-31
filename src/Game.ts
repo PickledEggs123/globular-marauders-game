@@ -786,6 +786,7 @@ export class Game {
             orientationVelocity: viewableObject.orientationVelocity.clone(),
             cannonLoading: viewableObject.cannonLoading,
             size: viewableObject.size,
+            voronoiIndices: viewableObject.voronoiIndices,
         };
     }
 

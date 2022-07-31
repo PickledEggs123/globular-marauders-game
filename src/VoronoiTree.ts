@@ -80,6 +80,9 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
         }
         if (bestDistance !== null && bestNode !== null) {
             bestNode.addItem(drawable);
+
+            // quick index for performance
+            drawable.voronoiIndices[this.level] = this.nodes.indexOf(bestNode);
         }
     }
 
@@ -94,6 +97,12 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
             if (index >= 0) {
                 this.items.splice(index, 1);
             }
+            return;
+        }
+
+        // quick index
+        if (typeof drawable.voronoiIndices[this.level] === "number") {
+            this.nodes[drawable.voronoiIndices[this.level]].removeItem(drawable);
             return;
         }
 
@@ -554,6 +563,9 @@ export class VoronoiTree<T extends ICameraState> implements IVoronoiTreeNodePare
         }
         if (bestDistance !== null && bestNode !== null) {
             bestNode.addItem(drawable);
+
+            // quick index
+            drawable.voronoiIndices = [this.nodes.indexOf(bestNode)];
         }
     }
 
@@ -562,6 +574,12 @@ export class VoronoiTree<T extends ICameraState> implements IVoronoiTreeNodePare
      * @param drawable
      */
     public removeItem(drawable: T) {
+        // quick index
+        if (typeof drawable.voronoiIndices[0] === "number") {
+            this.nodes[drawable.voronoiIndices[0]].removeItem(drawable);
+            return;
+        }
+
         // recurse tree
         const position = drawable.position.clone().rotateVector([0, 0, 1]);
 

@@ -494,6 +494,10 @@ export interface ICameraState {
      * The speed factor of the object.
      */
     getSpeedFactor?(): number;
+    /**
+     * Quick lookup factors when parsing voronoi information.
+     */
+    voronoiIndices: number[];
 }
 
 /**
