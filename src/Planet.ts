@@ -315,6 +315,7 @@ export class Planet implements ICameraState {
 
     // property used to initialize buildings and compound investment accounts
     private numTicks: number = 0;
+    public static SKIP_TICKS: number = 10 * 10;
 
     // players can open an investment account on the planet to generate passive income.
     public bankAccounts: Map<string, IBankAccount> = new Map<string, IBankAccount>();
@@ -2006,34 +2007,37 @@ export class Planet implements ICameraState {
         }
         this.numTicks += 1;
 
-        // handle buildings
-        for (const building of this.buildings) {
-            if (
-                (this.settlementLevel >= ESettlementLevel.OUTPOST && building.buildingType === EBuildingType.PLANTATION) ||
-                (this.settlementLevel >= ESettlementLevel.OUTPOST && building.buildingType === EBuildingType.MANUFACTORY) ||
-                (this.settlementLevel >= ESettlementLevel.OUTPOST && building.buildingType === EBuildingType.FORESTRY)
-            ) {
-                // outposts have working plantations but no shipyards or other general infrastructure
-                building.handleBuildingLoop();
-            } else if (this.settlementLevel >= ESettlementLevel.COLONY) {
-                // colonies and larger settlements have general infrastructure
-                building.handleBuildingLoop();
+        // skip some ticks
+        if (this.numTicks % Planet.SKIP_TICKS === 1) {
+            // handle buildings
+            for (const building of this.buildings) {
+                if (
+                    (this.settlementLevel >= ESettlementLevel.OUTPOST && building.buildingType === EBuildingType.PLANTATION) ||
+                    (this.settlementLevel >= ESettlementLevel.OUTPOST && building.buildingType === EBuildingType.MANUFACTORY) ||
+                    (this.settlementLevel >= ESettlementLevel.OUTPOST && building.buildingType === EBuildingType.FORESTRY)
+                ) {
+                    // outposts have working plantations but no shipyards or other general infrastructure
+                    building.handleBuildingLoop();
+                } else if (this.settlementLevel >= ESettlementLevel.COLONY) {
+                    // colonies and larger settlements have general infrastructure
+                    building.handleBuildingLoop();
+                }
             }
-        }
 
-        // handle construction of new buildings
-        const nextBuildingToBuild = this.getNextBuildingToBuild();
-        if (nextBuildingToBuild) {
-            this.buildings.push(nextBuildingToBuild)
-        }
+            // handle construction of new buildings
+            const nextBuildingToBuild = this.getNextBuildingToBuild();
+            if (nextBuildingToBuild) {
+                this.buildings.push(nextBuildingToBuild)
+            }
 
-        // handle upgrades of buildings
-        const {
-            nextBuilding: nextBuildingToUpgrade,
-            nextBuildingCost: nextUpgradeCost
-        } = this.getNextBuildingUpgrade();
-        if (this.woodConstruction >= nextUpgradeCost) {
-            nextBuildingToUpgrade.upgrade();
+            // handle upgrades of buildings
+            const {
+                nextBuilding: nextBuildingToUpgrade,
+                nextBuildingCost: nextUpgradeCost
+            } = this.getNextBuildingUpgrade();
+            if (this.woodConstruction >= nextUpgradeCost) {
+                nextBuildingToUpgrade.upgrade();
+            }
         }
 
         // handle ship demand loop
@@ -2070,39 +2074,42 @@ export class Planet implements ICameraState {
             }
         }
 
-        // handle the luxury buffs from trading
-        const expiredLuxuryBuffs: LuxuryBuff[] = [];
-        for (const luxuryBuff of this.luxuryBuffs) {
-            const expired = luxuryBuff.expired();
-            if (expired) {
-                expiredLuxuryBuffs.push(luxuryBuff);
-            } else {
-                luxuryBuff.handleLuxuryBuffLoop();
-            }
-        }
-        for (const expiredLuxuryBuff of expiredLuxuryBuffs) {
-            expiredLuxuryBuff.remove();
-        }
-
-        // handle player investment accounts
-        for (const [key, value] of [...this.investmentAccounts.entries()]) {
-            for (const lot of value.lots) {
-                if (lot.ticksRemaining > 0) {
-                    lot.ticksRemaining -= 1;
-                }
-                lot.maturityTicks -= 1;
-                if (lot.maturityTicks <= 0) {
-                    lot.maturityTicks = 10 * 60 * 10;
-                    lot.matureAmount += Math.ceil(lot.amount * 1.1);
+        // skip some ticks
+        if (this.numTicks % Planet.SKIP_TICKS === 1) {
+            // handle the luxury buffs from trading
+            const expiredLuxuryBuffs: LuxuryBuff[] = [];
+            for (const luxuryBuff of this.luxuryBuffs) {
+                const expired = luxuryBuff.expired();
+                if (expired) {
+                    expiredLuxuryBuffs.push(luxuryBuff);
+                } else {
+                    luxuryBuff.handleLuxuryBuffLoop();
                 }
             }
-        }
+            for (const expiredLuxuryBuff of expiredLuxuryBuffs) {
+                expiredLuxuryBuff.remove();
+            }
 
-        // handle enemy presence loop
-        if (this.isEnemyPresenceTick()) {
-            for (const node of Object.values(this.explorationGraph)) {
-                if (node.enemyStrength > 0) {
-                    node.enemyStrength -= 1;
+            // handle player investment accounts
+            for (const [key, value] of [...this.investmentAccounts.entries()]) {
+                for (const lot of value.lots) {
+                    if (lot.ticksRemaining > 0) {
+                        lot.ticksRemaining -= Planet.SKIP_TICKS;
+                    }
+                    lot.maturityTicks -= Planet.SKIP_TICKS;
+                    if (lot.maturityTicks <= 0) {
+                        lot.maturityTicks = 10 * 60 * 10;
+                        lot.matureAmount += Math.ceil(lot.amount * 1.1);
+                    }
+                }
+            }
+
+            // handle enemy presence loop
+            if (this.isEnemyPresenceTick()) {
+                for (const node of Object.values(this.explorationGraph)) {
+                    if (node.enemyStrength > 0) {
+                        node.enemyStrength -= Planet.SKIP_TICKS;
+                    }
                 }
             }
         }

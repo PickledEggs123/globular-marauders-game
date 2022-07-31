@@ -40,7 +40,7 @@ export class LuxuryBuff {
      * Increment the buff.
      */
     public handleLuxuryBuffLoop() {
-        this.ticks += 1;
+        this.ticks += Planet.SKIP_TICKS;
     }
 
     /**

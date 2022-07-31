@@ -135,9 +135,9 @@ export abstract class Building {
     public handleBuildingLoop(): void {
         // basic upgrade loop
         if (this.upgradeProgress > 0) {
-            this.upgradeProgress -= 1;
+            this.upgradeProgress -= Planet.SKIP_TICKS;
             if (this.upgradeProgress <= 0) {
-                this.buildingLevel += 1;
+                this.buildingLevel += Planet.SKIP_TICKS;
                 this.planet.recomputeResources();
             }
         }
@@ -444,8 +444,8 @@ export class Forestry extends Building {
         super.handleBuildingLoop();
 
         // add wood proportional to building level
-        this.planet.wood += this.buildingLevel * this.factionBonus();
-        this.planet.woodConstruction += this.buildingLevel * this.factionBonus();
+        this.planet.wood += this.buildingLevel * this.factionBonus() * Planet.SKIP_TICKS;
+        this.planet.woodConstruction += this.buildingLevel * this.factionBonus() * Planet.SKIP_TICKS;
     }
 }
 
@@ -626,12 +626,12 @@ export class Mine extends Building {
         super.handleBuildingLoop();
 
         // add iron proportional to building level
-        this.planet.iron += this.buildingLevel * this.factionBonus();
-        this.planet.ironConstruction += this.buildingLevel * this.factionBonus();
+        this.planet.iron += this.buildingLevel * this.factionBonus() * Planet.SKIP_TICKS;
+        this.planet.ironConstruction += this.buildingLevel * this.factionBonus() * Planet.SKIP_TICKS;
 
         // add coal for steel forging
-        this.planet.coal += this.buildingLevel * this.factionBonus();
-        this.planet.coalConstruction += this.buildingLevel * this.factionBonus();
+        this.planet.coal += this.buildingLevel * this.factionBonus() * Planet.SKIP_TICKS;
+        this.planet.coalConstruction += this.buildingLevel * this.factionBonus() * Planet.SKIP_TICKS;
 
         // TODO: add add gems for jewelry, each island will have its own specific gem
         /**
@@ -680,27 +680,27 @@ export class Blacksmith extends Building {
     handleBuildingLoop() {
         super.handleBuildingLoop();
 
-        // convert iron into iron cannon balls, weapons
-        if (this.planet.cannons < 10 && this.planet.iron >= 40 && this.planet.coal >= 40) {
-            this.planet.iron -= 40;
-            this.planet.coal -= 40;
-            this.planet.cannons += 1;
-        } else if (this.planet.cannonades < 10 && this.planet.iron >= 10 && this.planet.coal >= 10) {
-            this.planet.iron -= 10;
-            this.planet.coal -= 10;
-            this.planet.cannonades += 1;
-        } else if (this.planet.cannons < 100 && this.planet.iron >= 40 && this.planet.coal >= 40) {
-            this.planet.iron -= 40;
-            this.planet.coal -= 40;
-            this.planet.cannons += 1;
-        } else if (this.planet.cannonades < 100 && this.planet.iron >= 10 && this.planet.coal >= 10) {
-            this.planet.iron -= 10;
-            this.planet.coal -= 10;
-            this.planet.cannonades += 1;
-        } else if (this.planet.cannons < 300 && this.planet.iron >= 40 && this.planet.coal >= 40) {
-            this.planet.iron -= 40;
-            this.planet.coal -= 40;
-            this.planet.cannons += 1;
+        // convert iron into iron cannonballs, weapons
+        if (this.planet.cannons < 10 * Planet.SKIP_TICKS && this.planet.iron >= 40 * Planet.SKIP_TICKS && this.planet.coal >= 40 * Planet.SKIP_TICKS) {
+            this.planet.iron -= 40 * Planet.SKIP_TICKS;
+            this.planet.coal -= 40 * Planet.SKIP_TICKS;
+            this.planet.cannons += Planet.SKIP_TICKS;
+        } else if (this.planet.cannonades < 10 * Planet.SKIP_TICKS && this.planet.iron >= 10 * Planet.SKIP_TICKS && this.planet.coal >= 10 * Planet.SKIP_TICKS) {
+            this.planet.iron -= 10 * Planet.SKIP_TICKS;
+            this.planet.coal -= 10 * Planet.SKIP_TICKS;
+            this.planet.cannonades += Planet.SKIP_TICKS;
+        } else if (this.planet.cannons < 100 * Planet.SKIP_TICKS && this.planet.iron >= 40 * Planet.SKIP_TICKS && this.planet.coal >= 40 * Planet.SKIP_TICKS) {
+            this.planet.iron -= 40 * Planet.SKIP_TICKS;
+            this.planet.coal -= 40 * Planet.SKIP_TICKS;
+            this.planet.cannons += Planet.SKIP_TICKS;
+        } else if (this.planet.cannonades < 100 * Planet.SKIP_TICKS && this.planet.iron >= 10 * Planet.SKIP_TICKS && this.planet.coal >= 10 * Planet.SKIP_TICKS) {
+            this.planet.iron -= 10 * Planet.SKIP_TICKS;
+            this.planet.coal -= 10 * Planet.SKIP_TICKS;
+            this.planet.cannonades += Planet.SKIP_TICKS;
+        } else if (this.planet.cannons < 300 * Planet.SKIP_TICKS && this.planet.iron >= 40 * Planet.SKIP_TICKS && this.planet.coal >= 40 * Planet.SKIP_TICKS) {
+            this.planet.iron -= 40 * Planet.SKIP_TICKS;
+            this.planet.coal -= 40 * Planet.SKIP_TICKS;
+            this.planet.cannons += Planet.SKIP_TICKS;
         }
     }
 }
