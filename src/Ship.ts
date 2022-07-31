@@ -726,7 +726,6 @@ export class FireControl<T extends IAutomatedShip> {
         if (!target) {
             // no targets, cancel attack
             this.targetShipId = null;
-            this.retargetCoolDown = 10;
             this.owner.activeKeys.splice(0, this.owner.activeKeys.length);
             this.isAttacking = false;
             return;
