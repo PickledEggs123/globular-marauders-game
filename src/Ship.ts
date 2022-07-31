@@ -693,6 +693,7 @@ export class FireControl<T extends IAutomatedShip> {
         if (!(coneHit.success && coneHit.point && coneHit.time && coneHit.time < Game.PROJECTILE_LIFE)) {
             // target is moving too fast, cannot hit it
             this.targetShipId = null;
+            this.retargetCoolDown = 10;
             return null;
         }
         return DelaunayGraph.normalize([
@@ -712,14 +713,10 @@ export class FireControl<T extends IAutomatedShip> {
      */
     public fireControlLoop() {
         // retarget another ship occasionally
-        if (!this.targetShipId) {
-            this.retargetCoolDown = 10;
+        if (this.retargetCoolDown > 0) {
+            this.retargetCoolDown -= 1;
         } else {
-            if (this.retargetCoolDown > 0) {
-                this.retargetCoolDown -= 1;
-            } else {
-                this.retargetCoolDown = 10;
-            }
+            this.retargetCoolDown = 10;
         }
 
         const nearestPlanet = this.app.voronoiTerrain.getNearestPlanet(this.owner.position.rotateVector([0, 0, 1]));
@@ -729,6 +726,7 @@ export class FireControl<T extends IAutomatedShip> {
         if (!target) {
             // no targets, cancel attack
             this.targetShipId = null;
+            this.retargetCoolDown = 10;
             this.owner.activeKeys.splice(0, this.owner.activeKeys.length);
             this.isAttacking = false;
             return;
