@@ -2506,6 +2506,9 @@ export class Game {
             for (const {arr: collidableArray, collideFn, useRayCast, removeFromDataStructures} of collidableArrays) {
                 const entitiesToRemove: [string, ICollidable][] = [];
                 for (const [id, entity] of collidableArray) {
+                    // determine team damage
+                    const isTeamDamage = (ship: Ship): boolean => ship && ship.faction && entity.factionId && ship.faction.id === entity.factionId;
+
                     // get nearby ships
                     const position = entity.position.rotateVector([0, 0, 1]);
                     const nearByShips = Array.from(this.voronoiShips.listItems(position));
@@ -2515,6 +2518,11 @@ export class Game {
                     let bestShip: Ship | null = null;
                     for (const nearByShip of nearByShips) {
                         if (useRayCast) {
+                            // skip team damage check
+                            if (isTeamDamage(nearByShip)) {
+                                continue;
+                            }
+
                             const hit = Game.cannonBallCollision(entity, nearByShip, this.worldScale);
                             if (hit.success && hit.time && (!bestHit || (bestHit && bestHit.time && hit.time < bestHit.time))) {
                                 bestHit = hit;
@@ -2540,7 +2548,7 @@ export class Game {
                     }
 
                     // apply damage
-                    const teamDamage = bestShip && bestShip.faction && entity.factionId && bestShip.faction.id === entity.factionId;
+                    const teamDamage = isTeamDamage(bestShip);
                     if (bestHit && bestShip && !teamDamage) {
                         collideFn.call(this, bestShip, entity, bestHit);
                         entitiesToRemove.push([id, entity]);
