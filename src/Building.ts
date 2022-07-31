@@ -63,7 +63,7 @@ export class ShipyardDock {
     public handleShipyardDockLoop() {
         // handle ship building progress
         if (this.progress < this.shipCost) {
-            this.progress += 1;
+            this.progress += Planet.SKIP_TICKS;
         }
         if (this.progress >= this.shipCost && !this.sentDoneSignal) {
             // ship is done
@@ -293,20 +293,24 @@ export class Shipyard extends Building {
             this.numberOfDocks = nextNumberOfDocks;
         }
 
-        const nextShipTypeToBuild = this.getNextShipTypeToBuild();
-        const shipData = GetShipData(nextShipTypeToBuild, this.instance.shipScale);
-        if (!shipData) {
-            throw new Error("Could not find ship type");
-        }
+        for (let i = 0; i < 10; i++) {
+            const nextShipTypeToBuild = this.getNextShipTypeToBuild();
+            const shipData = GetShipData(nextShipTypeToBuild, this.instance.shipScale);
+            if (!shipData) {
+                throw new Error("Could not find ship type");
+            }
 
-        // build ship when there is enough wood and enough room
-        if (
-            this.planet.wood >= shipData.cost &&
-            this.planet.cannons >= shipData.cannons.numCannons &&
-            this.planet.cannonades >= shipData.cannons.numCannonades &&
-            this.docks.length < this.numberOfDocks
-        ) {
-            this.buildShip(shipData.shipType);
+            // build ship when there is enough wood and enough room
+            if (
+                this.planet.wood >= shipData.cost &&
+                this.planet.cannons >= shipData.cannons.numCannons &&
+                this.planet.cannonades >= shipData.cannons.numCannonades &&
+                this.docks.length < this.numberOfDocks
+            ) {
+                this.buildShip(shipData.shipType);
+            } else {
+                break;
+            }
         }
 
         // handle each dock
