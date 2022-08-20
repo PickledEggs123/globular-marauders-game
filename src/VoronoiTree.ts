@@ -821,6 +821,7 @@ export class VoronoiCounty extends VoronoiTreeNode<ICameraState> {
 
     public claim(faction: Faction) {
         // set faction
+        const oldFaction = this.faction;
         this.faction = faction;
 
         // if no capital, make only planet the capital
@@ -831,10 +832,33 @@ export class VoronoiCounty extends VoronoiTreeNode<ICameraState> {
         // handle planet
         if (this.planet) {
             // remove planet from faction
-            if (this.faction) {
-                const planetIndex = this.faction.planetIds.findIndex(id => this.planet && id === this.planet.id);
+            if (oldFaction) {
+                const planetIndex = oldFaction.planetIds.findIndex(id => this.planet && id === this.planet.id);
                 if (planetIndex >= 0) {
-                    this.faction.planetIds.splice(planetIndex, 1);
+                    oldFaction.planetIds.splice(planetIndex, 1);
+                }
+                if (oldFaction.homeWorldPlanetId === this.planet.id) {
+                    // destroy faction
+                    //
+                    // destroy all ships
+                    for (const shipId of [...oldFaction.shipIds]) {
+                        const ship = this.app.ships.get(shipId);
+                        if (ship) {
+                            // to lazy to make ships free ships, I'll self-destruct them on failure instead.
+                            ship.health = 0;
+                        }
+                    }
+                    // claim all planets
+                    for (const planetId of [...oldFaction.planetIds]) {
+                        const planet = this.app.planets.get(planetId);
+                        if (planet) {
+                            planet.claim(faction, true, null);
+                        }
+                    }
+                    // remove all player titles
+                    oldFaction.factionPlanetRoster = [];
+                    // set faction as dead
+                    oldFaction.alive = false;
                 }
             }
             // add planet to faction

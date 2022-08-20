@@ -133,6 +133,7 @@ export interface ISerializedFaction {
     shipsAvailable: Record<EShipType, number>;
     bounties: IFactionBounty[];
     maxShips: number;
+    alive: boolean;
 }
 
 /**
@@ -190,6 +191,7 @@ export class Faction {
     public maxShips: number = 200;
 
     public bounties: IFactionBounty[] = [];
+    public alive: boolean = true;
 
     public serialize(): ISerializedFaction {
         return {
@@ -203,6 +205,7 @@ export class Faction {
             shipsAvailable: this.shipsAvailable,
             bounties: this.bounties,
             maxShips: this.maxShips,
+            alive: this.alive,
         };
     }
 
@@ -217,6 +220,7 @@ export class Faction {
         this.shipsAvailable = {...data.shipsAvailable};
         this.bounties = [...data.bounties];
         this.maxShips = data.maxShips;
+        this.alive = data.alive;
     }
 
     public static deserialize(game: Game, data: ISerializedFaction): Faction {

@@ -75,7 +75,7 @@ import {Star} from "./Star";
 import {Market} from "./Market";
 import {EShipType, GetShipData, PHYSICS_SCALE} from "./ShipType";
 import {EFaction} from "./EFaction";
-import {Invasion, ISerializedInvasion} from "./Invasion";
+import {EInvasionPhase, Invasion, ISerializedInvasion} from "./Invasion";
 import {MoneyAccount} from "./MoneyAccount";
 
 /**
@@ -669,7 +669,7 @@ export class Game {
     }
 
     public getSpawnFactions(): ISpawnFaction[] {
-        return Array.from(this.factions.values()).map((f): ISpawnFaction => ({
+        return Array.from(this.factions.values()).filter(f => f.alive).map((f): ISpawnFaction => ({
             factionId: f.id,
             numPlanets: f.planetIds.length,
             numShips: f.shipIds.length,
@@ -2838,6 +2838,14 @@ export class Game {
                 faction.handleFactionLoop();
             }
 
+            // handle game over screen
+            if (Array.from(this.factions.values()).reduce((acc, f) => acc + (f.alive ? 1 : 0), 0) <= 1) {
+                for (const playerData of Array.from(this.playerData.values())) {
+                    const playerId = playerData.id;
+                    this.addFormEmitter(playerId, {type: EFormEmitterType.GAME_OVER, id: null});
+                }
+            }
+
             // handle player scores
             const scoreMoneyAccount = (playerData: IPlayerData): IScoreBoardMoneyItem => {
                 let amount = 0;
@@ -3295,6 +3303,10 @@ export class Game {
                             }
                         }
                     }
+                    case EFormEmitterType.GAME_OVER: {
+                        const game = this;
+                        cards.push(...game.getGameOverResultForPlayer(playerId));
+                    }
                 }
             }
         }
@@ -3302,6 +3314,35 @@ export class Game {
         return {
             cards
         };
+    }
+
+
+
+    public getGameOverResultForPlayer(playerId: string): IFormCard[] {
+        const playerData = this.playerData.get(playerId);
+        if (!playerData) {
+            return [];
+        }
+        const faction = this.factions.get(playerData.factionId);
+        if (!faction) {
+            return [];
+        }
+
+        const cards: IFormCard[] = [];
+        if (faction.alive) {
+            cards.push({
+                title: "Your faction is victorious, It is the last faction standing.",
+                fields: [],
+                data: {}
+            });
+        } else {
+            cards.push({
+                title: "Your faction was defeated.",
+                fields: [],
+                data: {}
+            });
+        }
+        return cards;
     }
 
     public handleFormApiRequestForPlayer(playerData: IPlayerData, request: IFormRequest): void {
