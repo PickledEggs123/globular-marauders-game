@@ -23,7 +23,6 @@ describe("Endurance tests", () => {
                 [EFaction.ELVEN]: false,
                 [EFaction.HUMAN]: false,
                 [EFaction.ORCISH]: false,
-                [EFaction.SPANISH]: false,
             };
             for (let i = 0; i < numHours * 60 * 60 * 10; i++) {
                 game.handleServerLoop();
@@ -39,7 +38,6 @@ describe("Endurance tests", () => {
                 [EFaction.ELVEN]: true,
                 [EFaction.HUMAN]: true,
                 [EFaction.ORCISH]: true,
-                [EFaction.SPANISH]: true,
             });
         });
     }

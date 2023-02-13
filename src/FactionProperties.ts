@@ -27,12 +27,6 @@ export const DEFAULT_FACTION_PROPERTIES: Record<EFaction, IFactionProperties> = 
         piracyMultiple: 2,
         settlementMultiple: 1,
     },
-    [EFaction.SPANISH]: {
-        shipTypes: [EShipType.CUTTER, EShipType.SLOOP, EShipType.CORVETTE, EShipType.BRIGANTINE, EShipType.BRIG, EShipType.FRIGATE, EShipType.GALLEON],
-        fastWoodProduction: false,
-        piracyMultiple: 0,
-        settlementMultiple: 1.5,
-    },
     [EFaction.ORCISH]: {
         shipTypes: [EShipType.CUTTER, EShipType.SLOOP, EShipType.CORVETTE],
         fastWoodProduction: false,

@@ -835,20 +835,16 @@ export class Game {
             kingdom: getStartingKingdom(factionStartingPoints[0])
         }, {
             id: EFaction.ELVEN,
-            color: "red",
+            color: "blue",
             kingdom: getStartingKingdom(factionStartingPoints[1])
         }, {
             id: EFaction.HUMAN,
-            color: "blue",
+            color: "red",
             kingdom: getStartingKingdom(factionStartingPoints[2])
         }, {
             id: EFaction.ORCISH,
             color: "green",
             kingdom: getStartingKingdom(factionStartingPoints[3])
-        }, {
-            id: EFaction.SPANISH,
-            color: "yellow",
-            kingdom: getStartingKingdom(factionStartingPoints[4])
         }];
         for (const factionData of factionDataList) {
             let planetId: string | null = null;
