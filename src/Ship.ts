@@ -690,7 +690,7 @@ export class FireControl<T extends IAutomatedShip> {
             return null;
         }
         const coneHit = this.getConeHit(target);
-        if (!(coneHit.success && coneHit.point && coneHit.time && coneHit.time < Game.PROJECTILE_LIFE)) {
+        if (!(coneHit.success && coneHit.point && coneHit.time && coneHit.time < Game.PROJECTILE_LIFE * 0.5)) {
             // target is moving too fast, cannot hit it
             this.targetShipId = null;
             this.retargetCoolDown = 10;

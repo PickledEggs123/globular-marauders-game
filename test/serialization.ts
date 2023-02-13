@@ -50,13 +50,13 @@ describe("network serialization", () => {
         expect(a.serialize()).to.deep.equal(b.serialize());
     });
     it("CannonBall", () => {
-        const a = new CannonBall(EFaction.DUTCH, "test");
+        const a = new CannonBall(EFaction.DWARVEN, "test");
         const b = CannonBall.deserialize(a.serialize());
         expect(a.serialize()).to.deep.equal(b.serialize());
         expect(a).to.deep.equal(b);
     });
     it("Crate", () => {
-        const a = new Crate(EResourceType.RUM, game.factions.get(EFaction.DUTCH).homeWorldPlanetId, 1);
+        const a = new Crate(EResourceType.RUM, game.factions.get(EFaction.DWARVEN).homeWorldPlanetId, 1);
         const b = Crate.deserialize(a.serialize());
         expect(a.serialize()).to.deep.equal(b.serialize());
         expect(a).to.deep.equal(b);
@@ -79,7 +79,7 @@ describe("network serialization", () => {
         // pick faction
         const factionMessage: IChooseFactionMessage = {
             messageType: EMessageType.CHOOSE_FACTION,
-            factionId: EFaction.DUTCH
+            factionId: EFaction.DWARVEN
         };
         networkGame.incomingMessages.push(["test", factionMessage]);
         networkGame.handleServerLoop();
@@ -127,7 +127,7 @@ describe("network serialization", () => {
             if (planet.settlementLevel === ESettlementLevel.UNTAMED) {
                 planet.settlementLevel = ESettlementLevel.OUTPOST;
                 planet.settlementProgress = 5;
-                planet.claim(networkGame.factions.get(EFaction.DUTCH), true, null);
+                planet.claim(networkGame.factions.get(EFaction.DWARVEN), true, null);
             }
         }
 
@@ -139,12 +139,12 @@ describe("network serialization", () => {
 
             // should update at least once
             if (!sendUpdatePlanetAtLeastOnce) {
-                if (data.planets.update.some(p => p.settlementLevel === ESettlementLevel.OUTPOST && p.settlementProgress === 5 && p.faction === EFaction.DUTCH)) {
+                if (data.planets.update.some(p => p.settlementLevel === ESettlementLevel.OUTPOST && p.settlementProgress === 5 && p.faction === EFaction.DWARVEN)) {
                     sendUpdatePlanetAtLeastOnce = true;
                 }
             }
             if (!updatePlanetAtLeastOnce) {
-                if (Array.from(clientGame.planets.values()).some(p => p.settlementLevel === ESettlementLevel.OUTPOST && p.settlementProgress === 5 && p.county.faction?.id === EFaction.DUTCH)) {
+                if (Array.from(clientGame.planets.values()).some(p => p.settlementLevel === ESettlementLevel.OUTPOST && p.settlementProgress === 5 && p.county.faction?.id === EFaction.DWARVEN)) {
                     updatePlanetAtLeastOnce = true;
                 }
             }

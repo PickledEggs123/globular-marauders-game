@@ -19,10 +19,10 @@ describe("Endurance tests", () => {
             const game = new Game();
             game.initializeGame();
             let hasShips: Record<EFaction, boolean> = {
-                [EFaction.DUTCH]: false,
-                [EFaction.ENGLISH]: false,
-                [EFaction.FRENCH]: false,
-                [EFaction.PORTUGUESE]: false,
+                [EFaction.DWARVEN]: false,
+                [EFaction.ELVEN]: false,
+                [EFaction.HUMAN]: false,
+                [EFaction.ORCISH]: false,
                 [EFaction.SPANISH]: false,
             };
             for (let i = 0; i < numHours * 60 * 60 * 10; i++) {
@@ -35,10 +35,10 @@ describe("Endurance tests", () => {
                 }
             }
             expect(hasShips).to.deep.equal({
-                [EFaction.DUTCH]: true,
-                [EFaction.ENGLISH]: true,
-                [EFaction.FRENCH]: true,
-                [EFaction.PORTUGUESE]: true,
+                [EFaction.DWARVEN]: true,
+                [EFaction.ELVEN]: true,
+                [EFaction.HUMAN]: true,
+                [EFaction.ORCISH]: true,
                 [EFaction.SPANISH]: true,
             });
         });

@@ -168,7 +168,7 @@ describe("shard tests", () => {
         // pick faction
         const factionMessage: IChooseFactionMessage = {
             messageType: EMessageType.CHOOSE_FACTION,
-            factionId: EFaction.DUTCH
+            factionId: EFaction.DWARVEN
         };
         networkGame.incomingMessages.push(["blah2", factionMessage]);
         runGameLoop(shards, shardMap);
@@ -423,7 +423,7 @@ describe("shard tests", () => {
                 const { shards, shardMap, loadBalancerShard } = setupShards(true);
                 loginShard(shards, shardMap, loadBalancerShard);
                 const globalShard = shards.find(s => s.serverType === EServerType.GLOBAL_STATE_NODE);
-                const dutchHomeWorldId = globalShard.factions.get(EFaction.DUTCH).homeWorldPlanetId;
+                const dutchHomeWorldId = globalShard.factions.get(EFaction.DWARVEN).homeWorldPlanetId;
                 const dutchHomeWorld = globalShard.planets.get(dutchHomeWorldId);
 
                 // get initial amount
@@ -492,7 +492,7 @@ describe("shard tests", () => {
                 loginShard(shards, shardMap, loadBalancerShard);
 
                 const globalShard = shards.find(s => s.serverType === EServerType.GLOBAL_STATE_NODE);
-                const dutchHomeWorldId = globalShard.factions.get(EFaction.DUTCH).homeWorldPlanetId;
+                const dutchHomeWorldId = globalShard.factions.get(EFaction.DWARVEN).homeWorldPlanetId;
                 const dutchHomeWorld = globalShard.planets.get(dutchHomeWorldId);
 
                 // claim 4 kingdoms as Dutch to create score board
@@ -509,140 +509,140 @@ describe("shard tests", () => {
                 const physicsNodes: Game[] = kingdomIds.map(kingdomId => shards.find(s => s.serverType === EServerType.PHYSICS_NODE && s.physicsKingdomIndex === kingdomId));
                 const kingdoms: VoronoiKingdom[] = physicsNodes.map(n => n.voronoiTerrain.kingdoms[n.physicsKingdomIndex]);
                 for (const kingdom of kingdoms) {
-                    kingdom.duchies.forEach(d => d.counties.forEach(c => c.planet.claim(kingdom.app.factions.get(EFaction.DUTCH), true, null)));
+                    kingdom.duchies.forEach(d => d.counties.forEach(c => c.planet.claim(kingdom.app.factions.get(EFaction.DWARVEN), true, null)));
                 }
                 runGameLoop(shards, shardMap);
                 runGameLoop(shards, shardMap);
                 runGameLoop(shards, shardMap);
 
                 // create scoreboard
-                globalShard.factions.get(EFaction.DUTCH).factionPlanetRoster.push({
-                    factionId: EFaction.DUTCH,
+                globalShard.factions.get(EFaction.DWARVEN).factionPlanetRoster.push({
+                    factionId: EFaction.DWARVEN,
                     playerId: "emperor",
                     kingdomId: kingdoms[0].capital.capital.capital.id,
                     duchyId: kingdoms[0].capital.capital.capital.id,
                     countyId: kingdoms[0].capital.capital.capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "emperor",
                     kingdomId: kingdoms[0].capital.capital.capital.id,
                     duchyId: kingdoms[0].capital.capital.capital.id,
                     countyId: kingdoms[0].capital.capital.duchy.counties.filter(c => c.capital.id !== kingdoms[0].capital.capital.capital.id)[0].capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "emperor",
                     kingdomId: kingdoms[0].capital.capital.capital.id,
                     duchyId: kingdoms[0].capital.capital.capital.id,
                     countyId: kingdoms[0].capital.capital.duchy.counties.filter(c => c.capital.id !== kingdoms[0].capital.capital.capital.id)[1].capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "emperor",
                     kingdomId: kingdoms[0].capital.capital.capital.id,
                     duchyId: kingdoms[0].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[0].capital.capital.capital.id)[0].capital.capital.id,
                     countyId: kingdoms[0].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[0].capital.capital.capital.id)[0].capital.capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "emperor",
                     kingdomId: kingdoms[0].capital.capital.capital.id,
                     duchyId: kingdoms[0].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[0].capital.capital.capital.id)[1].capital.capital.id,
                     countyId: kingdoms[0].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[0].capital.capital.capital.id)[1].capital.capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "emperor",
                     kingdomId: kingdoms[1].capital.capital.capital.id,
                     duchyId: kingdoms[1].capital.capital.capital.id,
                     countyId: kingdoms[1].capital.capital.capital.id,
                 });
-                globalShard.factions.get(EFaction.DUTCH).factionPlanetRoster.push({
-                    factionId: EFaction.DUTCH,
+                globalShard.factions.get(EFaction.DWARVEN).factionPlanetRoster.push({
+                    factionId: EFaction.DWARVEN,
                     playerId: "king",
                     kingdomId: kingdoms[2].capital.capital.capital.id,
                     duchyId: kingdoms[2].capital.capital.capital.id,
                     countyId: kingdoms[2].capital.capital.capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "king",
                     kingdomId: kingdoms[2].capital.capital.capital.id,
                     duchyId: kingdoms[2].capital.capital.capital.id,
                     countyId: kingdoms[2].capital.capital.duchy.counties.filter(c => c.capital.id !== kingdoms[2].capital.capital.capital.id)[0].capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "king",
                     kingdomId: kingdoms[2].capital.capital.capital.id,
                     duchyId: kingdoms[2].capital.capital.capital.id,
                     countyId: kingdoms[2].capital.capital.duchy.counties.filter(c => c.capital.id !== kingdoms[2].capital.capital.capital.id)[1].capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "king",
                     kingdomId: kingdoms[2].capital.capital.capital.id,
                     duchyId: kingdoms[2].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[2].capital.capital.capital.id)[0].capital.capital.id,
                     countyId: kingdoms[2].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[2].capital.capital.capital.id)[0].capital.capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "king",
                     kingdomId: kingdoms[2].capital.capital.capital.id,
                     duchyId: kingdoms[2].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[2].capital.capital.capital.id)[1].capital.capital.id,
                     countyId: kingdoms[2].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[2].capital.capital.capital.id)[1].capital.capital.id,
                 });
-                globalShard.factions.get(EFaction.DUTCH).factionPlanetRoster.push({
-                    factionId: EFaction.DUTCH,
+                globalShard.factions.get(EFaction.DWARVEN).factionPlanetRoster.push({
+                    factionId: EFaction.DWARVEN,
                     playerId: "archDuke",
                     kingdomId: kingdoms[1].capital.capital.capital.id,
                     duchyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].capital.capital.id,
                     countyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].counties[0].capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "archDuke",
                     kingdomId: kingdoms[1].capital.capital.capital.id,
                     duchyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].capital.capital.id,
                     countyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].counties[1].capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "archDuke",
                     kingdomId: kingdoms[1].capital.capital.capital.id,
                     duchyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].capital.capital.id,
                     countyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[0].counties[2].capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "archDuke",
                     kingdomId: kingdoms[1].capital.capital.capital.id,
                     duchyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[1].capital.capital.id,
                     countyId: kingdoms[1].capital.kingdom.duchies.filter(c => c.capital.capital.id !== kingdoms[1].capital.capital.capital.id)[1].capital.capital.id,
                 });
-                globalShard.factions.get(EFaction.DUTCH).factionPlanetRoster.push({
-                    factionId: EFaction.DUTCH,
+                globalShard.factions.get(EFaction.DWARVEN).factionPlanetRoster.push({
+                    factionId: EFaction.DWARVEN,
                     playerId: "duke",
                     kingdomId: kingdoms[3].capital.capital.capital.id,
                     duchyId: kingdoms[3].duchies[0].counties[0].capital.id,
                     countyId: kingdoms[3].duchies[0].counties[0].capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "duke",
                     kingdomId: kingdoms[3].capital.capital.capital.id,
                     duchyId: kingdoms[3].duchies[0].counties[0].capital.id,
                     countyId: kingdoms[3].duchies[0].counties[1].capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "duke",
                     kingdomId: kingdoms[3].capital.capital.capital.id,
                     duchyId: kingdoms[3].duchies[0].counties[0].capital.id,
                     countyId: kingdoms[3].duchies[0].counties[2].capital.id,
                 });
-                globalShard.factions.get(EFaction.DUTCH).factionPlanetRoster.push({
-                    factionId: EFaction.DUTCH,
+                globalShard.factions.get(EFaction.DWARVEN).factionPlanetRoster.push({
+                    factionId: EFaction.DWARVEN,
                     playerId: "baron",
                     kingdomId: kingdoms[3].capital.capital.capital.id,
                     duchyId: kingdoms[3].duchies[1].capital.capital.id,
                     countyId: kingdoms[3].duchies[1].counties[0].capital.id,
                 }, {
-                    factionId: EFaction.DUTCH,
+                    factionId: EFaction.DWARVEN,
                     playerId: "baron",
                     kingdomId: kingdoms[3].capital.capital.capital.id,
                     duchyId: kingdoms[3].duchies[1].capital.capital.id,
                     countyId: kingdoms[3].duchies[1].counties[1].capital.id,
                 });
-                globalShard.factions.get(EFaction.DUTCH).factionPlanetRoster.push({
-                    factionId: EFaction.DUTCH,
+                globalShard.factions.get(EFaction.DWARVEN).factionPlanetRoster.push({
+                    factionId: EFaction.DWARVEN,
                     playerId: "count",
                     kingdomId: kingdoms[3].capital.capital.capital.id,
                     duchyId: kingdoms[3].duchies[1].capital.capital.id,
@@ -689,7 +689,7 @@ describe("shard tests", () => {
             // run shards for 1 minute
             let setMission: boolean = false;
             let nearEnglishWorld: boolean = false;
-            const dutchHomeWorld = networkGame.planets.get(networkGame.factions.get(EFaction.DUTCH).homeWorldPlanetId);
+            const dutchHomeWorld = networkGame.planets.get(networkGame.factions.get(EFaction.DWARVEN).homeWorldPlanetId);
             const dutchKingdom = dutchHomeWorld.county.duchy.kingdom;
             const neighborKingdom = dutchKingdom.neighborKingdoms[0];
             const neighborKingdomPlanet = neighborKingdom.duchies[0].counties[0].planet;

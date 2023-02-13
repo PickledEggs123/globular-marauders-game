@@ -10,7 +10,7 @@ describe("faction", () => {
             const game: Game = new Game();
             game.initializeGame();
 
-            const factionId = EFaction.DUTCH;
+            const factionId = EFaction.DWARVEN;
             const homeWorldPlanetId = game.factions.get(factionId).homeWorldPlanetId;
             const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
@@ -41,7 +41,7 @@ describe("faction", () => {
             const game: Game = new Game();
             game.initializeGame();
 
-            const factionId = EFaction.DUTCH;
+            const factionId = EFaction.DWARVEN;
             const homeWorldPlanetId = game.factions.get(factionId).homeWorldPlanetId;
             const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
@@ -84,7 +84,7 @@ describe("faction", () => {
             const game: Game = new Game();
             game.initializeGame();
 
-            const factionId = EFaction.DUTCH;
+            const factionId = EFaction.DWARVEN;
             const homeWorldPlanetId = game.factions.get(factionId).homeWorldPlanetId;
             const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
@@ -136,7 +136,7 @@ describe("faction", () => {
             const game: Game = new Game();
             game.initializeGame();
 
-            const factionId = EFaction.DUTCH;
+            const factionId = EFaction.DWARVEN;
             const homeWorldPlanetId = game.factions.get(factionId).homeWorldPlanetId;
             const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
@@ -203,7 +203,7 @@ describe("faction", () => {
             const game: Game = new Game();
             game.initializeGame();
 
-            const factionId = EFaction.DUTCH;
+            const factionId = EFaction.DWARVEN;
             const homeWorldPlanetId = game.factions.get(factionId).homeWorldPlanetId;
             const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;
@@ -279,7 +279,7 @@ describe("faction", () => {
             const game: Game = new Game();
             game.initializeGame();
 
-            const factionId = EFaction.DUTCH;
+            const factionId = EFaction.DWARVEN;
             const homeWorldPlanetId = game.factions.get(factionId).homeWorldPlanetId;
             const homeWorld = game.planets.get(homeWorldPlanetId);
             const kingdomId = homeWorld.county.duchy.kingdom.capital.capital.capital.id;

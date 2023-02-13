@@ -827,22 +827,22 @@ export class Game {
             return kingdom;
         };
         const factionDataList = [{
-            id: EFaction.DUTCH,
+            id: EFaction.DWARVEN,
             color: "orange",
             // the forth planet is always in a random location
             // the Dutch are a republic which means players can vote on things
             // but the Dutch are weaker compared to the kingdoms
             kingdom: getStartingKingdom(factionStartingPoints[0])
         }, {
-            id: EFaction.ENGLISH,
+            id: EFaction.ELVEN,
             color: "red",
             kingdom: getStartingKingdom(factionStartingPoints[1])
         }, {
-            id: EFaction.FRENCH,
+            id: EFaction.HUMAN,
             color: "blue",
             kingdom: getStartingKingdom(factionStartingPoints[2])
         }, {
-            id: EFaction.PORTUGUESE,
+            id: EFaction.ORCISH,
             color: "green",
             kingdom: getStartingKingdom(factionStartingPoints[3])
         }, {
@@ -2488,6 +2488,9 @@ export class Game {
                 arr: this.cannonBalls,
                 collideFn(this: Game, ship: Ship, entity: ICollidable, hit: IHitTest) {
                     ship.applyDamage(entity as CannonBall);
+                    if (ship.fireControl) {
+                        ship.fireControl.targetShipId = (entity as CannonBall).shipId;
+                    }
                 },
                 useRayCast: true,
                 removeFromDataStructures(this: Game, item: CannonBall) {
