@@ -114,12 +114,7 @@ export const GameFactionData: IFactionData[] = [{
         faction: EFaction.DWARVEN,
         characterRace: ERaceData.DWARF,
         characterClass: EClassData.FIGHTER,
-        amount: 3
-    }, {
-        faction: EFaction.DWARVEN,
-        characterRace: ERaceData.DWARF,
-        characterClass: EClassData.THIEF,
-        amount: 1
+        amount: 4
     }]
 }, {
     id: EFaction.ELVEN,
@@ -407,7 +402,7 @@ export const GameFactionData: IFactionData[] = [{
         description: "An average but ugly humanoid.",
         classes: [{
             id: EClassData.MAGE,
-            name: "Orc Mage",
+            name: "Hobgoblin Mage",
             description: "A magician of the orc race. He can fire magic missiles from long distances at people.",
             isMagic: true,
             isRange: true,
@@ -424,7 +419,7 @@ export const GameFactionData: IFactionData[] = [{
             meleeAttackArmor: 3,
         }, {
             id: EClassData.FIGHTER,
-            name: "Orc Fighter",
+            name: "Hobgoblin Fighter",
             description: "A swordsman of the orc race.",
             isMagic: false,
             isRange: false,
@@ -441,7 +436,7 @@ export const GameFactionData: IFactionData[] = [{
             meleeAttackArmor: 5,
         }, {
             id: EClassData.RANGER,
-            name: "Human Ranger",
+            name: "Hobgoblin Ranger",
             description: "A ranger of the human race. He likes his bow and he is skilled with it.",
             isMagic: false,
             isRange: true,
@@ -458,7 +453,7 @@ export const GameFactionData: IFactionData[] = [{
             meleeAttackArmor: 3,
         }, {
             id: EClassData.THIEF,
-            name: "Human Thief",
+            name: "Hobgoblin Thief",
             description: "A thief of the human race. He likes to use stealth to attack people.",
             isMagic: false,
             isRange: false,
