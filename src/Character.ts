@@ -21,7 +21,8 @@ export class CharacterSelection {
         const item = this.items.find(x => x.faction === faction && x.characterRace === characterRace && x.characterClass === characterClass);
         const otherItems = this.items.filter(x => x !== item);
         if (item) {
-            item.amount = Math.min(Math.max(0, this.maxCharacters - otherItems.reduce((acc, x) => acc + x.amount, 0)), amount);
+            const maxAmount = Math.max(0, this.maxCharacters - otherItems.reduce((acc, x) => acc + x.amount, 0));
+            item.amount = Math.min(maxAmount, item.amount + amount);
         }
     }
     public removeCharacterClass(faction: EFaction, characterRace: ERaceData, characterClass: EClassData, amount: number = 1) {
