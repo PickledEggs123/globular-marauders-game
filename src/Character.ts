@@ -1,5 +1,6 @@
-import {GameFactionData, EFaction, ERaceData, EClassData} from "./EFaction";
+import {GameFactionData, EFaction, ERaceData, EClassData, IClassData} from "./EFaction";
 import {Ship} from "./Ship";
+import {Game} from "./Game";
 
 export enum EHitType {
     MELEE = "MELEE",
@@ -10,12 +11,14 @@ export enum EDamageType {
     MAGIC = "MAGIC",
     NORMAL = "NORMAL",
     STEALTH = "STEALTH",
+    RANGE = "RANGE",
 }
 
 /**
  * A class to simulate a DnD Pokemon battle between two ships.
  */
 export class CharacterBattle {
+    public id: string;
     /**
      * The ships in the battle.
      */
@@ -26,11 +29,15 @@ export class CharacterBattle {
      * @param c
      */
     public getEnemyCharacter(c: Character): Character | null {
-        const currentShip = this.ships[0];
-        const otherShips = this.ships.filter(x => x.faction !== currentShip.faction);
-        const otherShip = otherShips[Math.floor(Math.random() * otherShips.length)];
-        const otherCharacters = [new Character(), new Character(), new Character()];
-        return otherCharacters[Math.floor(Math.random() * otherCharacters.length)] ?? null;
+        const currentShip = this.ships.find(x => x.characters.some(c1 => c1 === c));
+        if (currentShip) {
+            const otherShips = this.ships.filter(x => x.faction !== currentShip.faction);
+            const otherShip = otherShips[Math.floor(Math.random() * otherShips.length)];
+            if (otherShip) {
+                return otherShip.characters[Math.floor(Math.random() * otherShip.characters.length)] ?? null;
+            }
+        }
+        return null;
     }
 
     /**
@@ -39,8 +46,7 @@ export class CharacterBattle {
     public takeTurn(): void {
         // do hit and damage
         this.ships.forEach(s => {
-            const characters = [new Character(), new Character(), new Character()];
-            characters.forEach(c => c.takeTurn());
+            s.characters.forEach(c => c.takeTurn());
         });
     }
 
@@ -49,10 +55,16 @@ export class CharacterBattle {
      */
     public isDone(): boolean {
         // check win condition
-        return this.ships.some(s => {
-            const characters = [new Character(), new Character(), new Character()];
-            return characters.every(c => c.hp <= 0);
-        });
+        return this.ships.some(s => s.characters.every(c => c.hp <= 0));
+    }
+
+    /**
+     * Setup the characters for DnD battle.
+     */
+    public setupForBattle(): void {
+        this.ships.forEach(s => {
+            s.characters.forEach(c => c.setupForBattle());
+        })
     }
 
     /**
@@ -60,6 +72,7 @@ export class CharacterBattle {
      * @private
      */
     private *performBattle(): IterableIterator<void> {
+        yield;
         for (let i = 0; i < 100; i++) {
             this.takeTurn();
             if (this.isDone()) {
@@ -81,6 +94,7 @@ export class CharacterBattle {
     public runBattle(): boolean {
         if (!this.battleIterator) {
             this.battleIterator = this.performBattle();
+            this.setupForBattle();
         }
 
         const result = this.battleIterator.next();
@@ -91,6 +105,19 @@ export class CharacterBattle {
             return false;
         }
     }
+}
+
+export interface ISerializedCharacter {
+    id: string;
+    factionId: EFaction;
+    characterRace: ERaceData;
+    characterClass: EClassData;
+    hp: number;
+    meleeDistance: number;
+    underMelee: boolean;
+    isHidden: boolean;
+    targetCharacterId: string | null;
+    battleId: string | null;
 }
 
 export class Character {
@@ -127,6 +154,10 @@ export class Character {
      */
     public isHidden: boolean = false;
     /**
+     * Reference to the game.
+     */
+    public game: Game;
+    /**
      * The currently targeted character.
      */
     public targetCharacter: Character | null = null;
@@ -134,6 +165,63 @@ export class Character {
      * The battle class which connects to a character for the character to perform DnD battle.
      */
     public battle: CharacterBattle | null = null;
+
+    public constructor(game: Game, faction: EFaction, characterRace: ERaceData, characterClass: EClassData) {
+        this.id = `character-${Math.floor(1000 * 1000 * Math.random())}`;
+        this.game = game;
+        this.faction = faction;
+        this.characterRace = characterRace;
+        this.characterClass = characterClass;
+    }
+
+    public serialize(): ISerializedCharacter {
+        return {
+            id: this.id,
+            factionId: this.faction,
+            characterRace: this.characterRace,
+            characterClass: this.characterClass,
+            hp: this.hp,
+            meleeDistance: this.meleeDistance,
+            underMelee: this.underMelee,
+            isHidden: this.isHidden,
+            targetCharacterId: this.targetCharacter?.id ?? null,
+            battleId: this.battle?.id ?? null,
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedCharacter) {
+        this.faction = data.factionId;
+        this.characterRace = data.characterRace;
+        this.characterClass = data.characterClass;
+        this.hp = data.hp;
+        this.meleeDistance = data.meleeDistance;
+        this.underMelee = data.underMelee;
+        this.isHidden = data.isHidden;
+
+        const characterBattle: CharacterBattle = this.game.characterBattles.get(data.battleId);
+        if (characterBattle) {
+            this.battle = characterBattle;
+        } else {
+            this.battle = null;
+        }
+
+        if (characterBattle) {
+            const targetCharacter = characterBattle.ships.reduce((acc, x) => [...acc, ...x.characters], [] as Character[]).find(x => x.id === data.targetCharacterId);
+            if (targetCharacter) {
+                this.targetCharacter = targetCharacter;
+            } else {
+                this.targetCharacter = null;
+            }
+        } else {
+            this.targetCharacter = null;
+        }
+    }
+
+    public static deserialize(game: Game, data: ISerializedCharacter): Character {
+        const item = new Character(game, data.factionId, data.characterRace, data.characterClass);
+        item.deserializeUpdate(data);
+        return item;
+    }
 
     /**
      * Setup for battle.
@@ -149,7 +237,7 @@ export class Character {
      * Get character hit type, melee or range.
      */
     public getCharacterHitType(): EHitType {
-        const classData = GameFactionData.find(x => x.id === this.faction)?.races.find(x => x.id === this.characterRace)?.classes.find(x => x.id === this.characterClass);
+        const classData = this.getClassData();
         if (classData) {
             if (classData.isRange && !this.underMelee) {
                 return EHitType.RANGE;
@@ -162,10 +250,13 @@ export class Character {
      * Get character damage type, Magic, Normal, or Stealth.
      */
     public getCharacterDamageType(): EDamageType {
-        const classData = GameFactionData.find(x => x.id === this.faction)?.races.find(x => x.id === this.characterRace)?.classes.find(x => x.id === this.characterClass);
+        const classData = this.getClassData();
         if (classData) {
             if (classData.isMagic && !this.underMelee) {
                 return EDamageType.MAGIC;
+            }
+            if (classData.isRange) {
+                return EDamageType.RANGE;
             }
             if (classData.isStealth) {
                 return EDamageType.STEALTH;
@@ -220,13 +311,37 @@ export class Character {
         // heal bless curse
     }
 
+    public getClassData(): IClassData | undefined {
+        return GameFactionData.find(x => x.id === this.faction)?.races.find(x => x.id === this.characterRace)?.classes.find(x => x.id === this.characterClass);
+    }
+
+    public static computeHitModifier(attack: Character, defense: Character, damageType: EDamageType): number {
+        const attackData = attack.getClassData();
+        const defenseData = defense.getClassData();
+
+        switch (damageType) {
+            case EDamageType.MAGIC: {
+                return attackData.magicAttackHit - defenseData.magicAttackArmor;
+            }
+            case EDamageType.NORMAL:
+            case EDamageType.STEALTH: {
+                return attackData.meleeAttackHit - defenseData.meleeAttackArmor;
+            }
+            case EDamageType.RANGE: {
+                return attackData.rangeAttackHit - defenseData.rangeAttackArmor;
+            }
+        }
+    }
+
     /**
      * Apply damage to this character.
      * @param amount The points of damage.
+     * @param damageType The type of damage which has different modifiers
+     * @param attacker The attacking character with different modifiers
      */
-    public applyDamage(amount: number): void {
+    public applyDamage(amount: number, damageType: EDamageType, attacker: Character): void {
         const hitRoll = this.roll(20);
-        if (hitRoll === 1) {
+        if (hitRoll + Character.computeHitModifier(attacker, this, damageType) < 10) {
             return;
         }
         if (hitRoll === 20) {
@@ -270,15 +385,16 @@ export class Character {
         }
 
         // perform battle
+        const damageType = this.getCharacterDamageType();
         switch (this.getCharacterHitType()) {
             case EHitType.MELEE: {
                 // magic people can apply melee magic
-                if (this.getCharacterDamageType() === EDamageType.MAGIC && !this.underMelee) {
+                if (damageType === EDamageType.MAGIC && !this.underMelee) {
                     this.applyMagic();
                     break;
                 }
                 // stealth people have stealth rolls
-                if (this.getCharacterDamageType() === EDamageType.STEALTH && !this.underMelee) {
+                if (damageType === EDamageType.STEALTH && !this.underMelee) {
                     this.applyStealth(this.stealthRoll());
                 }
                 // melee people must close melee range to begin attacking
@@ -287,12 +403,12 @@ export class Character {
                     break;
                 }
                 // apply melee damage
-                this.targetCharacter.applyDamage(this.meleeDamageRoll());
+                this.targetCharacter.applyDamage(this.meleeDamageRoll(), damageType, this);
                 break;
             }
             case EHitType.RANGE: {
                 // apply range damage
-                this.targetCharacter.applyDamage(this.rangeDamageRoll());
+                this.targetCharacter.applyDamage(this.rangeDamageRoll(), damageType, this);
                 break;
             }
         }

@@ -9,6 +9,7 @@ import {ISerializedFaction} from "./Faction";
 import {ISerializedOrder} from "./Order";
 import {EShipType} from "./ShipType";
 import {EFaction} from "./EFaction";
+import {ISerializedCharacter} from "./Character";
 
 export enum EFormFieldType {
     NUMBER = "NUMBER",
@@ -140,6 +141,7 @@ export interface IAIPlayerDataStateShardMessage extends IShardMessage {
         shipId: string;
         shipKeys: string[];
         orders: ISerializedOrder[];
+        characters: ISerializedCharacter[];
         pathFinding: ISerializedPathFinder;
         fireControl: ISerializedFireControl;
     }>;

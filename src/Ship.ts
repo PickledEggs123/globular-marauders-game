@@ -20,6 +20,7 @@ import {EShipType, GetShipData} from "./ShipType";
 import {EFaction} from "./EFaction";
 import {ISerializedMoneyAccount, MoneyAccount} from "./MoneyAccount";
 import {PlanetaryMoneyAccount} from "./Building";
+import {Character, ISerializedCharacter} from "./Character";
 
 export interface ISerializedShip {
     id: string;
@@ -38,6 +39,7 @@ export interface ISerializedShip {
     pathFinding: ISerializedPathFinder;
     fireControl: ISerializedFireControl;
     orders: ISerializedOrder[];
+    characters: ISerializedCharacter[];
     health: number;
     maxHealth: number;
     cargo: ICargoItem[];
@@ -67,6 +69,7 @@ export class Ship implements IAutomatedShip {
     public pathFinding: PathFinder<Ship> = new PathFinder<Ship>(this);
     public fireControl: FireControl<Ship>;
     public orders: Order[] = [];
+    public characters: Character[] = [];
     public health: number = 1;
     public maxHealth: number = 1;
     public cargo: ICargoItem[] = [];
@@ -94,6 +97,7 @@ export class Ship implements IAutomatedShip {
             pathFinding: this.pathFinding.serialize(),
             fireControl: this.fireControl.serialize(),
             orders: this.orders.map(o => o.serialize()),
+            characters: this.characters.map(o => o.serialize()),
             health: this.health,
             maxHealth: this.maxHealth,
             cargo: this.cargo,
@@ -123,6 +127,8 @@ export class Ship implements IAutomatedShip {
         this.fireControl.deserializeUpdate(data.fireControl);
         this.orders.splice(0, this.orders.length);
         this.orders.push.apply(this.orders, data.orders.map(d => Order.deserialize(this.app, this, d)));
+        this.characters.splice(0, this.characters.length);
+        this.characters.push.apply(this.characters, data.characters.map(d => Character.deserialize(this.app, d)));
         this.health = data.health;
         this.maxHealth = data.maxHealth;
         this.cargo = data.cargo;

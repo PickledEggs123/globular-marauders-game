@@ -77,6 +77,7 @@ import {EShipType, GetShipData, PHYSICS_SCALE} from "./ShipType";
 import {EFaction} from "./EFaction";
 import {EInvasionPhase, Invasion, ISerializedInvasion} from "./Invasion";
 import {MoneyAccount} from "./MoneyAccount";
+import {Character, CharacterBattle, ISerializedCharacter} from "./Character";
 
 /**
  * A list of player specific data for the server to store.
@@ -286,6 +287,7 @@ export class Game {
     public voronoiTerrain: VoronoiTerrain = new VoronoiTerrain(this);
     public factions: Map<string, Faction> = new Map<string, Faction>();
     public ships: Map<string, Ship> = new Map<string, Ship>();
+    public characterBattles: Map<string, CharacterBattle> = new Map<string, CharacterBattle>();
     public crates: Map<string, Crate> = new Map<string, Crate>();
     public planets: Map<string, Planet> = new Map<string, Planet>();
     public directedMarketTrade: Record<string, Array<IDirectedMarketTrade>> = {};
@@ -1311,6 +1313,7 @@ export class Game {
             shipId: string;
             shipKeys: string[];
             orders: ISerializedOrder[];
+            characters: ISerializedCharacter[];
             pathFinding: ISerializedPathFinder;
             fireControl: ISerializedFireControl;
         }>)) {
@@ -1318,6 +1321,7 @@ export class Game {
             if (ship) {
                 ship.activeKeys.splice(0, ship.activeKeys.length, ...item.shipKeys);
                 ship.orders.splice(0, ship.orders.length, ...item.orders.map(o => Order.deserialize(this, ship, o)));
+                ship.characters.splice(0, ship.characters.length, ...item.characters.map(o => Character.deserialize(this, o)));
                 ship.pathFinding = PathFinder.deserialize(ship, item.pathFinding);
                 ship.fireControl = FireControl.deserialize(this, ship, item.fireControl);
             }
@@ -1913,6 +1917,7 @@ export class Game {
                         shipId: s.id,
                         shipKeys: s.activeKeys,
                         orders: s.orders.map(o => o.serialize()),
+                        characters: s.characters.map(o => o.serialize()),
                         pathFinding: s.pathFinding.serialize(),
                         fireControl: s.fireControl.serialize(),
                     })),
@@ -2034,6 +2039,7 @@ export class Game {
                         physicsNodeMessages.get(kingdomIndex).ships.push({
                             shipId: ship.id,
                             orders: ship.orders.map(s => s.serialize()),
+                            characters: ship.characters.map(s => s.serialize()),
                             shipKeys: [...ship.activeKeys],
                             pathFinding: ship.pathFinding.serialize(),
                             fireControl: ship.fireControl.serialize(),
@@ -2043,6 +2049,7 @@ export class Game {
                         globalNodeMessage.ships.push({
                             shipId: ship.id,
                             orders: ship.orders.map(s => s.serialize()),
+                            characters: ship.characters.map(s => s.serialize()),
                             shipKeys: [...ship.activeKeys],
                             pathFinding: ship.pathFinding.serialize(),
                             fireControl: ship.fireControl.serialize(),
