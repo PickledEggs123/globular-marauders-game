@@ -163,6 +163,7 @@ export class Ship implements IAutomatedShip {
         const factionData = GameFactionData.find(x => x.id === this.faction.id);
         if (characterSelection) {
             // default ship crew
+            this.characters = [];
             for (const item of characterSelection) {
                 for (let i = 0; i < item.amount; i++) {
                     this.characters.push(new Character(this.app, item.faction, item.characterRace, item.characterClass));
