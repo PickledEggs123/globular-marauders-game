@@ -1,3 +1,5 @@
+import {ICharacterSelectionItem} from "./Interface";
+
 export enum EFaction {
     DWARVEN = "DWARVEN",
     ELVEN = "ELVEN",
@@ -56,6 +58,7 @@ export interface IFactionData {
     name: string;
     description: string;
     races: IRaceData[];
+    defaultCharacterSelection: ICharacterSelectionItem[];
 }
 
 export const GameFactionData: IFactionData[] = [{
@@ -101,6 +104,22 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackArmor: 5,
             meleeAttackArmor: 5,
         }]
+    }],
+    defaultCharacterSelection: [{
+        faction: EFaction.DWARVEN,
+        characterRace: ERaceData.DWARF,
+        characterClass: EClassData.CLERIC,
+        amount: 1
+    }, {
+        faction: EFaction.DWARVEN,
+        characterRace: ERaceData.DWARF,
+        characterClass: EClassData.FIGHTER,
+        amount: 3
+    }, {
+        faction: EFaction.DWARVEN,
+        characterRace: ERaceData.DWARF,
+        characterClass: EClassData.THIEF,
+        amount: 1
     }]
 }, {
     id: EFaction.ELVEN,
@@ -179,6 +198,27 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackArmor: 3,
             meleeAttackArmor: 3,
         }]
+    }],
+    defaultCharacterSelection: [{
+        faction: EFaction.ELVEN,
+        characterRace: ERaceData.ELF,
+        characterClass: EClassData.MAGE,
+        amount: 1
+    }, {
+        faction: EFaction.ELVEN,
+        characterRace: ERaceData.ELF,
+        characterClass: EClassData.RANGER,
+        amount: 2
+    }, {
+        faction: EFaction.ELVEN,
+        characterRace: ERaceData.ELF,
+        characterClass: EClassData.FIGHTER,
+        amount: 1
+    }, {
+        faction: EFaction.ELVEN,
+        characterRace: ERaceData.ELF,
+        characterClass: EClassData.THIEF,
+        amount: 1
     }]
 }, {
     id: EFaction.HUMAN,
@@ -330,6 +370,32 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackArmor: 3,
             meleeAttackArmor: 3,
         }]
+    }],
+    defaultCharacterSelection: [{
+        faction: EFaction.HUMAN,
+        characterRace: ERaceData.HUMAN,
+        characterClass: EClassData.MAGE,
+        amount: 1
+    }, {
+        faction: EFaction.HUMAN,
+        characterRace: ERaceData.HUMAN,
+        characterClass: EClassData.FIGHTER,
+        amount: 1
+    }, {
+        faction: EFaction.HUMAN,
+        characterRace: ERaceData.HUMAN,
+        characterClass: EClassData.PALADIN,
+        amount: 1
+    }, {
+        faction: EFaction.HUMAN,
+        characterRace: ERaceData.HUMAN,
+        characterClass: EClassData.RANGER,
+        amount: 1
+    }, {
+        faction: EFaction.HUMAN,
+        characterRace: ERaceData.HALFLING,
+        characterClass: EClassData.THIEF,
+        amount: 1
     }]
 }, {
     id: EFaction.ORCISH,
@@ -469,5 +535,31 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackArmor: 5,
             meleeAttackArmor: 5,
         }]
+    }],
+    defaultCharacterSelection: [{
+        faction: EFaction.ORCISH,
+        characterRace: ERaceData.BUGBEAR,
+        characterClass: EClassData.FIGHTER,
+        amount: 1
+    }, {
+        faction: EFaction.ORCISH,
+        characterRace: ERaceData.HOBGOBLIN,
+        characterClass: EClassData.MAGE,
+        amount: 1
+    }, {
+        faction: EFaction.ORCISH,
+        characterRace: ERaceData.HOBGOBLIN,
+        characterClass: EClassData.FIGHTER,
+        amount: 1
+    }, {
+        faction: EFaction.ORCISH,
+        characterRace: ERaceData.GOBLIN,
+        characterClass: EClassData.FIGHTER,
+        amount: 1
+    }, {
+        faction: EFaction.ORCISH,
+        characterRace: ERaceData.GOBLIN,
+        characterClass: EClassData.THIEF,
+        amount: 1
     }]
 }];

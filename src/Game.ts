@@ -8,7 +8,7 @@ import {
     EShardMessageType,
     IAIPlayerDataStateShardMessage,
     IAiShardCountItem,
-    ICameraState,
+    ICameraState, ICharacterSelectionItem,
     IClaimPlanetShardMessage,
     ICollidable,
     ICreateShipFactionShardMessage,
@@ -74,7 +74,7 @@ import {EOrderType, ISerializedOrder, Order} from "./Order";
 import {Star} from "./Star";
 import {Market} from "./Market";
 import {EShipType, GetShipData, PHYSICS_SCALE} from "./ShipType";
-import {EFaction} from "./EFaction";
+import {EFaction, GameFactionData} from "./EFaction";
 import {EInvasionPhase, Invasion, ISerializedInvasion} from "./Invasion";
 import {MoneyAccount} from "./MoneyAccount";
 import {Character, CharacterBattle, ISerializedCharacter} from "./Character";
@@ -93,6 +93,7 @@ export interface IPlayerData {
     moneyAccount: MoneyAccount;
     autoPilotEnabled: boolean;
     aiNodeName: string | undefined;
+    defaultCharacterSelection: ICharacterSelectionItem[] | undefined;
 }
 
 export interface ISpawnFaction {
@@ -136,6 +137,7 @@ export enum EMessageType {
     JOIN = "JOIN",
     JOIN_RESULT = "JOIN_RESULT",
     CHOOSE_FACTION = "CHOOSE_FACTION",
+    CHOOSE_CREW_SELECTION = "CHOOSE_CREW_SELECTION",
     CHOOSE_PLANET = "CHOOSE_PLANET",
     CLAIM_PLANET = "CLAIM_PLANET",
     SPAWN = "SPAWN",
@@ -163,6 +165,11 @@ export interface IJoinResultMessage extends IMessage {
 export interface IChooseFactionMessage extends IMessage {
     messageType: EMessageType.CHOOSE_FACTION;
     factionId: EFaction | null;
+}
+
+export interface IChooseCrewSelectionMessage extends IMessage {
+    messageType: EMessageType.CHOOSE_CREW_SELECTION;
+    characterSelection: ICharacterSelectionItem[];
 }
 
 export interface IChoosePlanetMessage extends IMessage {
@@ -1291,7 +1298,8 @@ export class Game {
                     filterActiveKeys: !!o.filterActiveKeys ? [...o.filterActiveKeys] : o.filterActiveKeys,
                     moneyAccount,
                     autoPilotEnabled: o.autoPilotEnabled,
-                    aiNodeName: o.aiNodeName
+                    aiNodeName: o.aiNodeName,
+                    defaultCharacterSelection: o.defaultCharacterSelection,
                 };
                 return d;
             },
@@ -1306,6 +1314,7 @@ export class Game {
                 o.moneyAccount.currencies = d.moneyAccount.currencies;
                 o.autoPilotEnabled = d.autoPilotEnabled;
                 o.aiNodeName = d.aiNodeName;
+                o.defaultCharacterSelection = d.defaultCharacterSelection;
                 return o;
             }
         );
@@ -2187,7 +2196,8 @@ export class Game {
                                 activeKeys: [],
                                 moneyAccount: new MoneyAccount(500),
                                 autoPilotEnabled: true,
-                                aiNodeName: this.aiNodeName
+                                aiNodeName: this.aiNodeName,
+                                defaultCharacterSelection: undefined,
                             };
                             this.playerData.set(player.id, player);
                         }
@@ -2210,10 +2220,25 @@ export class Game {
                             continue;
                         }
                         player.factionId = chooseFactionMessage.factionId;
+                        player.defaultCharacterSelection = GameFactionData.find(x => x.id === player.factionId)?.defaultCharacterSelection;
 
                         if (player.factionId === null) {
                             player.planetId = null;
                             player.shipId = "";
+                        }
+                    } else if (message.messageType === EMessageType.CHOOSE_CREW_SELECTION) {
+                        const chooseCrewSelectionMessage = message as IChooseCrewSelectionMessage;
+
+                        const player = this.playerData.get(playerId);
+                        if (!player) {
+                            continue;
+                        }
+                        player.defaultCharacterSelection = chooseCrewSelectionMessage.characterSelection;
+                        if (player.shipId) {
+                            const ship = this.ships.get(player.shipId);
+                            if (ship) {
+                                ship.setShipCrew(player.defaultCharacterSelection);
+                            }
                         }
                     } else if (message.messageType === EMessageType.CHOOSE_PLANET) {
                         const choosePlanetMessage = message as IChoosePlanetMessage;
@@ -2245,6 +2270,9 @@ export class Game {
                                 const asFaction = !player.moneyAccount.hasEnough(planet.shipyard.quoteShip(shipType));
                                 const playerShip = planet.shipyard.buyShip(player.moneyAccount, shipType, asFaction);
                                 player.shipId = playerShip.id;
+                                if (player.defaultCharacterSelection) {
+                                    playerShip.setShipCrew(player.defaultCharacterSelection);
+                                }
                             } else if ([EServerType.AI_NODE].includes(this.serverType) && this.playerIdAliases.has(player.name)) { // check
                                 const loadBalancer = Array.from(this.shardList.values()).find(s => s.type === EServerType.LOAD_BALANCER);
                                 const spawnShipMessage: ISpawnShardMessage = {

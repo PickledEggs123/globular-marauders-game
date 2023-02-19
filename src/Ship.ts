@@ -4,7 +4,7 @@ import {
     EShardMessageType,
     IAutomatedShip,
     IAutomatedShipBuff,
-    ICameraState,
+    ICameraState, ICharacterSelection, ICharacterSelectionItem,
     IDamageScoreShardMessage
 } from "./Interface";
 import Quaternion from "quaternion";
@@ -17,7 +17,7 @@ import {CannonBall, Crate, DeserializeQuaternion, ISerializedQuaternion, Seriali
 import {IResourceExported, Planet} from "./Planet";
 import {ESoundEventType, ESoundType, Game} from "./Game";
 import {EShipType, GetShipData} from "./ShipType";
-import {EFaction} from "./EFaction";
+import {EFaction, ERaceData, GameFactionData, IClassData} from "./EFaction";
 import {ISerializedMoneyAccount, MoneyAccount} from "./MoneyAccount";
 import {PlanetaryMoneyAccount} from "./Building";
 import {Character, ISerializedCharacter} from "./Character";
@@ -157,6 +157,30 @@ export class Ship implements IAutomatedShip {
         this.health = shipData.hullStrength;
         this.maxHealth = shipData.hullStrength;
         this.cannonadeCoolDown = new Array(shipData.cannons.numCannonades).fill(0);
+    }
+
+    public setShipCrew(characterSelection?: ICharacterSelectionItem[]) {
+        const factionData = GameFactionData.find(x => x.id === this.faction.id);
+        if (characterSelection) {
+            // default ship crew
+            for (const item of characterSelection) {
+                for (let i = 0; i < item.amount; i++) {
+                    this.characters.push(new Character(this.app, item.faction, item.characterRace, item.characterClass));
+                }
+            }
+        } else {
+            // random ship crew
+            this.characters = new Array(5).fill(0).map(() => {
+                if (factionData) {
+                    const characterClasses = factionData.races.reduce((acc, x) => [...acc, ...x.classes.map(y => [x.id, y])], [] as Array<[ERaceData, IClassData]>) as Array<[ERaceData, IClassData]>;
+                    const characterClass = characterClasses[Math.floor(Math.random() * characterClasses.length)];
+                    if (characterClass) {
+                        return new Character(this.app, factionData.id, characterClass[0], characterClass[1].id);
+                    }
+                }
+                return null;
+            }).filter(x => !!x);
+        }
     }
 
     getSpeedFactor(): number {

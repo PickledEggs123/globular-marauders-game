@@ -8,7 +8,7 @@ import {EResourceType} from "./Resource";
 import {ISerializedFaction} from "./Faction";
 import {ISerializedOrder} from "./Order";
 import {EShipType} from "./ShipType";
-import {EFaction} from "./EFaction";
+import {EClassData, EFaction, ERaceData} from "./EFaction";
 import {ISerializedCharacter} from "./Character";
 
 export enum EFormFieldType {
@@ -630,4 +630,27 @@ export interface ITradeDeal {
     fromResourceType: EResourceType;
     profit: number;
     planet: Planet;
+}
+
+export enum EHitType {
+    MELEE = "MELEE",
+    RANGE = "RANGE",
+}
+
+export enum EDamageType {
+    MAGIC = "MAGIC",
+    NORMAL = "NORMAL",
+    STEALTH = "STEALTH",
+    RANGE = "RANGE",
+}
+
+export interface ICharacterSelectionItem {
+    faction: EFaction;
+    characterRace: ERaceData;
+    characterClass: EClassData;
+    amount: number;
+}
+
+export interface ICharacterSelection {
+    items: ICharacterSelectionItem[];
 }

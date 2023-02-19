@@ -4,7 +4,7 @@ import {
     EServerType,
     ESettlementLevel,
     EShardMessageType,
-    ICameraState,
+    ICameraState, ICharacterSelection,
     IClaimPlanetShardMessage,
     ICreateShipFactionShardMessage,
     IDestroyShipPlanetShardMessage,
@@ -3032,17 +3032,10 @@ export class Planet implements ICameraState {
         Game.addRandomPositionAndOrientationToEntity(ship);
         ship.position = Quaternion.fromBetweenVectors([0, 0, 1], shipPoint);
         ship.color = faction.factionColor;
-        ship.characters = new Array(5).fill(0).map(() => {
-            const factionData = GameFactionData.find(x => x.id === ship.faction.id);
-            if (factionData) {
-                const characterClasses = factionData.races.reduce((acc, x) => [...acc, ...x.classes.map(y => [x.id, y])], [] as Array<[ERaceData, IClassData]>) as Array<[ERaceData, IClassData]>;
-                const characterClass = characterClasses[Math.floor(Math.random() * characterClasses.length)];
-                if (characterClass) {
-                    return new Character(this.instance, factionData.id, characterClass[0], characterClass[1].id);
-                }
-            }
-            return null;
-        }).filter(x => !!x);
+
+        // generate ship crew
+        const factionData = GameFactionData.find(x => x.id === ship.faction.id);
+        ship.setShipCrew(factionData?.defaultCharacterSelection);
 
         // the faction ship
         if ([EServerType.PHYSICS_NODE].includes(this.instance.serverType)) {

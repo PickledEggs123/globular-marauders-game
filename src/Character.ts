@@ -1,17 +1,35 @@
-import {GameFactionData, EFaction, ERaceData, EClassData, IClassData} from "./EFaction";
+import {EClassData, EFaction, ERaceData, GameFactionData, IClassData} from "./EFaction";
 import {Ship} from "./Ship";
 import {Game} from "./Game";
+import {EDamageType, EHitType, ICharacterSelection, ICharacterSelectionItem} from "./Interface";
 
-export enum EHitType {
-    MELEE = "MELEE",
-    RANGE = "RANGE",
-}
-
-export enum EDamageType {
-    MAGIC = "MAGIC",
-    NORMAL = "NORMAL",
-    STEALTH = "STEALTH",
-    RANGE = "RANGE",
+export class CharacterSelection {
+    public items: ICharacterSelectionItem[] = [];
+    public maxCharacters: number = 5;
+    public constructor(classData: ICharacterSelectionItem[]) {
+        this.items = classData;
+    }
+    public serialize(): ICharacterSelection {
+        return {
+            items: this.items
+        };
+    }
+    public static deserialize(classData: ICharacterSelectionItem[], o: ICharacterSelection): CharacterSelection {
+        return new CharacterSelection(classData);
+    }
+    public addCharacterClass(faction: EFaction, characterRace: ERaceData, characterClass: EClassData, amount: number = 1) {
+        const item = this.items.find(x => x.faction === faction && x.characterRace === characterRace && x.characterClass === characterClass);
+        const otherItems = this.items.filter(x => x !== item);
+        if (item) {
+            item.amount = Math.min(Math.max(0, this.maxCharacters - otherItems.reduce((acc, x) => acc + x.amount, 0)), amount);
+        }
+    }
+    public removeCharacterClass(faction: EFaction, characterRace: ERaceData, characterClass: EClassData, amount: number = 1) {
+        const item = this.items.find(x => x.faction === faction && x.characterRace === characterRace && x.characterClass === characterClass);
+        if (item) {
+            item.amount = Math.max(0, item.amount - amount);
+        }
+    }
 }
 
 /**
