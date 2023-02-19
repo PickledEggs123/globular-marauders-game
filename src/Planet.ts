@@ -55,8 +55,9 @@ import * as faker from "faker";
 import {DEFAULT_FACTION_PROPERTIES} from "./FactionProperties";
 import {EShipType, GetShipData} from "./ShipType";
 import {EInvasionCaptureState, EInvasionPhase, Invasion} from "./Invasion";
-import {EFaction} from "./EFaction";
+import {EFaction, ERaceData, GameFactionData, IClassData} from "./EFaction";
 import {ICurrency, MoneyAccount} from "./MoneyAccount";
+import {Character} from "./Character";
 
 export enum EPlanetFormActions {
     ENTER_PORT = "PlanetPortEnter",
@@ -3031,6 +3032,17 @@ export class Planet implements ICameraState {
         Game.addRandomPositionAndOrientationToEntity(ship);
         ship.position = Quaternion.fromBetweenVectors([0, 0, 1], shipPoint);
         ship.color = faction.factionColor;
+        ship.characters = new Array(5).fill(0).map(() => {
+            const factionData = GameFactionData.find(x => x.id === ship.faction.id);
+            if (factionData) {
+                const characterClasses = factionData.races.reduce((acc, x) => [...acc, ...x.classes.map(y => [x.id, y])], [] as Array<[ERaceData, IClassData]>) as Array<[ERaceData, IClassData]>;
+                const characterClass = characterClasses[Math.floor(Math.random() * characterClasses.length)];
+                if (characterClass) {
+                    return new Character(this.instance, factionData.id, characterClass[0], characterClass[1].id);
+                }
+            }
+            return null;
+        }).filter(x => !!x);
 
         // the faction ship
         if ([EServerType.PHYSICS_NODE].includes(this.instance.serverType)) {
