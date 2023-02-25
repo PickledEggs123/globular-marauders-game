@@ -21,6 +21,7 @@ export enum EFormEmitterType {
     INVASION = "INVASION",
     PLANET_AUCTION = "PLANET_AUCTION",
     GAME_OVER = "GAME_OVER",
+    SHIP = "SHIP",
 }
 
 export interface IFormField {

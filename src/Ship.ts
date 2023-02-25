@@ -1,11 +1,11 @@
 import {
-    EAutomatedShipBuffType,
+    EAutomatedShipBuffType, EFormEmitterType, EFormFieldType,
     EServerType,
     EShardMessageType,
     IAutomatedShip,
     IAutomatedShipBuff,
     ICameraState, ICharacterSelection, ICharacterSelectionItem,
-    IDamageScoreShardMessage
+    IDamageScoreShardMessage, IFormCard, IFormRequest
 } from "./Interface";
 import Quaternion from "quaternion";
 import {EResourceType, ICargoItem} from "./Resource";
@@ -14,13 +14,17 @@ import {DelaunayGraph, ISerializedPathFinder, PathFinder, VoronoiGraph} from "./
 import {computeConeLineIntersection, IConeHitTest} from "./Intersection";
 import {Faction} from "./Faction";
 import {CannonBall, Crate, DeserializeQuaternion, ISerializedQuaternion, SerializeQuaternion} from "./Item";
-import {IResourceExported, Planet} from "./Planet";
+import {EPlanetFormActions, EPlanetOwnershipStage, IResourceExported, Planet} from "./Planet";
 import {ESoundEventType, ESoundType, Game} from "./Game";
 import {EShipType, GetShipData} from "./ShipType";
 import {EFaction, ERaceData, GameFactionData, IClassData} from "./EFaction";
 import {ISerializedMoneyAccount, MoneyAccount} from "./MoneyAccount";
 import {PlanetaryMoneyAccount} from "./Building";
-import {Character, ISerializedCharacter} from "./Character";
+import {Character, CharacterBattle, ISerializedCharacter} from "./Character";
+
+export enum EShipFormActions {
+    BEGIN_BOARDING = "BEGIN_BOARDING",
+}
 
 export interface ISerializedShip {
     id: string;
@@ -78,6 +82,7 @@ export class Ship implements IAutomatedShip {
     public healthTickCoolDown = Game.HEALTH_TICK_COOL_DOWN;
     public moneyAccount: MoneyAccount = new MoneyAccount();
     public voronoiIndices: number[] = [] as number[];
+    public boardScreens: Map<string, {isBoarding: boolean}> = new Map<string, {isBoarding: boolean}>();
 
     public serialize(): ISerializedShip {
         return {
@@ -440,6 +445,98 @@ export class Ship implements IAutomatedShip {
             buff.expireTicks -= delta;
         }
         this.buffs = this.buffs.filter(b => b.expireTicks > 0);
+    }
+
+    public handleBoardingScreen() {
+        // handle player forms
+        const handleBoardScreen = (playerId: string, ship: Ship) => {
+            if (!playerId) {
+                return;
+            }
+
+            const canBoard = ship.faction !== this.faction && VoronoiGraph.angularDistanceQuaternion(ship.positionVelocity.clone(), this.app.worldScale) < Game.VELOCITY_STEP * 10;
+            const hasBoardScreen = this.boardScreens.has(playerId);
+            if (canBoard && !hasBoardScreen) {
+                this.boardScreens.set(playerId, {isBoarding: false});
+                this.app.addFormEmitter(playerId, {type: EFormEmitterType.SHIP, id: this.id});
+            }
+            if (!canBoard && hasBoardScreen) {
+                this.boardScreens.delete(playerId);
+                this.app.removeFormEmitter(playerId, {type: EFormEmitterType.SHIP, id: this.id});
+            }
+        };
+
+        // get a list of nearby ships
+        const shipPosition = this.position.clone().rotateVector([0, 0, 1]);
+        const nearByShips = Array.from(this.app.voronoiShips.listItems(shipPosition));
+        const nearByEnemyShips: Ship[] = [];
+        for (const nearByShip of nearByShips) {
+            if (VoronoiGraph.angularDistance(
+                nearByShip.position.clone().rotateVector([0, 0, 1]),
+                shipPosition,
+                this.app.worldScale
+            ) < Game.VELOCITY_STEP * 200) {
+                if (!(nearByShip.faction && this.faction && nearByShip.faction.id === this.faction.id)) {
+                    nearByEnemyShips.push(nearByShip);
+                }
+            }
+        }
+        for (const ship of nearByEnemyShips) {
+            const playerId = Array.from(this.app.playerData.values()).find(x => x.shipId === ship.id)?.id;
+            handleBoardScreen(playerId, ship);
+        }
+        for (const playerId of Array.from(this.boardScreens.keys())) {
+            const playerData = this.app.playerData.get(playerId);
+            if (playerData) {
+                const ship = this.app.ships.get(playerData.shipId);
+                if (ship) {
+                    handleBoardScreen(playerId, ship);
+                }
+            }
+        }
+    }
+
+    public getBoardScreenForPlayer(playerId: string): IFormCard[] {
+        const boardScreen = this.boardScreens.get(playerId);
+        if (boardScreen && !boardScreen.isBoarding) {
+            return [{
+                title: "Ship of " + this.id,
+                fields: [[{
+                    label: "Begin Boarding",
+                    dataField: undefined,
+                    type: EFormFieldType.BUTTON,
+                    isReadOnly: false,
+                    buttonPath: EShipFormActions.BEGIN_BOARDING
+                }]],
+                data: {}
+            }];
+        }
+        return [];
+    }
+
+    public handleBoardScreenRequestsForPlayer(playerId: string, request: IFormRequest) {
+        switch (request.buttonPath as EShipFormActions) {
+            case EShipFormActions.BEGIN_BOARDING: {
+                const playerTradeScreen = this.boardScreens.get(playerId);
+                if (playerTradeScreen) {
+                    const attackerData = this.app.playerData.get(playerId);
+                    if (attackerData) {
+                        const attackerShip = this.app.ships.get(attackerData.shipId);
+                        if (attackerShip) {
+                            playerTradeScreen.isBoarding = true;
+
+                            const ships: Ship[] = [
+                                attackerShip,
+                                this
+                            ];
+                            const characterBattle = new CharacterBattle(this.app, ships);
+                            this.app.characterBattles.set(characterBattle.id, characterBattle);
+                        }
+                    }
+                }
+                break;
+            }
+        }
     }
 
     /**

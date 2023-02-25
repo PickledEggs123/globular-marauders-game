@@ -8,7 +8,8 @@ import {
     EShardMessageType,
     IAIPlayerDataStateShardMessage,
     IAiShardCountItem,
-    ICameraState, ICharacterSelectionItem,
+    ICameraState,
+    ICharacterSelectionItem,
     IClaimPlanetShardMessage,
     ICollidable,
     ICreateShipFactionShardMessage,
@@ -75,7 +76,7 @@ import {Star} from "./Star";
 import {Market} from "./Market";
 import {EShipType, GetShipData, PHYSICS_SCALE} from "./ShipType";
 import {EFaction, GameFactionData} from "./EFaction";
-import {EInvasionPhase, Invasion, ISerializedInvasion} from "./Invasion";
+import {Invasion, ISerializedInvasion} from "./Invasion";
 import {MoneyAccount} from "./MoneyAccount";
 import {Character, CharacterBattle, ISerializedCharacter} from "./Character";
 
@@ -1156,6 +1157,9 @@ export class Game {
 
         // handle buffs
         this.ships.get(shipId).handleBuffTick(delta);
+
+        // handle boarding screens
+        this.ships.get(shipId).handleBoardingScreen();
 
         this.ships.get(shipId).position = cameraPosition;
         this.ships.get(shipId).orientation = cameraOrientation;
@@ -2867,6 +2871,11 @@ export class Game {
                 invasion.handleInvasionLoop();
             }
 
+            // handle AI character battles
+            for (const characterBattle of Array.from(this.characterBattles.values())) {
+                characterBattle.handleCharacterBattleLoop();
+            }
+
             // handle AI factions
             for (const faction of Array.from(this.factions.values())) {
                 faction.handleFactionLoop();
@@ -3336,10 +3345,19 @@ export class Game {
                                 this.formEmitters.get(playerId)!.splice(index, 1);
                             }
                         }
+                        break;
                     }
                     case EFormEmitterType.GAME_OVER: {
                         const game = this;
                         cards.push(...game.getGameOverResultForPlayer(playerId));
+                        break;
+                    }
+                    case EFormEmitterType.SHIP: {
+                        const ship = this.ships.get(formEmitter.id);
+                        if (ship) {
+                            cards.push(...ship.getBoardScreenForPlayer(playerId));
+                        }
+                        break;
                     }
                 }
             }
@@ -3389,6 +3407,13 @@ export class Game {
                         const planet = this.planets.get(formEmitter.id);
                         if (planet) {
                             planet.handleTradeScreenRequestsForPlayer(playerId, request);
+                        }
+                        break;
+                    }
+                    case EFormEmitterType.SHIP: {
+                        const ship = this.ships.get(formEmitter.id);
+                        if (ship) {
+                            ship.handleBoardScreenRequestsForPlayer(playerId, request);
                         }
                         break;
                     }

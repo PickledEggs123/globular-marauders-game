@@ -43,6 +43,17 @@ export class CharacterBattle {
      */
     public ships: Ship[];
 
+    public tick: number = 0;
+
+    public app: Game;
+
+    public constructor(game: Game, ships: Ship[]) {
+        this.id = `character-battle-${Math.floor(Math.random() * 1000 * 1000)}`;
+        this.ships = ships;
+        this.app = game;
+    }
+
+
     /**
      * Get another enemy character to attack in a battle.
      * @param c
@@ -53,7 +64,8 @@ export class CharacterBattle {
             const otherShips = this.ships.filter(x => x.faction !== currentShip.faction);
             const otherShip = otherShips[Math.floor(Math.random() * otherShips.length)];
             if (otherShip) {
-                return otherShip.characters[Math.floor(Math.random() * otherShip.characters.length)] ?? null;
+                const otherCharacters = otherShip.characters.filter(x => x.hp > 0);
+                return otherCharacters[Math.floor(Math.random() * otherCharacters.length)] ?? null;
             }
         }
         return null;
@@ -69,12 +81,16 @@ export class CharacterBattle {
         });
     }
 
+    public isShipDone(s: Ship): boolean {
+        return s.characters.every(c => c.hp <= 0);
+    }
+
     /**
      * Determine if the battle is over because the crew of one ship is knocked out.
      */
     public isDone(): boolean {
         // check win condition
-        return this.ships.some(s => s.characters.every(c => c.hp <= 0));
+        return this.ships.some(this.isShipDone);
     }
 
     /**
@@ -119,10 +135,30 @@ export class CharacterBattle {
         const result = this.battleIterator.next();
         if (result.done) {
             this.battleIterator = null;
+            this.battleDone();
             return true;
         } else {
             return false;
         }
+    }
+
+    public handleCharacterBattleLoop() {
+        if (this.tick % 30 === 29) {
+            const result = this.runBattle();
+            if (result) {
+                this.app.characterBattles.delete(this.id);
+            }
+        }
+    }
+
+    public battleDone() {
+        this.ships.forEach(s => {
+            if (this.isShipDone(s)) {
+                s.health = 0;
+                s.repairTicks = s.repairTicks.map(_ => 0);
+            }
+        });
+        this.setupForBattle();
     }
 }
 
