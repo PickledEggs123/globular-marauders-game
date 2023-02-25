@@ -143,7 +143,7 @@ export class CharacterBattle {
     }
 
     public handleCharacterBattleLoop() {
-        if (this.tick % 2 === 1) {
+        if (this.tick % 10 === 9) {
             const result = this.runBattle();
             if (result) {
                 this.app.characterBattles.delete(this.id);
