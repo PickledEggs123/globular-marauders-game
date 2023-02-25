@@ -488,6 +488,7 @@ export class Ship implements IAutomatedShip {
         }
         for (const ship of nearByEnemyShips) {
             const playerId = Array.from(this.app.playerData.values()).find(x => x.shipId === ship.id)?.id;
+            console.log("ship boarding", ship, "playerId", playerId);
             handleBoardScreen(playerId, ship);
         }
         for (const playerId of Array.from(this.boardScreens.keys())) {
