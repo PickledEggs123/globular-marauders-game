@@ -476,11 +476,7 @@ export class Ship implements IAutomatedShip {
         const nearByShips = Array.from(this.app.voronoiShips.listItems(shipPosition));
         const nearByEnemyShips: Ship[] = [];
         for (const nearByShip of nearByShips) {
-            if (VoronoiGraph.angularDistance(
-                nearByShip.position.clone().rotateVector([0, 0, 1]),
-                shipPosition,
-                this.app.worldScale
-            ) < Game.VELOCITY_STEP * 200) {
+            if (nearByShip.getVelocityAcceleration() * this.app.worldScale * Math.PI / 2 * 100) {
                 if (!(nearByShip.faction && this.faction && nearByShip.faction.id === this.faction.id)) {
                     nearByEnemyShips.push(nearByShip);
                 }
