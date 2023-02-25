@@ -476,7 +476,12 @@ export class Ship implements IAutomatedShip {
         const nearByShips = Array.from(this.app.voronoiShips.listItems(shipPosition));
         const nearByEnemyShips: Ship[] = [];
         for (const nearByShip of nearByShips) {
-            if (nearByShip.getVelocityAcceleration() * this.app.worldScale * Math.PI / 2 * 100) {
+            const distance = VoronoiGraph.angularDistance(
+                nearByShip.position.clone().rotateVector([0, 0, 1]),
+                shipPosition,
+                this.app.worldScale
+            );
+            if (distance < nearByShip.getVelocityAcceleration() * this.app.worldScale * Math.PI / 2 * 100) {
                 if (!(nearByShip.faction && this.faction && nearByShip.faction.id === this.faction.id)) {
                     nearByEnemyShips.push(nearByShip);
                 }
@@ -484,7 +489,6 @@ export class Ship implements IAutomatedShip {
         }
         for (const ship of nearByEnemyShips) {
             const playerId = Array.from(this.app.playerData.values()).find(x => x.shipId === ship.id)?.id;
-            console.log("ship boarding", ship, "playerId", playerId);
             handleBoardScreen(playerId, ship);
         }
         for (const playerId of Array.from(this.boardScreens.keys())) {

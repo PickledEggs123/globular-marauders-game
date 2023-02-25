@@ -149,6 +149,7 @@ export class CharacterBattle {
                 this.app.characterBattles.delete(this.id);
             }
         }
+        this.tick += 1;
     }
 
     public battleDone() {
