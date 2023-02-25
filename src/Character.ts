@@ -143,7 +143,7 @@ export class CharacterBattle {
     }
 
     public handleCharacterBattleLoop() {
-        if (this.tick % 30 === 29) {
+        if (this.tick % 2 === 1) {
             const result = this.runBattle();
             if (result) {
                 this.app.characterBattles.delete(this.id);
@@ -429,7 +429,7 @@ export class Character {
             return;
         }
 
-        if (this.targetCharacter.hp <= 0) {
+        if (this.targetCharacter && this.targetCharacter.hp <= 0) {
             // target character is dead
             this.targetCharacter = null;
         }
