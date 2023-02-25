@@ -1,7 +1,7 @@
 import {EClassData, EFaction, ERaceData, GameFactionData, IClassData} from "./EFaction";
 import {Ship} from "./Ship";
 import {Game} from "./Game";
-import {EDamageType, EHitType, ICharacterSelection, ICharacterSelectionItem} from "./Interface";
+import {EAutomatedShipBuffType, EDamageType, EHitType, ICharacterSelection, ICharacterSelectionItem} from "./Interface";
 
 export class CharacterSelection {
     public items: ICharacterSelectionItem[] = [];
@@ -157,6 +157,7 @@ export class CharacterBattle {
                 s.health = 0;
                 s.repairTicks = s.repairTicks.map(_ => 0);
             }
+            s.buffs = s.buffs.filter(x => x.buffType !== EAutomatedShipBuffType.DISABLED);
         });
         this.setupForBattle();
     }

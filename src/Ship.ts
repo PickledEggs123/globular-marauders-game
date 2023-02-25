@@ -1,11 +1,16 @@
 import {
-    EAutomatedShipBuffType, EFormEmitterType, EFormFieldType,
+    EAutomatedShipBuffType,
+    EFormEmitterType,
+    EFormFieldType,
     EServerType,
     EShardMessageType,
     IAutomatedShip,
     IAutomatedShipBuff,
-    ICameraState, ICharacterSelection, ICharacterSelectionItem,
-    IDamageScoreShardMessage, IFormCard, IFormRequest
+    ICameraState,
+    ICharacterSelectionItem,
+    IDamageScoreShardMessage,
+    IFormCard,
+    IFormRequest
 } from "./Interface";
 import Quaternion from "quaternion";
 import {EResourceType, ICargoItem} from "./Resource";
@@ -14,7 +19,7 @@ import {DelaunayGraph, ISerializedPathFinder, PathFinder, VoronoiGraph} from "./
 import {computeConeLineIntersection, IConeHitTest} from "./Intersection";
 import {Faction} from "./Faction";
 import {CannonBall, Crate, DeserializeQuaternion, ISerializedQuaternion, SerializeQuaternion} from "./Item";
-import {EPlanetFormActions, EPlanetOwnershipStage, IResourceExported, Planet} from "./Planet";
+import {IResourceExported, Planet} from "./Planet";
 import {ESoundEventType, ESoundType, Game} from "./Game";
 import {EShipType, GetShipData} from "./ShipType";
 import {EFaction, ERaceData, GameFactionData, IClassData} from "./EFaction";
@@ -454,7 +459,7 @@ export class Ship implements IAutomatedShip {
                 return;
             }
 
-            const canBoard = ship.faction !== this.faction && VoronoiGraph.angularDistanceQuaternion(ship.positionVelocity.clone(), this.app.worldScale) < Game.VELOCITY_STEP * 10;
+            const canBoard = ship.faction !== this.faction /*&& VoronoiGraph.angularDistanceQuaternion(ship.positionVelocity.clone(), this.app.worldScale) < Game.VELOCITY_STEP * 10*/;
             const hasBoardScreen = this.boardScreens.has(playerId);
             if (canBoard && !hasBoardScreen) {
                 this.boardScreens.set(playerId, {isBoarding: false});
@@ -531,6 +536,14 @@ export class Ship implements IAutomatedShip {
                             ];
                             const characterBattle = new CharacterBattle(this.app, ships);
                             this.app.characterBattles.set(characterBattle.id, characterBattle);
+                            ships.forEach(x => {
+                                x.positionVelocity = Quaternion.ONE;
+                                const disabledBuff: IAutomatedShipBuff = {
+                                    buffType: EAutomatedShipBuffType.DISABLED,
+                                    expireTicks: 30 * 100
+                                };
+                                x.buffs.push(disabledBuff);
+                            });
                         }
                     }
                 }
