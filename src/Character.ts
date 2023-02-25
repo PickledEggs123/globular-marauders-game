@@ -96,9 +96,9 @@ export class CharacterBattle {
     /**
      * Setup the characters for DnD battle.
      */
-    public setupForBattle(): void {
+    public setupForBattle(characterBattle: CharacterBattle | null): void {
         this.ships.forEach(s => {
-            s.characters.forEach(c => c.setupForBattle());
+            s.characters.forEach(c => c.setupForBattle(characterBattle));
         })
     }
 
@@ -129,7 +129,7 @@ export class CharacterBattle {
     public runBattle(): boolean {
         if (!this.battleIterator) {
             this.battleIterator = this.performBattle();
-            this.setupForBattle();
+            this.setupForBattle(this);
         }
 
         const result = this.battleIterator.next();
@@ -160,7 +160,7 @@ export class CharacterBattle {
             }
             s.buffs = s.buffs.filter(x => x.buffType !== EAutomatedShipBuffType.DISABLED);
         });
-        this.setupForBattle();
+        this.setupForBattle(null);
     }
 }
 
@@ -283,11 +283,12 @@ export class Character {
     /**
      * Setup for battle.
      */
-    public setupForBattle(): void {
+    public setupForBattle(characterBattle: CharacterBattle | null): void {
         this.hp = 18;
         this.meleeDistance = 3;
         this.underMelee = false;
         this.isHidden = true;
+        this.battle = characterBattle;
     }
 
     /**
