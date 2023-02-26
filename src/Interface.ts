@@ -19,6 +19,7 @@ export enum EFormFieldType {
 export enum EFormEmitterType {
     PLANET = "PLANET",
     INVASION = "INVASION",
+    CHARACTER_BATTLE = "CHARACTER_BATTLE",
     PLANET_AUCTION = "PLANET_AUCTION",
     GAME_OVER = "GAME_OVER",
     SHIP = "SHIP",

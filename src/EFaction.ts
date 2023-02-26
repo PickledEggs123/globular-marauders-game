@@ -84,7 +84,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 3,
             meleeAttackDamage: 5,
             magicAttackArmor: 3,
-            rangeAttackArmor: 5,
+            rangeAttackArmor: 7,
             meleeAttackArmor: 3,
         }, {
             id: EClassData.FIGHTER,
@@ -101,7 +101,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 3,
             meleeAttackDamage: 7,
             magicAttackArmor: 3,
-            rangeAttackArmor: 5,
+            rangeAttackArmor: 11,
             meleeAttackArmor: 5,
         }]
     }],
@@ -139,7 +139,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 3,
             meleeAttackDamage: 3,
             magicAttackArmor: 5,
-            rangeAttackArmor: 2,
+            rangeAttackArmor: 4,
             meleeAttackArmor: 5,
         }, {
             id: EClassData.FIGHTER,
@@ -156,7 +156,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 3,
             meleeAttackDamage: 5,
             magicAttackArmor: 7,
-            rangeAttackArmor: 7,
+            rangeAttackArmor: 13,
             meleeAttackArmor: 7,
         }, {
             id: EClassData.RANGER,
@@ -173,7 +173,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 7,
             meleeAttackDamage: 3,
             magicAttackArmor: 4,
-            rangeAttackArmor: 4,
+            rangeAttackArmor: 6,
             meleeAttackArmor: 4,
         }, {
             id: EClassData.THIEF,
@@ -190,7 +190,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 2,
             meleeAttackDamage: 5,
             magicAttackArmor: 3,
-            rangeAttackArmor: 3,
+            rangeAttackArmor: 5,
             meleeAttackArmor: 3,
         }]
     }],
@@ -238,7 +238,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 3,
             meleeAttackDamage: 3,
             magicAttackArmor: 3,
-            rangeAttackArmor: 3,
+            rangeAttackArmor: 7,
             meleeAttackArmor: 3,
         }, {
             id: EClassData.MAGE,
@@ -255,7 +255,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 3,
             meleeAttackDamage: 3,
             magicAttackArmor: 5,
-            rangeAttackArmor: 2,
+            rangeAttackArmor: 6,
             meleeAttackArmor: 3,
         }, {
             id: EClassData.FIGHTER,
@@ -272,7 +272,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 3,
             meleeAttackDamage: 7,
             magicAttackArmor: 5,
-            rangeAttackArmor: 5,
+            rangeAttackArmor: 11,
             meleeAttackArmor: 5,
         }, {
             id: EClassData.PALADIN,
@@ -289,7 +289,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 3,
             meleeAttackDamage: 7,
             magicAttackArmor: 4,
-            rangeAttackArmor: 4,
+            rangeAttackArmor: 10,
             meleeAttackArmor: 4,
         }, {
             id: EClassData.RANGER,
@@ -306,7 +306,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 6,
             meleeAttackDamage: 3,
             magicAttackArmor: 3,
-            rangeAttackArmor: 3,
+            rangeAttackArmor: 7,
             meleeAttackArmor: 3,
         }, {
             id: EClassData.THIEF,
@@ -323,7 +323,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 2,
             meleeAttackDamage: 5,
             magicAttackArmor: 3,
-            rangeAttackArmor: 3,
+            rangeAttackArmor: 5,
             meleeAttackArmor: 3,
         }]
     }, {
@@ -345,7 +345,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 3,
             meleeAttackDamage: 6,
             magicAttackArmor: 5,
-            rangeAttackArmor: 5,
+            rangeAttackArmor: 7,
             meleeAttackArmor: 5,
         }, {
             id: EClassData.THIEF,
@@ -362,7 +362,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 2,
             meleeAttackDamage: 4,
             magicAttackArmor: 3,
-            rangeAttackArmor: 3,
+            rangeAttackArmor: 5,
             meleeAttackArmor: 3,
         }]
     }],
@@ -415,7 +415,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 3,
             meleeAttackDamage: 3,
             magicAttackArmor: 5,
-            rangeAttackArmor: 2,
+            rangeAttackArmor: 5,
             meleeAttackArmor: 3,
         }, {
             id: EClassData.FIGHTER,
@@ -432,7 +432,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 3,
             meleeAttackDamage: 7,
             magicAttackArmor: 5,
-            rangeAttackArmor: 5,
+            rangeAttackArmor: 8,
             meleeAttackArmor: 5,
         }, {
             id: EClassData.RANGER,
@@ -449,7 +449,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 6,
             meleeAttackDamage: 3,
             magicAttackArmor: 3,
-            rangeAttackArmor: 3,
+            rangeAttackArmor: 5,
             meleeAttackArmor: 3,
         }, {
             id: EClassData.THIEF,
@@ -466,7 +466,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 2,
             meleeAttackDamage: 5,
             magicAttackArmor: 3,
-            rangeAttackArmor: 3,
+            rangeAttackArmor: 5,
             meleeAttackArmor: 3,
         }]
     }, {
@@ -505,7 +505,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 2,
             meleeAttackDamage: 4,
             magicAttackArmor: 3,
-            rangeAttackArmor: 3,
+            rangeAttackArmor: 5,
             meleeAttackArmor: 3,
         }]
     }, {
@@ -527,7 +527,7 @@ export const GameFactionData: IFactionData[] = [{
             rangeAttackDamage: 3,
             meleeAttackDamage: 9,
             magicAttackArmor: 5,
-            rangeAttackArmor: 5,
+            rangeAttackArmor: 8,
             meleeAttackArmor: 5,
         }]
     }],

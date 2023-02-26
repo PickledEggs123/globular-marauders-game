@@ -78,7 +78,7 @@ import {EShipType, GetShipData, PHYSICS_SCALE} from "./ShipType";
 import {EFaction, GameFactionData} from "./EFaction";
 import {Invasion, ISerializedInvasion} from "./Invasion";
 import {MoneyAccount} from "./MoneyAccount";
-import {Character, CharacterBattle, ISerializedCharacter} from "./Character";
+import {Character, CharacterBattle, ISerializedCharacter, ISerializedCharacterBattle} from "./Character";
 
 /**
  * A list of player specific data for the server to store.
@@ -252,6 +252,7 @@ export interface IGameSyncFrame {
     factions: IGameSyncFrameDelta<ISerializedFaction>;
     scoreBoard: IGameSyncFrameDelta<IScoreBoard & {id: string}>;
     invasions: ISerializedInvasion[];
+    characterBattles: ISerializedCharacterBattle[];
     soundEvents: ISoundEvent[];
 }
 
@@ -490,6 +491,7 @@ export class Game {
             factions: this.computeSyncDelta(this.listToMap(oldState.factions), newState.factions, true),
             scoreBoard: this.computeSyncDelta(this.listToMap(oldState.scoreBoard), newState.scoreBoard, true),
             invasions: Array.from(this.invasions.values()).map(i => i.serialize()),
+            characterBattles: Array.from(this.characterBattles.values()).map(i => i.serialize()),
             soundEvents: newState.soundEvents,
         };
 
@@ -674,6 +676,11 @@ export class Game {
         const invasionData = data.invasions.map(d => Invasion.deserialize(this, d));
         for (const invasion of invasionData) {
             this.invasions.set(invasion.planetId, invasion);
+        }
+        this.characterBattles.clear();
+        const characterBattleData = data.characterBattles.map(d => CharacterBattle.deserialize(this, d));
+        for (const characterBattle of characterBattleData) {
+            this.characterBattles.set(characterBattle.id, characterBattle);
         }
         this.soundEvents = data.soundEvents;
     }
@@ -3339,6 +3346,18 @@ export class Game {
                         const invasion = this.invasions.get(formEmitter.id);
                         if (invasion) {
                             cards.push(...invasion.getInvasionResultForPlayer(playerId));
+                        } else {
+                            const index = this.formEmitters.get(playerId)!.indexOf(formEmitter);
+                            if (index >= 0) {
+                                this.formEmitters.get(playerId)!.splice(index, 1);
+                            }
+                        }
+                        break;
+                    }
+                    case EFormEmitterType.CHARACTER_BATTLE: {
+                        const characterBattle = this.characterBattles.get(formEmitter.id);
+                        if (characterBattle) {
+                            cards.push(...characterBattle.getBattleResultForPlayer(playerId));
                         } else {
                             const index = this.formEmitters.get(playerId)!.indexOf(formEmitter);
                             if (index >= 0) {

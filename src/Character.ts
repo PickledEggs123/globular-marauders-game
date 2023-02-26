@@ -1,7 +1,15 @@
 import {EClassData, EFaction, ERaceData, GameFactionData, IClassData} from "./EFaction";
 import {Ship} from "./Ship";
 import {Game} from "./Game";
-import {EAutomatedShipBuffType, EDamageType, EHitType, ICharacterSelection, ICharacterSelectionItem} from "./Interface";
+import {
+    EAutomatedShipBuffType,
+    EDamageType, EFormEmitterType,
+    EHitType,
+    ICharacterSelection,
+    ICharacterSelectionItem,
+    IFormCard
+} from "./Interface";
+import {EInvasionPhase, IInvasionAttackerScore, ISerializedInvasion} from "./Invasion";
 
 export class CharacterSelection {
     public items: ICharacterSelectionItem[] = [];
@@ -33,6 +41,16 @@ export class CharacterSelection {
     }
 }
 
+
+export interface ISerializedCharacterBattle {
+    id: string;
+    ships: string[];
+
+    tick: number;
+    isOver: boolean;
+    resultTick: number;
+}
+
 /**
  * A class to simulate a DnD Pokemon battle between two ships.
  */
@@ -44,6 +62,8 @@ export class CharacterBattle {
     public ships: Ship[];
 
     public tick: number = 0;
+    public isOver: boolean = false;
+    public resultTick: number = 0;
 
     public app: Game;
 
@@ -143,9 +163,15 @@ export class CharacterBattle {
     }
 
     public handleCharacterBattleLoop() {
-        if (this.tick % 5 === 4) {
+        if (this.tick % 5 === 4 && !this.isOver) {
             const result = this.runBattle();
             if (result) {
+                this.isOver = true;
+                this.resultTick = this.tick;
+            }
+        }
+        if (this.isOver) {
+            if (this.tick - this.resultTick >= 100) {
                 this.app.characterBattles.delete(this.id);
             }
         }
@@ -159,8 +185,68 @@ export class CharacterBattle {
                 s.repairTicks = s.repairTicks.map(_ => 0);
             }
             s.buffs = s.buffs.filter(x => x.buffType !== EAutomatedShipBuffType.DISABLED);
+
+            const playerData = Array.from(this.app.playerData.values()).find(x => x.shipId === s.id);
+            if (playerData) {
+                this.app.addFormEmitter(playerData.id, {type: EFormEmitterType.CHARACTER_BATTLE, id: this.id});
+            }
         });
         this.setupForBattle(null);
+    }
+
+    public getBattleResultForPlayer(playerId: string): IFormCard[] {
+        const playerData = this.app.playerData.get(playerId);
+        if (!playerData) {
+            return [];
+        }
+        const faction = this.app.factions.get(playerData.factionId);
+        if (!faction) {
+            return [];
+        }
+
+        const cards: IFormCard[] = [];
+        const ship = this.ships.find(x => x.id === playerData.shipId);
+        if (ship) {
+            if (this.isShipDone(ship)) {
+                cards.push({
+                    title: "You lost the Boarding Character Battle",
+                    fields: [],
+                    data: {}
+                });
+            } else {
+                cards.push({
+                    title: "You won the Boarding Character Battle",
+                    fields: [],
+                    data: {}
+                });
+            }
+        }
+        return cards;
+    }
+
+    public serialize(): ISerializedCharacterBattle {
+        return {
+            id: this.id,
+            ships: this.ships.map(x => x.id),
+            tick: this.tick,
+            resultTick: this.resultTick,
+            isOver: this.isOver,
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedCharacterBattle) {
+        this.id = data.id;
+        this.ships = data.ships.map(x => this.app.ships.get(x)).filter(x => !!x);
+        this.tick = data.tick;
+        this.resultTick = data.resultTick;
+        this.isOver = data.isOver;
+    }
+
+    public static deserialize(game: Game, data: ISerializedCharacterBattle) {
+        const ships = data.ships.map(x => game.ships.get(x)).filter(x => !!x);
+        const item = new CharacterBattle(game, ships);
+        item.deserializeUpdate(data);
+        return item;
     }
 }
 

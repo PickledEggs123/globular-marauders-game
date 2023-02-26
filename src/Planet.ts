@@ -1991,6 +1991,8 @@ export class Planet implements ICameraState {
                         soundType: ESoundType.MONEY,
                         soundEventType: ESoundEventType.ONE_OFF
                     });
+
+                    this.instance.addFormEmitter(playerData.id, {type: EFormEmitterType.INVASION, id: invasionEvent.planetId});
                 }
             }
         }
