@@ -2,7 +2,7 @@ import Quaternion from "quaternion";
 import {ISerializedPathFinder, PathFinder} from "./Graph";
 import {ISerializedFireControl, ISerializedShip} from "./Ship";
 import {ISerializedPlanetFull, Planet} from "./Planet";
-import {Crate, ISerializedCannonBall, ISerializedCrate, ISerializedQuaternion} from "./Item";
+import {Crate, ISerializedCannonBall, ISerializedCrate, ISerializedQuaternion, ISerializedSpellBall} from "./Item";
 import {Game, IPlayerData} from "./Game";
 import {EResourceType} from "./Resource";
 import {ISerializedFaction} from "./Faction";
@@ -154,6 +154,7 @@ export interface IPhysicsDataStateShardMessage extends IShardMessage {
     planets: ISerializedPlanetFull[];
     ships: ISerializedShip[];
     cannonBalls: ISerializedCannonBall[];
+    spellBalls: ISerializedSpellBall[];
     crates: ISerializedCrate[];
     transferIds: string[];
 }
@@ -275,6 +276,7 @@ export interface IShipStateShardMessage extends IShardMessage {
     orientation: ISerializedQuaternion;
     orientationVelocity: ISerializedQuaternion;
     newCannonBalls: ISerializedCannonBall[];
+    newSpellBalls: ISerializedSpellBall[];
 }
 
 export interface IDeathShardMessage extends IShardMessage {

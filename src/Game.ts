@@ -53,8 +53,8 @@ import {
     DeserializeQuaternion,
     ISerializedCannonBall,
     ISerializedCrate,
-    ISerializedQuaternion,
-    SerializeQuaternion,
+    ISerializedQuaternion, ISerializedSpellBall,
+    SerializeQuaternion, SpellBall,
 } from "./Item";
 import Quaternion from "quaternion";
 import {
@@ -218,6 +218,7 @@ export interface IShipStateMessage extends IMessage {
     orientation: ISerializedQuaternion;
     orientationVelocity: ISerializedQuaternion;
     newCannonBalls: ISerializedCannonBall[];
+    newSpellBalls: ISerializedSpellBall[];
 }
 
 /**
@@ -229,6 +230,7 @@ export interface IGameInitializationFrame {
     voronoiTerrain: ISerializedVoronoiTerrain;
     ships: ISerializedShip[];
     cannonBalls: ISerializedCannonBall[];
+    spellBalls: ISerializedSpellBall[];
     crates: ISerializedCrate[];
 }
 
@@ -247,6 +249,7 @@ export interface IGameSyncFrameDelta<T extends {id: string}> {
 export interface IGameSyncFrame {
     ships: IGameSyncFrameDelta<ISerializedShip>;
     cannonBalls: IGameSyncFrameDelta<ISerializedCannonBall>;
+    spellBalls: IGameSyncFrameDelta<ISerializedSpellBall>;
     crates: IGameSyncFrameDelta<ISerializedCrate>;
     planets: IGameSyncFrameDelta<ISerializedPlanet>;
     factions: IGameSyncFrameDelta<ISerializedFaction>;
@@ -263,6 +266,7 @@ export interface IPlayerSyncState {
     id: string;
     ships: ISerializedShip[];
     cannonBalls: ISerializedCannonBall[];
+    spellBalls: ISerializedSpellBall[];
     crates: ISerializedCrate[];
     planets: ISerializedPlanet[];
     factions: ISerializedFaction[];
@@ -301,6 +305,7 @@ export class Game {
     public planets: Map<string, Planet> = new Map<string, Planet>();
     public directedMarketTrade: Record<string, Array<IDirectedMarketTrade>> = {};
     public cannonBalls: Map<string, CannonBall> = new Map<string, CannonBall>();
+    public spellBalls: Map<string, SpellBall> = new Map<string, SpellBall>();
     public luxuryBuffs: LuxuryBuff[] = [];
     public worldScale: number = 3;
     public shipScale: number = 4;
@@ -428,6 +433,7 @@ export class Game {
             voronoiTerrain: this.voronoiTerrain.serialize(),
             ships: Array.from(this.ships.values()).map(s => s.serialize()),
             cannonBalls: Array.from(this.cannonBalls.values()).map(c => c.serialize()),
+            spellBalls: Array.from(this.cannonBalls.values()).map(c => c.serialize()),
             crates: Array.from(this.crates.values()).map(c => c.serialize())
         };
     }
@@ -487,6 +493,7 @@ export class Game {
             ships: this.computeSyncDelta(this.listToMap(oldState.ships), newState.ships, true),
             crates: this.computeSyncDelta(this.listToMap(oldState.crates), newState.crates, false),
             cannonBalls: this.computeSyncDelta(this.listToMap(oldState.cannonBalls), newState.cannonBalls, false),
+            spellBalls: this.computeSyncDelta(this.listToMap(oldState.spellBalls), newState.spellBalls, true),
             planets: this.computeSyncDelta(this.listToMap(oldState.planets), newState.planets, true),
             factions: this.computeSyncDelta(this.listToMap(oldState.factions), newState.factions, true),
             scoreBoard: this.computeSyncDelta(this.listToMap(oldState.scoreBoard), newState.scoreBoard, true),
@@ -514,6 +521,7 @@ export class Game {
                 ships: [],
                 crates: [],
                 cannonBalls: [],
+                spellBalls: [],
                 scoreBoard: [],
                 soundEvents: [],
             };
@@ -623,6 +631,15 @@ export class Game {
             (s: CannonBall, v: ISerializedCannonBall) => s.deserializeUpdate(v)
         );
         Game.syncNetworkArray(
+            this.spellBalls, {
+                create: data.spellBalls,
+                update: [],
+                remove: []
+            },
+            (v: ISerializedSpellBall) => SpellBall.deserialize(v),
+            (s: SpellBall, v: ISerializedSpellBall) => s.deserializeUpdate(v)
+        );
+        Game.syncNetworkArray(
             this.crates, {
                 create: data.crates,
                 update: [],
@@ -649,6 +666,12 @@ export class Game {
             data.cannonBalls,
             (v: ISerializedCannonBall) => CannonBall.deserialize(v),
             (s: CannonBall, v: ISerializedCannonBall) => s.deserializeUpdate(v)
+        );
+        Game.syncNetworkArray(
+            this.spellBalls,
+            data.spellBalls,
+            (v: ISerializedSpellBall) => SpellBall.deserialize(v),
+            (s: SpellBall, v: ISerializedSpellBall) => s.deserializeUpdate(v)
         );
         Game.syncNetworkArray(
             this.crates,
@@ -998,6 +1021,7 @@ export class Game {
         const rotationSpeed = this.ships.get(shipId).getRotation();
         const disabledMovement = this.ships.get(shipId).hasDisabledMovement();
         const newCannonBalls: CannonBall[] = [];
+        const newSpellBalls: SpellBall[] = [];
 
         let clearPathFindingPoints: boolean = false;
 
@@ -1191,7 +1215,8 @@ export class Game {
                     positionVelocity: SerializeQuaternion(cameraPositionVelocity),
                     orientation: SerializeQuaternion(cameraOrientation),
                     orientationVelocity: SerializeQuaternion(cameraOrientationVelocity),
-                    newCannonBalls: newCannonBalls.map(c => c.serialize())
+                    newCannonBalls: newCannonBalls.map(c => c.serialize()),
+                    newSpellBalls: newSpellBalls.map(c => c.serialize()),
                 };
                 this.outgoingMessages.push([playerData.id, shipStateMessage]);
             }
@@ -1386,6 +1411,9 @@ export class Game {
         const cannonBalls = replaceFirstInstance(
             sortedData.reduce((acc, m) => [...acc, ...m.cannonBalls.map(i => [m.transferIds.includes(i.id), i.id, i] as [boolean, string, ISerializedCannonBall])], [] as [boolean, string, ISerializedCannonBall][])
         ).map(s => CannonBall.deserialize(s));
+        const spellBalls = replaceFirstInstance(
+            sortedData.reduce((acc, m) => [...acc, ...m.spellBalls.map(i => [m.transferIds.includes(i.id), i.id, i] as [boolean, string, ISerializedSpellBall])], [] as [boolean, string, ISerializedSpellBall][])
+        ).map(s => SpellBall.deserialize(s));
         const crates = replaceFirstInstance(
             sortedData.reduce((acc, m) => [...acc, ...m.crates.map(i => [m.transferIds.includes(i.id), i.id, i] as [boolean, string, ISerializedCrate])], [] as [boolean, string, ISerializedCrate][])
         ).map(s => Crate.deserialize(s));
@@ -1399,6 +1427,12 @@ export class Game {
         Game.syncNetworkArray(
             this.cannonBalls,
             this.computeSyncDelta(this.cannonBalls, cannonBalls, true),
+            (o) => o,
+            (o, d) => o.deserializeUpdate(d.serialize())
+        );
+        Game.syncNetworkArray(
+            this.spellBalls,
+            this.computeSyncDelta(this.spellBalls, spellBalls, true),
             (o) => o,
             (o, d) => o.deserializeUpdate(d.serialize())
         );
@@ -1900,6 +1934,10 @@ export class Game {
                                     shipStateMessage.newCannonBalls.map(c => CannonBall.deserialize(c)).forEach(c => {
                                         this.cannonBalls.set(c.id, c);
                                     });
+
+                                    shipStateMessage.newSpellBalls.map(c => SpellBall.deserialize(c)).forEach(c => {
+                                        this.spellBalls.set(c.id, c);
+                                    });
                                 }
                                 break;
                             }
@@ -1984,6 +2022,7 @@ export class Game {
                     ships: Array.from(this.ships.values()).filter(isUpdated).map(s => s.serialize()),
                     crates: Array.from(this.crates.values()).filter(isUpdated).map(s => s.serialize()),
                     cannonBalls: Array.from(this.cannonBalls.values()).filter(isUpdated).map(s => s.serialize()),
+                    spellBalls: Array.from(this.spellBalls.values()).filter(isUpdated).map(s => s.serialize()),
                     transferIds: [...this.updatingIds.entries()].reduce((acc, [key, value]) => {
                         if (value > 0) {
                             acc.push(key);
@@ -2090,6 +2129,7 @@ export class Game {
             case EServerType.PHYSICS_NODE: {
                 const ships: Ship[] = [];
                 const cannonBalls: CannonBall[] = [];
+                const spellBalls: SpellBall[] = [];
                 const crates: Crate[] = [];
                 const planets: Planet[] = [];
 
@@ -2111,6 +2151,12 @@ export class Game {
                     }
                     cannonBalls.push(cannonBall);
                 }
+                for (const [, spellBall] of this.spellBalls) {
+                    if (!isUpdatable(spellBall)) {
+                        continue;
+                    }
+                    spellBalls.push(spellBall);
+                }
                 for (const [, crate] of this.crates) {
                     if (!isUpdatable(crate)) {
                         continue;
@@ -2129,6 +2175,7 @@ export class Game {
                     shardMessageType: EShardMessageType.PHYSICS_DATA_STATE,
                     ships: ships.map(s => s.serialize()),
                     cannonBalls: cannonBalls.map(c => c.serialize()),
+                    spellBalls: spellBalls.map(c => c.serialize()),
                     crates: crates.map(c => c.serialize()),
                     planets: planets.map(p => p.serializeFull()),
                     transferIds: [...this.updatingIds.entries()].reduce((acc, [key, value]) => {
@@ -2386,6 +2433,10 @@ export class Game {
                                     shipStateMessage.newCannonBalls.map(c => CannonBall.deserialize(c)).forEach(c => {
                                         this.cannonBalls.set(c.id, c);
                                     });
+                                    shipStateMessage.newSpellBalls.map(c => SpellBall.deserialize(c)).forEach(c => {
+                                        this.spellBalls.set(c.id, c);
+                                    });
+
                                 } else if ([EServerType.AI_NODE].includes(this.serverType)) {
                                     const planet = this.voronoiTerrain.getNearestPlanet(ship.position.rotateVector([0, 0, 1]));
                                     const kingdomIndex = planet.county.duchy.kingdom.terrain.kingdoms.indexOf(planet.county.duchy.kingdom);
@@ -2397,7 +2448,8 @@ export class Game {
                                         positionVelocity: shipStateMessage.positionVelocity,
                                         orientation: shipStateMessage.orientation,
                                         orientationVelocity: shipStateMessage.orientationVelocity,
-                                        newCannonBalls: shipStateMessage.newCannonBalls
+                                        newCannonBalls: shipStateMessage.newCannonBalls,
+                                        newSpellBalls: shipStateMessage.newSpellBalls,
                                     };
                                     this.outgoingShardMessages.push([kingdomPhysicsNode.name, shipStateShardMessage]);
                                 }
@@ -2482,6 +2534,11 @@ export class Game {
                     this.voronoiTerrain.removeCannonBall(item);
                 }
             }, {
+                array: this.spellBalls,
+                removeFromDataStructures(this: Game, item: SpellBall) {
+                    this.voronoiTerrain.removeSpellBall(item);
+                }
+            }, {
                 array: this.crates,
                 removeFromDataStructures(this: Game, item: Crate) {
                     this.voronoiTerrain.removeCrate(item);
@@ -2537,6 +2594,18 @@ export class Game {
                 useRayCast: true,
                 removeFromDataStructures(this: Game, item: CannonBall) {
                     this.voronoiTerrain.removeCannonBall(item);
+                }
+            }, {
+                arr: this.spellBalls,
+                collideFn(this: Game, ship: Ship, entity: ICollidable, hit: IHitTest) {
+                    ship.applyDamage(entity as SpellBall);
+                    if (ship.fireControl) {
+                        ship.fireControl.targetShipId = (entity as SpellBall).shipId;
+                    }
+                },
+                useRayCast: true,
+                removeFromDataStructures(this: Game, item: SpellBall) {
+                    this.voronoiTerrain.removeSpellBall(item);
                 }
             }, {
                 arr: this.crates,
@@ -2762,6 +2831,9 @@ export class Game {
             }
             for (const [, cannonBall] of this.cannonBalls) {
                 this.voronoiTerrain.updateCannonBall(cannonBall);
+            }
+            for (const [, spellBall] of this.spellBalls) {
+                this.voronoiTerrain.updateSpellBall(spellBall);
             }
             for (const [, crate] of this.crates) {
                 this.voronoiTerrain.updateCrate(crate);

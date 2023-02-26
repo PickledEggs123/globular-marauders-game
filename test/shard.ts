@@ -293,6 +293,7 @@ describe("shard tests", () => {
                                 shardMessageType: EShardMessageType.PHYSICS_DATA_STATE,
                                 ships: Array.from(shard.ships.values()).filter(isInKingdom).map(s => s.serialize()),
                                 cannonBalls: Array.from(shard.cannonBalls.values()).filter(isInKingdom).map(c => c.serialize()),
+                                spellBalls: Array.from(shard.spellBalls.values()).filter(isInKingdom).map(c => c.serialize()),
                                 crates: Array.from(shard.crates.values()).filter(isInKingdom).map(c => c.serialize()),
                                 planets: Array.from(shard.planets.values()).filter(isInKingdom).map(p => p.serializeFull()),
                                 transferIds: [],

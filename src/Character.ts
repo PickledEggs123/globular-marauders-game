@@ -261,6 +261,8 @@ export interface ISerializedCharacter {
     isHidden: boolean;
     targetCharacterId: string | null;
     battleId: string | null;
+    abilityCoolDown: number;
+    abilityCoolDownValue: number;
 }
 
 export class Character {
@@ -308,6 +310,14 @@ export class Character {
      * The battle class which connects to a character for the character to perform DnD battle.
      */
     public battle: CharacterBattle | null = null;
+    /**
+     * Number of ticks until able to use ability such as firing fireball.
+     */
+    public abilityCoolDown: number = 0;
+    /**
+     * Number of ticks of a cool down effect.
+     */
+    public abilityCoolDownValue: number = 100;
 
     public constructor(game: Game, faction: EFaction, characterRace: ERaceData, characterClass: EClassData) {
         this.id = `character-${Math.floor(1000 * 1000 * Math.random())}`;
@@ -329,6 +339,8 @@ export class Character {
             isHidden: this.isHidden,
             targetCharacterId: this.targetCharacter?.id ?? null,
             battleId: this.battle?.id ?? null,
+            abilityCoolDown: this.abilityCoolDown,
+            abilityCoolDownValue: this.abilityCoolDownValue,
         };
     }
 
@@ -358,6 +370,9 @@ export class Character {
         } else {
             this.targetCharacter = null;
         }
+
+        this.abilityCoolDown = data.abilityCoolDown;
+        this.abilityCoolDownValue = data.abilityCoolDownValue;
     }
 
     public static deserialize(game: Game, data: ISerializedCharacter): Character {

@@ -5,7 +5,7 @@ import {ISerializedPlanet, ISerializedPlanetFull, Planet} from "./Planet";
 import {Faction} from "./Faction";
 import {Game, IGameSyncFrame, IPlayerData, ISoundEvent} from "./Game";
 import {Ship} from "./Ship";
-import {CannonBall, Crate} from "./Item";
+import {CannonBall, Crate, SpellBall} from "./Item";
 import {ISerializedStar, Star} from "./Star";
 import {EFaction} from "./EFaction";
 
@@ -721,6 +721,7 @@ export class VoronoiCounty extends VoronoiTreeNode<ICameraState> {
 
     ships: Ship[] = [];
     cannonBalls: CannonBall[] = [];
+    spellBalls: SpellBall[] = [];
     crates: Crate[] = [];
 
     public serialize(): ISerializedVoronoiCounty {
@@ -809,6 +810,14 @@ export class VoronoiCounty extends VoronoiTreeNode<ICameraState> {
 
     addCannonBall(item: CannonBall) {
         this.addDataItem("cannonBalls", item);
+    }
+
+    removeSpellBall(item: SpellBall) {
+        this.removeDataItem("spellBalls", item);
+    }
+
+    addSpellBall(item: SpellBall) {
+        this.addDataItem("SpellBalls", item);
     }
 
     removeCrate(item: Crate) {
@@ -1190,6 +1199,7 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
 
     ships: Record<string, IVoronoiTerrainItem<Ship>> = {};
     cannonBalls: Record<string, IVoronoiTerrainItem<CannonBall>> = {};
+    spellBalls: Record<string, IVoronoiTerrainItem<SpellBall>> = {};
     crates: Record<string, IVoronoiTerrainItem<Crate>> = {};
 
     planetId: number = 0;
@@ -1348,6 +1358,19 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
             (voronoiCounty: VoronoiCounty, item: CannonBall) => voronoiCounty.removeCannonBall(item),
             item);
     }
+    public updateSpellBall(item: SpellBall) {
+        this.updateDataItem(
+            "spellBalls",
+            (voronoiCounty: VoronoiCounty, item: SpellBall) => voronoiCounty.removeSpellBall(item),
+            (voronoiCounty: VoronoiCounty, item: SpellBall) => voronoiCounty.addSpellBall(item),
+            item);
+    }
+    public removeSpellBall(item: SpellBall) {
+        this.removeDataItem(
+            "spellBalls",
+            (voronoiCounty: VoronoiCounty, item: SpellBall) => voronoiCounty.removeSpellBall(item),
+            item);
+    }
     public updateCrate(item: Crate) {
         this.updateDataItem(
             "crates",
@@ -1401,6 +1424,7 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
     public getClientFrame(playerData: IPlayerData, position: [number, number, number], radius: number = 1): IGameSyncFrame {
         const ships: Ship[] = [];
         const cannonBalls: CannonBall[] = [];
+        const spellBalls: SpellBall[] = [];
         const crates: Crate[] = [];
         const planets: Planet[] = [];
         const factions: Faction[] = Array.from(this.app.factions.values());
@@ -1408,6 +1432,7 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
         for (const county of this.getNearestCounties(position, radius)) {
             ships.push.apply(ships, county.ships);
             cannonBalls.push.apply(cannonBalls, county.cannonBalls);
+            spellBalls.push.apply(spellBalls, county.spellBalls);
             crates.push.apply(crates, county.crates);
             if (county.planet) {
                 planets.push(county.planet);
@@ -1420,6 +1445,7 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
             id: playerData.id,
             ships: ships.map(s => s.serialize()),
             cannonBalls: cannonBalls.map(c => c.serialize()),
+            spellBalls: spellBalls.map(c => c.serialize()),
             crates: crates.map(c => c.serialize()),
             planets: planets.map(p => p.serialize()),
             factions: factions.map(f => f.serialize()),

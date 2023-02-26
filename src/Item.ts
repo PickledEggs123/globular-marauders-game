@@ -207,3 +207,86 @@ export class CannonBall implements ICameraState, IExpirableTicks, ICollidable {
         this.shipId = shipId;
     }
 }
+
+export interface ISerializedSpellBall {
+    id: string;
+    color: string;
+    position: ISerializedQuaternion;
+    positionVelocity: ISerializedQuaternion;
+    orientation: ISerializedQuaternion;
+    orientationVelocity: ISerializedQuaternion;
+    size: number;
+    damage: number;
+    maxLive: number;
+    life: number;
+    factionId: EFaction | null;
+    shipId: string;
+    voronoiIndices: number[];
+}
+
+export class SpellBall implements ICameraState, IExpirableTicks, ICollidable {
+    public id: string = "";
+    public color: string = "grey";
+    public position: Quaternion = Quaternion.ONE;
+    public positionVelocity: Quaternion = Quaternion.ONE;
+    public orientation: Quaternion = Quaternion.ONE;
+    public orientationVelocity: Quaternion = Quaternion.ONE;
+    public size: number = 1;
+    public damage: number = 10;
+    public maxLife: number = Game.PROJECTILE_LIFE;
+    public life: number = 0;
+    public voronoiIndices: number[] = [];
+    /**
+     * Cannon balls have a faction, to avoid team killing teammates.
+     */
+    public factionId: EFaction | null;
+    /**
+     * Cannon balls have a ship id to record damage scores per player.
+     */
+    public shipId: string;
+
+    public serialize(): ISerializedSpellBall {
+        return {
+            id: this.id,
+            color: this.color,
+            position: SerializeQuaternion(this.position),
+            positionVelocity: SerializeQuaternion(this.positionVelocity),
+            orientation: SerializeQuaternion(this.orientation),
+            orientationVelocity: SerializeQuaternion(this.orientationVelocity),
+            size: this.size,
+            damage: this.damage,
+            maxLive: this.maxLife,
+            life: this.life,
+            factionId: this.factionId,
+            shipId: this.shipId,
+            voronoiIndices: this.voronoiIndices,
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedSpellBall) {
+        this.id = data.id;
+        this.color = data.color;
+        this.position = DeserializeQuaternion(data.position);
+        this.positionVelocity = DeserializeQuaternion(data.positionVelocity);
+        this.orientation = DeserializeQuaternion(data.orientation);
+        this.orientationVelocity = DeserializeQuaternion(data.orientationVelocity);
+        this.size = data.size;
+        this.damage = data.damage;
+        this.maxLife = data.maxLive;
+        this.life = data.life;
+        this.factionId = data.factionId;
+        this.shipId = data.shipId;
+        this.voronoiIndices = data.voronoiIndices;
+    }
+
+    public static deserialize(data: ISerializedSpellBall): CannonBall {
+        const item = new CannonBall(data.factionId, data.shipId);
+        item.deserializeUpdate(data);
+        return item;
+    }
+
+    constructor(faction: EFaction, shipId: string) {
+        this.factionId = faction;
+        this.shipId = shipId;
+    }
+}
