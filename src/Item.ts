@@ -1,4 +1,4 @@
-import {ICameraState, ICollidable, IExpirableTicks} from "./Interface";
+import {IAutomatedShipBuff, ICameraState, ICollidable, IExpirableTicks} from "./Interface";
 import Quaternion from "quaternion";
 import {EResourceType, ICargoItem} from "./Resource";
 import {Game} from "./Game";
@@ -222,6 +222,7 @@ export interface ISerializedSpellBall {
     factionId: EFaction | null;
     shipId: string;
     voronoiIndices: number[];
+    shipBuffs: IAutomatedShipBuff[];
 }
 
 export class SpellBall implements ICameraState, IExpirableTicks, ICollidable {
@@ -244,6 +245,10 @@ export class SpellBall implements ICameraState, IExpirableTicks, ICollidable {
      * Cannon balls have a ship id to record damage scores per player.
      */
     public shipId: string;
+    /**
+     * The buffs or nerfs to apply to the enemy on contact.
+     */
+    public shipBuffs: IAutomatedShipBuff[];
 
     public serialize(): ISerializedSpellBall {
         return {
@@ -260,6 +265,7 @@ export class SpellBall implements ICameraState, IExpirableTicks, ICollidable {
             factionId: this.factionId,
             shipId: this.shipId,
             voronoiIndices: this.voronoiIndices,
+            shipBuffs: this.shipBuffs,
         };
     }
 
@@ -277,16 +283,18 @@ export class SpellBall implements ICameraState, IExpirableTicks, ICollidable {
         this.factionId = data.factionId;
         this.shipId = data.shipId;
         this.voronoiIndices = data.voronoiIndices;
+        this.shipBuffs = data.shipBuffs;
     }
 
-    public static deserialize(data: ISerializedSpellBall): CannonBall {
-        const item = new CannonBall(data.factionId, data.shipId);
+    public static deserialize(data: ISerializedSpellBall): SpellBall {
+        const item = new SpellBall(data.factionId, data.shipId, data.shipBuffs);
         item.deserializeUpdate(data);
         return item;
     }
 
-    constructor(faction: EFaction, shipId: string) {
+    constructor(faction: EFaction, shipId: string, shipBuffs: IAutomatedShipBuff[]) {
         this.factionId = faction;
         this.shipId = shipId;
+        this.shipBuffs = shipBuffs;
     }
 }

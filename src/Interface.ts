@@ -1,6 +1,6 @@
 import Quaternion from "quaternion";
 import {ISerializedPathFinder, PathFinder} from "./Graph";
-import {ISerializedFireControl, ISerializedShip} from "./Ship";
+import {ISerializedFireControl, ISerializedShip, ISerializedShipActionItem} from "./Ship";
 import {ISerializedPlanetFull, Planet} from "./Planet";
 import {Crate, ISerializedCannonBall, ISerializedCrate, ISerializedQuaternion, ISerializedSpellBall} from "./Item";
 import {Game, IPlayerData} from "./Game";
@@ -144,6 +144,7 @@ export interface IAIPlayerDataStateShardMessage extends IShardMessage {
         shipKeys: string[];
         orders: ISerializedOrder[];
         characters: ISerializedCharacter[];
+        actionItems: ISerializedShipActionItem[];
         pathFinding: ISerializedPathFinder;
         fireControl: ISerializedFireControl;
     }>;
@@ -427,7 +428,8 @@ export interface IExpirableTicks {
 }
 
 export enum EAutomatedShipBuffType {
-    DISABLED = "DISABLED"
+    DISABLED = "DISABLED",
+    IRONWOOD = "IRONWOOD",
 }
 
 export interface IAutomatedShipBuff {

@@ -255,6 +255,7 @@ describe("shard tests", () => {
                                     shipKeys: s.activeKeys,
                                     orders: s.orders.map(o => o.serialize()),
                                     characters: s.characters.map(o => o.serialize()),
+                                    actionItems: s.actionItems.map(o => o.serialize()),
                                     pathFinding: s.pathFinding.serialize(),
                                     fireControl: s.fireControl.serialize()
                                 }))

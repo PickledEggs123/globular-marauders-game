@@ -18,7 +18,7 @@ import {EOrderResult, EOrderType, ISerializedOrder, Order} from "./Order";
 import {DelaunayGraph, ISerializedPathFinder, PathFinder, VoronoiGraph} from "./Graph";
 import {computeConeLineIntersection, IConeHitTest} from "./Intersection";
 import {Faction} from "./Faction";
-import {CannonBall, Crate, DeserializeQuaternion, ISerializedQuaternion, SerializeQuaternion} from "./Item";
+import {CannonBall, Crate, DeserializeQuaternion, ISerializedQuaternion, SerializeQuaternion, SpellBall} from "./Item";
 import {IResourceExported, Planet} from "./Planet";
 import {ESoundEventType, ESoundType, Game} from "./Game";
 import {EShipType, GetShipData} from "./ShipType";
@@ -29,6 +29,30 @@ import {Character, CharacterBattle, ISerializedCharacter} from "./Character";
 
 export enum EShipFormActions {
     BEGIN_BOARDING = "BEGIN_BOARDING",
+}
+
+/**
+ * A list of different ship actions the player or AI can queue.
+ */
+export enum EShipActionItemType {
+    /**
+     * Shoot a fireball that does 5 times damage.
+     */
+    FIREBALL = "FIREBALL",
+    /**
+     * Shoot a cloud of sleepiness at a ship to disable it.
+     */
+    SLEEP = "SLEEP",
+    /**
+     * Take half as much damage.
+     */
+    IRONWOOD = "IRONWOOD",
+}
+
+export interface ISerializedShipActionItem {
+    id: string;
+    actionType: EShipActionItemType;
+    direction: ISerializedQuaternion;
 }
 
 export interface ISerializedShip {
@@ -57,6 +81,39 @@ export interface ISerializedShip {
     healthTickCoolDown: number;
     moneyAccount: ISerializedMoneyAccount;
     voronoiIndices: number[];
+    actionItems: ISerializedShipActionItem[];
+}
+
+export class ShipActionItem {
+    public id: string;
+    public actionType: EShipActionItemType;
+    public direction: Quaternion;
+
+    public constructor(actionType: EShipActionItemType, direction: Quaternion) {
+        this.id = `action-type-${Math.floor(Math.random() * 1000 * 1000)}`;
+        this.actionType = actionType;
+        this.direction = direction;
+    }
+
+    public serialize(): ISerializedShipActionItem {
+        return {
+            id: this.id,
+            actionType: this.actionType,
+            direction: SerializeQuaternion(this.direction),
+        };
+    }
+
+    public deserializeUpdate(data: ISerializedShipActionItem) {
+        this.id = data.id;
+        this.actionType = data.actionType;
+        this.direction = DeserializeQuaternion(data.direction);
+    }
+
+    public static deserialize(data: ISerializedShipActionItem): ShipActionItem {
+        const item = new ShipActionItem(data.actionType, DeserializeQuaternion(data.direction));
+        item.deserializeUpdate(data);
+        return item;
+    }
 }
 
 export class Ship implements IAutomatedShip {
@@ -88,6 +145,7 @@ export class Ship implements IAutomatedShip {
     public moneyAccount: MoneyAccount = new MoneyAccount();
     public voronoiIndices: number[] = [] as number[];
     public boardScreens: Map<string, {isBoarding: boolean}> = new Map<string, {isBoarding: boolean}>();
+    public actionItems: ShipActionItem[] = [];
 
     public serialize(): ISerializedShip {
         return {
@@ -116,6 +174,7 @@ export class Ship implements IAutomatedShip {
             healthTickCoolDown: this.healthTickCoolDown,
             moneyAccount: this.moneyAccount.serialize(),
             voronoiIndices: this.voronoiIndices,
+            actionItems: this.actionItems.map(o => o.serialize()),
         };
     }
 
@@ -147,6 +206,8 @@ export class Ship implements IAutomatedShip {
         this.healthTickCoolDown = data.healthTickCoolDown;
         this.moneyAccount.deserializeUpdate(data.moneyAccount);
         this.voronoiIndices = data.voronoiIndices;
+        this.actionItems.splice(0, this.actionItems.length);
+        this.actionItems.push.apply(this.actionItems, data.actionItems.map(d => ShipActionItem.deserialize(d)));
     }
 
     public static deserialize(game: Game, data: ISerializedShip): Ship {
@@ -273,6 +334,19 @@ export class Ship implements IAutomatedShip {
      */
     hasPirateCargo(): boolean {
         return this.cargo.some(c => c.pirated);
+    }
+
+    /**
+     * Apply a spell to the ship.
+     * @param spellBall
+     */
+    public applySpellBallDamage(spellBall: SpellBall) {
+        if (spellBall.shipBuffs?.length > 0) {
+            for (const buff of spellBall.shipBuffs) {
+                this.buffs.push(buff);
+            }
+        }
+        this.applyDamage(spellBall);
     }
 
     /**

@@ -3,11 +3,13 @@
  */
 import {ISerializedPlanet, ISerializedPlanetFull, Planet} from "./Planet";
 import {
+    EAutomatedShipBuffType,
     EFormEmitterType,
     EServerType,
     EShardMessageType,
     IAIPlayerDataStateShardMessage,
     IAiShardCountItem,
+    IAutomatedShipBuff,
     ICameraState,
     ICharacterSelectionItem,
     IClaimPlanetShardMessage,
@@ -44,7 +46,15 @@ import {
     ITradeShipPlanetShardMessage,
     ITributeShipPlanetShardMessage
 } from "./Interface";
-import {FireControl, ISerializedFireControl, ISerializedShip, Ship} from "./Ship";
+import {
+    EShipActionItemType,
+    FireControl,
+    ISerializedFireControl,
+    ISerializedShip,
+    ISerializedShipActionItem,
+    Ship,
+    ShipActionItem
+} from "./Ship";
 import {ISerializedVoronoiTerrain, VoronoiCounty, VoronoiKingdom, VoronoiTerrain, VoronoiTree} from "./VoronoiTree";
 import {Faction, ISerializedFaction, LuxuryBuff} from "./Faction";
 import {
@@ -53,8 +63,10 @@ import {
     DeserializeQuaternion,
     ISerializedCannonBall,
     ISerializedCrate,
-    ISerializedQuaternion, ISerializedSpellBall,
-    SerializeQuaternion, SpellBall,
+    ISerializedQuaternion,
+    ISerializedSpellBall,
+    SerializeQuaternion,
+    SpellBall,
 } from "./Item";
 import Quaternion from "quaternion";
 import {
@@ -433,7 +445,7 @@ export class Game {
             voronoiTerrain: this.voronoiTerrain.serialize(),
             ships: Array.from(this.ships.values()).map(s => s.serialize()),
             cannonBalls: Array.from(this.cannonBalls.values()).map(c => c.serialize()),
-            spellBalls: Array.from(this.cannonBalls.values()).map(c => c.serialize()),
+            spellBalls: Array.from(this.spellBalls.values()).map(c => c.serialize()),
             crates: Array.from(this.crates.values()).map(c => c.serialize())
         };
     }
@@ -1164,6 +1176,55 @@ export class Game {
             }
         }
 
+        // process fireball spells
+        for (const shipActionItem of this.ships.get(shipId).actionItems) {
+            switch (shipActionItem.actionType) {
+                case EShipActionItemType.FIREBALL: {
+                    const fireDirection = cameraOrientation.mul(shipActionItem.direction.clone().mul(cameraPosition.clone().inverse())).rotateVector([0, 0, 1]);
+                    const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
+                    const fireBall = new SpellBall(faction.id, this.ships.get(shipId).id, []);
+                    fireBall.id = `${cameraId}-${Math.floor(Math.random() * 100000000)}`;
+                    fireBall.position = cameraPosition.clone();
+                    fireBall.positionVelocity = fireVelocity.clone();
+                    fireBall.size = 30;
+                    fireBall.damage = 50;
+                    newSpellBalls.push(fireBall);
+                    break;
+                }
+                case EShipActionItemType.SLEEP: {
+                    const sleepSpell: IAutomatedShipBuff = {
+                        buffType: EAutomatedShipBuffType.DISABLED,
+                        expireTicks: 30 * 10
+                    };
+
+                    const fireDirection = cameraOrientation.mul(shipActionItem.direction.clone().mul(cameraPosition.clone().inverse())).rotateVector([0, 0, 1]);
+                    const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
+                    const sleepAttack = new SpellBall(faction.id, this.ships.get(shipId).id, [
+                        sleepSpell
+                    ]);
+                    sleepAttack.id = `${cameraId}-${Math.floor(Math.random() * 100000000)}`;
+                    sleepAttack.position = cameraPosition.clone();
+                    sleepAttack.positionVelocity = fireVelocity.clone();
+                    sleepAttack.size = 30;
+                    sleepAttack.damage = 0;
+                    newSpellBalls.push(sleepAttack);
+                    break;
+                }
+                case EShipActionItemType.IRONWOOD: {
+                    const hasIronWood = this.ships.get(shipId).buffs.some(x => x.buffType === EAutomatedShipBuffType.IRONWOOD);
+                    if (!hasIronWood) {
+                        const ironWoodBuff: IAutomatedShipBuff = {
+                            buffType: EAutomatedShipBuffType.IRONWOOD,
+                            expireTicks: 30 * 10
+                        };
+                        this.ships.get(shipId).buffs.push(ironWoodBuff);
+                    }
+                    break;
+                }
+            }
+        }
+        this.ships.get(shipId).actionItems.splice(0, this.ships.get(shipId).actionItems.length);
+
         // if (activeKeys.some(key => ["a", "s", "d", "w", " "].includes(key)) && !isAutomated) {
         //     clearPathFindingPoints = true;
         // }
@@ -1359,6 +1420,7 @@ export class Game {
             shipKeys: string[];
             orders: ISerializedOrder[];
             characters: ISerializedCharacter[];
+            actionItems: ISerializedShipActionItem[];
             pathFinding: ISerializedPathFinder;
             fireControl: ISerializedFireControl;
         }>)) {
@@ -1367,6 +1429,7 @@ export class Game {
                 ship.activeKeys.splice(0, ship.activeKeys.length, ...item.shipKeys);
                 ship.orders.splice(0, ship.orders.length, ...item.orders.map(o => Order.deserialize(this, ship, o)));
                 ship.characters.splice(0, ship.characters.length, ...item.characters.map(o => Character.deserialize(this, o)));
+                ship.actionItems.splice(0, ship.actionItems.length, ...item.actionItems.map(o => ShipActionItem.deserialize(o)));
                 ship.pathFinding = PathFinder.deserialize(ship, item.pathFinding);
                 ship.fireControl = FireControl.deserialize(this, ship, item.fireControl);
             }
@@ -1976,6 +2039,7 @@ export class Game {
                         shipKeys: s.activeKeys,
                         orders: s.orders.map(o => o.serialize()),
                         characters: s.characters.map(o => o.serialize()),
+                        actionItems: s.actionItems.map(o => o.serialize()),
                         pathFinding: s.pathFinding.serialize(),
                         fireControl: s.fireControl.serialize(),
                     })),
@@ -2099,6 +2163,7 @@ export class Game {
                             shipId: ship.id,
                             orders: ship.orders.map(s => s.serialize()),
                             characters: ship.characters.map(s => s.serialize()),
+                            actionItems: ship.actionItems.map(s => s.serialize()),
                             shipKeys: [...ship.activeKeys],
                             pathFinding: ship.pathFinding.serialize(),
                             fireControl: ship.fireControl.serialize(),
@@ -2109,6 +2174,7 @@ export class Game {
                             shipId: ship.id,
                             orders: ship.orders.map(s => s.serialize()),
                             characters: ship.characters.map(s => s.serialize()),
+                            actionItems: ship.actionItems.map(s => s.serialize()),
                             shipKeys: [...ship.activeKeys],
                             pathFinding: ship.pathFinding.serialize(),
                             fireControl: ship.fireControl.serialize(),
@@ -2567,7 +2633,8 @@ export class Game {
             // move cannonballs and crates
             const movableArrays: Array<Map<string, ICameraState & IExpirableTicks>> = [
                 this.cannonBalls,
-                this.crates
+                this.spellBalls,
+                this.crates,
             ];
             for (const movableArray of movableArrays) {
                 for (const [, entity] of movableArray) {
@@ -2598,7 +2665,7 @@ export class Game {
             }, {
                 arr: this.spellBalls,
                 collideFn(this: Game, ship: Ship, entity: ICollidable, hit: IHitTest) {
-                    ship.applyDamage(entity as SpellBall);
+                    ship.applySpellBallDamage(entity as SpellBall);
                     if (ship.fireControl) {
                         ship.fireControl.targetShipId = (entity as SpellBall).shipId;
                     }

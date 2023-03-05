@@ -1,4 +1,5 @@
 import {ICharacterSelectionItem} from "./Interface";
+import {EShipActionItemType} from "./Ship";
 
 export enum EFaction {
     DWARVEN = "DWARVEN",
@@ -59,6 +60,50 @@ export interface IFactionData {
     description: string;
     races: IRaceData[];
     defaultCharacterSelection: ICharacterSelectionItem[];
+}
+
+export interface ISpellData {
+    id: string;
+    name: string;
+    description: string;
+    actionType: EShipActionItemType;
+    hasDirection: boolean;
+    coolDownTicks: number;
+}
+
+export const GetSpellData = (characterClass: EClassData): ISpellData[] => {
+    switch (characterClass) {
+        case EClassData.CLERIC: {
+            return [{
+                id: "cleric-ironwood",
+                name: "Ironwood",
+                description: "Apply magic to the hull to make it tougher.",
+                actionType: EShipActionItemType.IRONWOOD,
+                hasDirection: false,
+                coolDownTicks: 30 * 10,
+            }];
+        }
+        case EClassData.MAGE: {
+            return [{
+                id: "mage-fireball",
+                name: "Fireball",
+                description: "Shoot a large ball of fire at the enemy.",
+                actionType: EShipActionItemType.FIREBALL,
+                hasDirection: true,
+                coolDownTicks: 10 * 10,
+            }, {
+                id: "mage-sleep",
+                name: "Sleep",
+                description: "Shoot a large ball of sleepiness at the enemy.",
+                actionType: EShipActionItemType.SLEEP,
+                hasDirection: true,
+                coolDownTicks: 10 * 10,
+            }];
+        }
+        default: {
+            return [];
+        }
+    }
 }
 
 export const GameFactionData: IFactionData[] = [{
