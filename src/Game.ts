@@ -1180,7 +1180,10 @@ export class Game {
         for (const shipActionItem of this.ships.get(shipId).actionItems) {
             switch (shipActionItem.actionType) {
                 case EShipActionItemType.FIREBALL: {
-                    const fireVelocity = shipActionItem.direction.clone().mul(cameraPosition.clone().inverse()).pow(1 / 20);
+                    let fireDirection = Quaternion.fromBetweenVectors(cameraPosition.clone().rotateVector([0, 0, 1]), shipActionItem.direction.clone().rotateVector([0, 0, 1])).rotateVector([0, 0, 1]);
+                    fireDirection[2] = 0;
+                    fireDirection = DelaunayGraph.normalize(fireDirection);
+                    const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
                     const fireBall = new SpellBall(faction.id, this.ships.get(shipId).id, []);
                     fireBall.id = `${cameraId}-${Math.floor(Math.random() * 100000000)}`;
                     fireBall.position = cameraPosition.clone();
@@ -1196,7 +1199,10 @@ export class Game {
                         expireTicks: 30 * 10
                     };
 
-                    const fireVelocity = shipActionItem.direction.clone().mul(cameraPosition.clone().inverse()).pow(1 / 20);
+                    let fireDirection = Quaternion.fromBetweenVectors(cameraPosition.clone().rotateVector([0, 0, 1]), shipActionItem.direction.clone().rotateVector([0, 0, 1])).rotateVector([0, 0, 1]);
+                    fireDirection[2] = 0;
+                    fireDirection = DelaunayGraph.normalize(fireDirection);
+                    const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
                     const sleepAttack = new SpellBall(faction.id, this.ships.get(shipId).id, [
                         sleepSpell
                     ]);
