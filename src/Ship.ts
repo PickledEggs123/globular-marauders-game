@@ -355,9 +355,17 @@ export class Ship implements IAutomatedShip {
      */
     public applyDamage(cannonBall: CannonBall) {
         // compute damage properties
-        const physicalDamage = cannonBall.damage * (1 - Game.BURN_DAMAGE_RATIO);
-        const burnDamage = cannonBall.damage * Game.BURN_DAMAGE_RATIO;
-        const repairDamage = cannonBall.damage * Game.REPAIR_DAMAGE_RATIO;
+        let physicalDamage = cannonBall.damage * (1 - Game.BURN_DAMAGE_RATIO);
+        let burnDamage = cannonBall.damage * Game.BURN_DAMAGE_RATIO;
+        let repairDamage = cannonBall.damage * Game.REPAIR_DAMAGE_RATIO;
+
+        // apply iron wood modifier
+        const hasIronWood = this.buffs.some(x => x.buffType === EAutomatedShipBuffType.IRONWOOD);
+        if (hasIronWood) {
+            physicalDamage *= 0.5;
+            burnDamage *= 0.5;
+            repairDamage *= 0.5;
+        }
 
         // apply instant physical damage
         this.health = Math.max(0, this.health - physicalDamage);

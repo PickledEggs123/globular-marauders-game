@@ -1180,13 +1180,15 @@ export class Game {
         for (const shipActionItem of this.ships.get(shipId).actionItems) {
             switch (shipActionItem.actionType) {
                 case EShipActionItemType.FIREBALL: {
-                    const fireDirection = cameraOrientation.mul(shipActionItem.direction.clone().mul(cameraPosition.clone().inverse())).rotateVector([0, 0, 1]);
+                    let fireDirection = shipActionItem.direction.clone().mul(cameraPosition.clone().inverse()).rotateVector([0, 0, 1]);
+                    fireDirection[2] = 0;
+                    fireDirection = DelaunayGraph.normalize(fireDirection);
                     const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
                     const fireBall = new SpellBall(faction.id, this.ships.get(shipId).id, []);
                     fireBall.id = `${cameraId}-${Math.floor(Math.random() * 100000000)}`;
                     fireBall.position = cameraPosition.clone();
                     fireBall.positionVelocity = fireVelocity.clone();
-                    fireBall.size = 30;
+                    fireBall.size = 60;
                     fireBall.damage = 50;
                     newSpellBalls.push(fireBall);
                     break;
@@ -1197,7 +1199,9 @@ export class Game {
                         expireTicks: 30 * 10
                     };
 
-                    const fireDirection = cameraOrientation.mul(shipActionItem.direction.clone().mul(cameraPosition.clone().inverse())).rotateVector([0, 0, 1]);
+                    let fireDirection = shipActionItem.direction.clone().mul(cameraPosition.clone().inverse()).rotateVector([0, 0, 1]);
+                    fireDirection[2] = 0;
+                    fireDirection = DelaunayGraph.normalize(fireDirection);
                     const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
                     const sleepAttack = new SpellBall(faction.id, this.ships.get(shipId).id, [
                         sleepSpell
@@ -1205,7 +1209,7 @@ export class Game {
                     sleepAttack.id = `${cameraId}-${Math.floor(Math.random() * 100000000)}`;
                     sleepAttack.position = cameraPosition.clone();
                     sleepAttack.positionVelocity = fireVelocity.clone();
-                    sleepAttack.size = 30;
+                    sleepAttack.size = 60;
                     sleepAttack.damage = 0;
                     newSpellBalls.push(sleepAttack);
                     break;
