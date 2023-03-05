@@ -817,7 +817,7 @@ export class VoronoiCounty extends VoronoiTreeNode<ICameraState> {
     }
 
     addSpellBall(item: SpellBall) {
-        this.addDataItem("SpellBalls", item);
+        this.addDataItem("spellBalls", item);
     }
 
     removeCrate(item: Crate) {
