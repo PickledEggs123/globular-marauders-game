@@ -1183,6 +1183,7 @@ export class Game {
                     let fireDirection = Quaternion.fromBetweenVectors(cameraPosition.clone().rotateVector([0, 0, 1]), shipActionItem.direction).rotateVector([0, 0, 1]);
                     fireDirection[2] = 0;
                     fireDirection = DelaunayGraph.normalize(fireDirection);
+                    fireDirection = Quaternion.fromBetweenVectors([0, 0, 1], cameraOrientation.rotateVector(fireDirection)).rotateVector([0, 0, 1]);
                     const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
                     const fireBall = new SpellBall(faction.id, this.ships.get(shipId).id, []);
                     fireBall.id = `${cameraId}-${Math.floor(Math.random() * 100000000)}`;
@@ -1202,6 +1203,7 @@ export class Game {
                     let fireDirection = Quaternion.fromBetweenVectors(cameraPosition.clone().rotateVector([0, 0, 1]), shipActionItem.direction).rotateVector([0, 0, 1]);
                     fireDirection[2] = 0;
                     fireDirection = DelaunayGraph.normalize(fireDirection);
+                    fireDirection = Quaternion.fromBetweenVectors([0, 0, 1], cameraOrientation.rotateVector(fireDirection)).rotateVector([0, 0, 1]);
                     const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
                     const sleepAttack = new SpellBall(faction.id, this.ships.get(shipId).id, [
                         sleepSpell
