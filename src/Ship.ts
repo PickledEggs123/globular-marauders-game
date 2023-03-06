@@ -52,7 +52,7 @@ export enum EShipActionItemType {
 export interface ISerializedShipActionItem {
     id: string;
     actionType: EShipActionItemType;
-    direction: ISerializedQuaternion;
+    direction: [number, number, number];
 }
 
 export interface ISerializedShip {
@@ -87,9 +87,9 @@ export interface ISerializedShip {
 export class ShipActionItem {
     public id: string;
     public actionType: EShipActionItemType;
-    public direction: Quaternion;
+    public direction: [number, number, number];
 
-    public constructor(actionType: EShipActionItemType, direction: Quaternion) {
+    public constructor(actionType: EShipActionItemType, direction: [number, number, number]) {
         this.id = `action-type-${Math.floor(Math.random() * 1000 * 1000)}`;
         this.actionType = actionType;
         this.direction = direction;
@@ -99,18 +99,18 @@ export class ShipActionItem {
         return {
             id: this.id,
             actionType: this.actionType,
-            direction: SerializeQuaternion(this.direction),
+            direction: this.direction,
         };
     }
 
     public deserializeUpdate(data: ISerializedShipActionItem) {
         this.id = data.id;
         this.actionType = data.actionType;
-        this.direction = DeserializeQuaternion(data.direction);
+        this.direction = data.direction;
     }
 
     public static deserialize(data: ISerializedShipActionItem): ShipActionItem {
-        const item = new ShipActionItem(data.actionType, DeserializeQuaternion(data.direction));
+        const item = new ShipActionItem(data.actionType, data.direction);
         item.deserializeUpdate(data);
         return item;
     }

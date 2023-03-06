@@ -1180,7 +1180,7 @@ export class Game {
         for (const shipActionItem of this.ships.get(shipId).actionItems) {
             switch (shipActionItem.actionType) {
                 case EShipActionItemType.FIREBALL: {
-                    let fireDirection = Quaternion.fromBetweenVectors(cameraPosition.clone().rotateVector([0, 0, 1]), shipActionItem.direction.clone().rotateVector([0, 0, 1])).rotateVector([0, 0, 1]);
+                    let fireDirection = Quaternion.fromBetweenVectors(cameraPosition.clone().rotateVector([0, 0, 1]), shipActionItem.direction).rotateVector([0, 0, 1]);
                     fireDirection[2] = 0;
                     fireDirection = DelaunayGraph.normalize(fireDirection);
                     const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
@@ -1199,7 +1199,7 @@ export class Game {
                         expireTicks: 30 * 10
                     };
 
-                    let fireDirection = Quaternion.fromBetweenVectors(cameraPosition.clone().rotateVector([0, 0, 1]), shipActionItem.direction.clone().rotateVector([0, 0, 1])).rotateVector([0, 0, 1]);
+                    let fireDirection = Quaternion.fromBetweenVectors(cameraPosition.clone().rotateVector([0, 0, 1]), shipActionItem.direction).rotateVector([0, 0, 1]);
                     fireDirection[2] = 0;
                     fireDirection = DelaunayGraph.normalize(fireDirection);
                     const fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], fireDirection).pow(Game.PROJECTILE_SPEED / this.worldScale);
@@ -1215,14 +1215,11 @@ export class Game {
                     break;
                 }
                 case EShipActionItemType.IRONWOOD: {
-                    const hasIronWood = this.ships.get(shipId).buffs.some(x => x.buffType === EAutomatedShipBuffType.IRONWOOD);
-                    if (!hasIronWood) {
-                        const ironWoodBuff: IAutomatedShipBuff = {
-                            buffType: EAutomatedShipBuffType.IRONWOOD,
-                            expireTicks: 30 * 10
-                        };
-                        this.ships.get(shipId).buffs.push(ironWoodBuff);
-                    }
+                    const ironWoodBuff: IAutomatedShipBuff = {
+                        buffType: EAutomatedShipBuffType.IRONWOOD,
+                        expireTicks: 30 * 10
+                    };
+                    this.ships.get(shipId).buffs.push(ironWoodBuff);
                     break;
                 }
             }
