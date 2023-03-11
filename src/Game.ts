@@ -1182,7 +1182,7 @@ export class Game {
                 case EShipActionItemType.FIREBALL: {
                     let fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], Quaternion.fromBetweenVectors([0, 0, 1], shipActionItem.direction).clone().mul(cameraPosition.clone().inverse()).rotateVector([0, 0, 1]));
                     const angle = VoronoiGraph.angularDistanceQuaternion(fireVelocity, 1);
-                    const targetAngle = Game.PROJECTILE_SPEED / this.worldScale;
+                    const targetAngle = Game.PROJECTILE_SPEED;
                     const adjustmentAngle = targetAngle / angle;
                     fireVelocity = fireVelocity.pow(adjustmentAngle);
                     const fireBall = new SpellBall(faction.id, this.ships.get(shipId).id, []);
@@ -1202,7 +1202,7 @@ export class Game {
 
                     let fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], Quaternion.fromBetweenVectors([0, 0, 1], shipActionItem.direction).clone().mul(cameraPosition.clone().inverse()).rotateVector([0, 0, 1]));
                     const angle = VoronoiGraph.angularDistanceQuaternion(fireVelocity, 1);
-                    const targetAngle = Game.PROJECTILE_SPEED / this.worldScale;
+                    const targetAngle = Game.PROJECTILE_SPEED;
                     const adjustmentAngle = targetAngle / angle;
                     fireVelocity = fireVelocity.pow(adjustmentAngle);
                     const sleepAttack = new SpellBall(faction.id, this.ships.get(shipId).id, [
