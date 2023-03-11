@@ -1180,7 +1180,7 @@ export class Game {
         for (const shipActionItem of this.ships.get(shipId).actionItems) {
             switch (shipActionItem.actionType) {
                 case EShipActionItemType.FIREBALL: {
-                    let fireVelocity = Quaternion.fromBetweenVectors(cameraPosition.clone().rotateVector([0, 0, 1]), shipActionItem.direction);
+                    let fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], Quaternion.fromBetweenVectors([0, 0, 1], shipActionItem.direction).clone().mul(cameraPosition.clone().inverse()).rotateVector([0, 0, 1]));
                     const angle = VoronoiGraph.angularDistanceQuaternion(fireVelocity, 1);
                     const targetAngle = Game.PROJECTILE_SPEED / this.worldScale;
                     const adjustmentAngle = targetAngle / angle;
@@ -1200,7 +1200,7 @@ export class Game {
                         expireTicks: 30 * 10
                     };
 
-                    let fireVelocity = Quaternion.fromBetweenVectors(cameraPosition.clone().rotateVector([0, 0, 1]), shipActionItem.direction);
+                    let fireVelocity = Quaternion.fromBetweenVectors([0, 0, 1], Quaternion.fromBetweenVectors([0, 0, 1], shipActionItem.direction).clone().mul(cameraPosition.clone().inverse()).rotateVector([0, 0, 1]));
                     const angle = VoronoiGraph.angularDistanceQuaternion(fireVelocity, 1);
                     const targetAngle = Game.PROJECTILE_SPEED / this.worldScale;
                     const adjustmentAngle = targetAngle / angle;
