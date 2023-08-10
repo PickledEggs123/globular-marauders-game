@@ -762,6 +762,110 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
      * @param vertex The new vertex to insert.
      * @private
      */
+    private deleteVertex(vertex: [number, number, number]) {
+        // the new vertex index
+        const newVertexIndex = this.vertices.findIndex(x => x[0] === vertex[0] && x[1] === vertex[1] && x[2] === vertex[2]);
+
+        // find bad triangles and good edges of bad triangles
+        let badTriangleIndices: number[] = [];
+        const goodEdgeIndicesOfBadTriangles: number[] = [];
+        const badEdgeIndicesOfBadTriangles: number[] = [];
+        for (let triangleIndex = 0; triangleIndex < this.triangles.length; triangleIndex++) {
+            // find bad triangle
+            const testTriangleVertices: Array<[number, number, number]> = this.triangles[triangleIndex].map(testEdgeIndex => {
+                return this.vertices[this.edges[testEdgeIndex][0]];
+            });
+            const circumcircle = this.getCircumcircleParameters(testTriangleVertices[0], testTriangleVertices[1], testTriangleVertices[2]);
+            if (circumcircle && VoronoiGraph.angularDistance(circumcircle.center, vertex, 1) < circumcircle.radius) {
+                badTriangleIndices.push(triangleIndex);
+            }
+        }
+        // find good edges
+        for (const triangleIndex of badTriangleIndices) {
+            // find good edges of bad triangles
+            for (const edgeIndex of this.triangles[triangleIndex]) {
+                const edge = this.edges[edgeIndex];
+                // find opposite edge
+                const complementOfBadTriangleEdgeIndex = this.edges.findIndex((testEdge) => {
+                    return testEdge[0] === edge[1] && testEdge[1] === edge[0];
+                });
+                if (complementOfBadTriangleEdgeIndex >= 0) {
+                    // find if opposite edge is not in any bad triangles
+                    const isInsideGoodTriangle = badTriangleIndices.every(badTriangleIndex => {
+                        // for each bad triangle, complement edge is not in bad triangle
+                        return !this.triangles[badTriangleIndex].includes(complementOfBadTriangleEdgeIndex);
+                    });
+                    if (isInsideGoodTriangle) {
+                        // add good edge
+                        goodEdgeIndicesOfBadTriangles.push(edgeIndex);
+                    } else {
+                        badEdgeIndicesOfBadTriangles.push(edgeIndex);
+                    }
+                }
+            }
+        }
+
+        // create good triangles
+        const verticesToDupe = [];
+        for (const edgeIndex of goodEdgeIndicesOfBadTriangles) {
+            verticesToDupe.push(this.vertices[this.edges[edgeIndex][0]]);
+        }
+        const dupeDelaunay = new DelaunayGraph(this.app);
+        dupeDelaunay.initializeWithPoints(verticesToDupe);
+        const dupeIndex = [];
+        for (const v of dupeDelaunay.vertices.slice(4)) {
+            const index = this.vertices.findIndex(x => x[0] == v[0] && x[1] === v[1] && x[2] == v[2]);
+            if (index >= 0) {
+                dupeIndex.push([index, index]);
+            } else {
+                this.vertices.push(v);
+                dupeIndex.push([index, this.vertices.length - 1]);
+            }
+        }
+        const dupeEdges = [];
+        for (const [v1, v2] of dupeDelaunay.edges.slice(12)) {
+            const index = this.edges.findIndex(x => x[0] === v1 && x[1] === v2);
+            if (index >= 0) {
+                dupeEdges.push([index, index]);
+            } else {
+                this.edges.push([dupeIndex.find(y => y[0] === v1)[1], dupeIndex.find(y => y[1] === v2)[1]] as [number, number]);
+                dupeIndex.push([index, this.edges.length - 1]);
+            }
+        }
+        for (const [a, b, c] of dupeDelaunay.triangles.slice(4)) {
+            const index = this.triangles.findIndex(x => x[0] === a && x[1] === b && x[2] === c);
+            if (index < 0) {
+                this.triangles.push([dupeIndex.find(y => y[0] === a)[1], dupeIndex.find(y => y[1] === b)[1], dupeIndex.find(y => y[2] === c)[2]] as [number, number, number]);
+            }
+        }
+
+        // delete bad triangles
+        badTriangleIndices = badTriangleIndices.sort((a, b) => b - a);
+        for (const triangleIndex of badTriangleIndices) {
+            this.triangles.splice(triangleIndex, 1);
+            this.validateTriangles();
+        }
+
+        // delete bad triangle edges
+        badEdgeIndicesOfBadTriangles.sort((a, b) => b - a);
+        for (const edgeIndex of badEdgeIndicesOfBadTriangles) {
+            for (let triangleIndex = 0; triangleIndex < this.triangles.length; triangleIndex++) {
+                for (let i = 0; i < this.triangles[triangleIndex].length; i++) {
+                    if (this.triangles[triangleIndex][i] > edgeIndex) {
+                        this.triangles[triangleIndex][i] -= 1;
+                    }
+                }
+            }
+            this.edges.splice(edgeIndex, 1);
+            this.validateTriangles();
+        }
+    }
+
+    /**
+     * A Delaunay triangulation balancing scheme where bad triangles are replaced with good triangles.
+     * @param vertex The new vertex to insert.
+     * @private
+     */
     private bowyerWatsonInsertion(vertex: [number, number, number]) {
         // the new vertex index
         this.vertices.push(vertex);
