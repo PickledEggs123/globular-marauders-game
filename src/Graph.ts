@@ -250,8 +250,8 @@ export class VoronoiGraph<T extends ICameraState> {
             relaxedPoints.push(point);
         }
 
-        // re center points to evenly distribute around the sphere.
-        for (let step = 0; step < 3; step++) {
+        // re center points to evenly distribute around the sphere. // skip this since this could be buggy
+        for (let step = 0; step < 0; step++) {
             const averagePoint = Game.getAveragePoint(relaxedPoints);
             relaxedPoints = relaxedPoints.map(p => DelaunayGraph.normalize(DelaunayGraph.subtract(p, averagePoint)));
         }
