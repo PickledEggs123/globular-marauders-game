@@ -3275,29 +3275,25 @@ export class Game {
     }
 
     public generateGoodPoints<T extends ICameraState>(numPoints: number, numSteps: number): VoronoiCell[] {
+        let delaunayGraph = new DelaunayGraph<T>(this);
+        for (let step = 0; step < numSteps; step++) {
+            const lloydPoints = step === 0 ? this.generateGoodPointsStart(numPoints) : this.generateGoodPointsContinue(numPoints, delaunayGraph);
+            delaunayGraph = new DelaunayGraph<T>(this);
+            delaunayGraph.initializeWithPoints(lloydPoints);
+        }
+        return this.generateGoodPointsEnd(numPoints, delaunayGraph);
+    }
+
+    public generateGoodPointsStart<T extends ICameraState>(numPoints: number): [number, number, number][] {
         if (numPoints < 4) {
             throw new Error("Not enough points to initialize sphere");
         }
         let delaunayGraph = new DelaunayGraph<T>(this);
-        let voronoiGraph = new VoronoiGraph<T>(this);
         delaunayGraph.initialize();
         for (let i = 0; i < numPoints - 4; i++) {
             delaunayGraph.incrementalInsert();
         }
-        for (let step = 0; step < numSteps; step++) {
-            // this line is needed because inserting vertices could remove old vertices.
-            if (delaunayGraph.triangles.length <= 0) {
-                delaunayGraph = new DelaunayGraph<T>(this);
-                delaunayGraph.initialize();
-            }
-            while (delaunayGraph.numRealVertices() < numPoints) {
-                delaunayGraph.incrementalInsert();
-            }
-            voronoiGraph = delaunayGraph.getVoronoiGraph();
-            const lloydPoints = voronoiGraph.lloydRelaxation();
-            delaunayGraph = new DelaunayGraph<T>(this);
-            delaunayGraph.initializeWithPoints(lloydPoints);
-        }
+
         // this line is needed because inserting vertices could remove old vertices.
         if (delaunayGraph.triangles.length <= 0) {
             delaunayGraph = new DelaunayGraph<T>(this);
@@ -3306,7 +3302,33 @@ export class Game {
         while (delaunayGraph.numRealVertices() < numPoints) {
             delaunayGraph.incrementalInsert();
         }
-        voronoiGraph = delaunayGraph.getVoronoiGraph();
+        const voronoiGraph = delaunayGraph.getVoronoiGraph();
+        return voronoiGraph.lloydRelaxation();
+    }
+
+    public generateGoodPointsContinue<T extends ICameraState>(numPoints: number, delaunayGraph: DelaunayGraph<T>) {
+        // this line is needed because inserting vertices could remove old vertices.
+        if (delaunayGraph.triangles.length <= 0) {
+            delaunayGraph = new DelaunayGraph<T>(this);
+            delaunayGraph.initialize();
+        }
+        while (delaunayGraph.numRealVertices() < numPoints) {
+            delaunayGraph.incrementalInsert();
+        }
+        const voronoiGraph = delaunayGraph.getVoronoiGraph();
+        return voronoiGraph.lloydRelaxation();
+    }
+
+    public generateGoodPointsEnd<T extends ICameraState>(numPoints: number, delaunayGraph: DelaunayGraph<T>) {
+        // this line is needed because inserting vertices could remove old vertices.
+        if (delaunayGraph.triangles.length <= 0) {
+            delaunayGraph = new DelaunayGraph<T>(this);
+            delaunayGraph.initialize();
+        }
+        while (delaunayGraph.numRealVertices() < numPoints) {
+            delaunayGraph.incrementalInsert();
+        }
+        const voronoiGraph = delaunayGraph.getVoronoiGraph();
         return voronoiGraph.cells;
     }
 
