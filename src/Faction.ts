@@ -233,7 +233,7 @@ export class Faction {
      * A number which produces unique ship id names.
      * @private
      */
-    private shipIdAutoIncrement: number = 0;
+    public shipIdAutoIncrement: number = 0;
 
     public getShipAutoIncrement(): number {
         return this.shipIdAutoIncrement++;
