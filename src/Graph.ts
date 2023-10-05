@@ -193,10 +193,10 @@ export class VoronoiGraph<T extends ICameraState> {
             const averagePoint = DelaunayGraph.normalize(
                 Game.getAveragePoint([cell.vertices[0], cell.vertices[i], cell.vertices[i + 1]])
             );
-            const area = DelaunayGraph.dotProduct(
+            const area = DelaunayGraph.distanceFormula(DelaunayGraph.crossProduct(
                 DelaunayGraph.subtract(a, b),
                 DelaunayGraph.subtract(c, b)
-            ) / 2;
+            ), b) / 2;
             triangleFanParameters.push({
                 averagePoint,
                 area
