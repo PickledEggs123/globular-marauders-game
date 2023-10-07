@@ -716,6 +716,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
                 DelaunayGraph.subtract(triangleVertices[0], triangleVertices[1]),
                 DelaunayGraph.subtract(triangleVertices[2], triangleVertices[1])
             ), [0, 0, 0]) / 2;
+            console.log(area);
             return area < 0.1;
         } else {
             const triangle = this.triangles[triangleIndex];
@@ -727,6 +728,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
                 DelaunayGraph.subtract(triangleVertices[0], triangleVertices[1]),
                 DelaunayGraph.subtract(triangleVertices[2], triangleVertices[1])
             ), [0, 0, 0]) / 2;
+            console.log(area);
             return area < 0.1;
         }
     }
@@ -749,9 +751,9 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             vertex = point;
         } else {
             vertex = DelaunayGraph.randomPoint();
-            if (this.collinearWithSomething(vertex)) {
-                return this.incrementalInsert(undefined, step + 1);
-            }
+        }
+        if (this.collinearWithSomething(vertex)) {
+            return this.incrementalInsert(undefined, step + 1);
         }
 
         // find triangle index
