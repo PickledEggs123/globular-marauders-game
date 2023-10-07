@@ -196,7 +196,7 @@ export class VoronoiGraph<T extends ICameraState> {
             const area = DelaunayGraph.distanceFormula(DelaunayGraph.crossProduct(
                 DelaunayGraph.subtract(a, b),
                 DelaunayGraph.subtract(c, b)
-            ), b) / 2;
+            ), [0, 0, 0]) / 2;
             triangleFanParameters.push({
                 averagePoint,
                 area
