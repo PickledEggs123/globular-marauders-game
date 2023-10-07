@@ -476,7 +476,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
         // match vertices to the original point tetrahedron
         const pointPairs: number[] = [];
         const sortedTempPointPairs: Array<{index: number, value: number, distance: number}> = [];
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < points.length; i++) {
             const point = points[i];
 
             for (let j = 0; j < this.vertices.length; j++) {
@@ -491,7 +491,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             }
         }
         sortedTempPointPairs.sort((a, b) => a.distance - b.distance);
-        for (const {index, value} of sortedTempPointPairs) {
+        for (const { index, value } of sortedTempPointPairs) {
             let allFilled = true;
             for (let i = 0; i < 4; i++) {
                 if (pointPairs[i] === undefined) {
@@ -501,7 +501,8 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             if (allFilled) {
                 break;
             }
-            pointPairs[index] = value;
+            if (pointPairs[value] === undefined)
+                pointPairs[value] = index;
         }
         for (let i = 0; i < 4; i++) {
             if (pointPairs[i] === undefined) {
@@ -716,7 +717,6 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
                 DelaunayGraph.subtract(triangleVertices[0], triangleVertices[1]),
                 DelaunayGraph.subtract(triangleVertices[2], triangleVertices[1])
             ), [0, 0, 0]) / 2;
-            console.log(area);
             return area < 0.1;
         } else {
             const triangle = this.triangles[triangleIndex];
@@ -728,7 +728,6 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
                 DelaunayGraph.subtract(triangleVertices[0], triangleVertices[1]),
                 DelaunayGraph.subtract(triangleVertices[2], triangleVertices[1])
             ), [0, 0, 0]) / 2;
-            console.log(area);
             return area < 0.1;
         }
     }
