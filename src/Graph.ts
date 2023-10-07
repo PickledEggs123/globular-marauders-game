@@ -703,6 +703,25 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
         return null;
     }
 
+    private colinearWithSomething(vertex: [number, number, number]) {
+        const triangleIndex = this.findTriangleIntersection(vertex);
+        if (triangleIndex < 0) {
+            const randomTriangleIndex = Math.floor(this.triangles.length * Math.random());
+            const triangle = this.triangles[randomTriangleIndex];
+            if (!triangle) {
+                return true;
+            }
+            const triangleVertices = triangle.map(edgeIndex => this.vertices[this.edges[edgeIndex][0]]);
+            const area = DelaunayGraph.distanceFormula(DelaunayGraph.crossProduct(
+                DelaunayGraph.subtract(triangleVertices[0], triangleVertices[1]),
+                DelaunayGraph.subtract(triangleVertices[2], triangleVertices[1])
+            ), [0, 0, 0]) / 2;
+            return area < 0.1;
+        } else {
+            return true;
+        }
+    }
+
     /**
      * Perform an incremental insert into the delaunay graph, add random data points and maintain the triangle mesh.
      * @param point An optional point to insert into the delaunay graph. If no point is supplied, a random point will
@@ -721,6 +740,9 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             vertex = point;
         } else {
             vertex = DelaunayGraph.randomPoint();
+            if (this.colinearWithSomething(vertex)) {
+                return this.incrementalInsert(undefined, step + 1);
+            }
         }
 
         // find triangle index
