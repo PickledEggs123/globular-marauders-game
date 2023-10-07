@@ -703,7 +703,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
         return null;
     }
 
-    private colinearWithSomething(vertex: [number, number, number]) {
+    private collinearWithSomething(vertex: [number, number, number]) {
         const triangleIndex = this.findTriangleIntersection(vertex);
         if (triangleIndex < 0) {
             const randomTriangleIndex = Math.floor(this.triangles.length * Math.random());
@@ -718,7 +718,16 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             ), [0, 0, 0]) / 2;
             return area < 0.1;
         } else {
-            return true;
+            const triangle = this.triangles[triangleIndex];
+            if (!triangle) {
+                return true;
+            }
+            const triangleVertices = triangle.map(edgeIndex => this.vertices[this.edges[edgeIndex][0]]);
+            const area = DelaunayGraph.distanceFormula(DelaunayGraph.crossProduct(
+                DelaunayGraph.subtract(triangleVertices[0], triangleVertices[1]),
+                DelaunayGraph.subtract(triangleVertices[2], triangleVertices[1])
+            ), [0, 0, 0]) / 2;
+            return area < 0.1;
         }
     }
 
@@ -740,7 +749,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             vertex = point;
         } else {
             vertex = DelaunayGraph.randomPoint();
-            if (this.colinearWithSomething(vertex)) {
+            if (this.collinearWithSomething(vertex)) {
                 return this.incrementalInsert(undefined, step + 1);
             }
         }
