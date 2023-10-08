@@ -501,7 +501,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             if (allFilled) {
                 break;
             }
-            if (pointPairs[value] === undefined)
+            if (pointPairs[value] === undefined || !pointPairs.includes(index))
                 pointPairs[value] = index;
         }
         for (let i = 0; i < 4; i++) {
