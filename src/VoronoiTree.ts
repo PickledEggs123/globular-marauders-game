@@ -497,10 +497,10 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
     }
 
     public generateTerrainPlanet(step: number = 0, maxStep: number = 3) {
-        this.nodes = VoronoiTreeNode.createTreeNodes(this.parent.nodes, this);
         if (step >= maxStep) {
             return;
         }
+        this.nodes = VoronoiTreeNode.createTreeNodes(this.parent.nodes, this);
         for (const node of this.nodes) {
             node.generateTerrainPlanet(step + 1, maxStep);
         }
