@@ -495,6 +495,16 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
 
         return nodes;
     }
+
+    public generateTerrainPlanet(step: number = 0, maxStep: number = 3) {
+        this.nodes = VoronoiTreeNode.createTreeNodes(this.parent.nodes, this);
+        if (step >= maxStep) {
+            return;
+        }
+        for (const node of this.nodes) {
+            node.generateTerrainPlanet(step + 1, maxStep);
+        }
+    }
 }
 
 /**
@@ -1247,6 +1257,17 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
         for (let i = 0; i < this.kingdoms.length; i++) {
             const kingdom = this.kingdoms[i];
             kingdom.generateTerrain(data ? data.kingdoms[i] : undefined);
+        }
+    }
+
+    public generateTerrainPlanet(step: number = 0, maxStep: number = 3) {
+        const planetVoronoiCells = this.app.generateGoodPoints(100, 10);
+        this.nodes = this.createRootNodes(this, planetVoronoiCells);
+        if (step >= maxStep) {
+            return;
+        }
+        for (const node of this.nodes) {
+            node.generateTerrainPlanet(step + 1, maxStep);
         }
     }
 
