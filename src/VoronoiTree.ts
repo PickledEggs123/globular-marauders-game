@@ -361,14 +361,14 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
             this.voronoiCell.radius + (Math.PI * radius / this.app.worldScale);
     }
 
-    public static createRandomPoint<T extends ICameraState>(forNode: VoronoiTreeNode<T>): [number, number, number] {
+    public createRandomPoint<T extends ICameraState>(forNode: VoronoiTreeNode<T>): [number, number, number] {
         for (let tries = 0; tries < 10; tries++) {
             // pick a random triangle of a polygon
             const randomTriangleIndex = VoronoiTreeNode.getRandomTriangleOfSphericalPolygon<T>(forNode);
 
             // create a random point between tree points by computing a weighted average
             // create dirichlet distribution
-            const dirichletDistribution = [Math.random(), Math.random(), Math.random()];
+            const dirichletDistribution = [this.app.seedRandom.double(), this.app.seedRandom.double(), this.app.seedRandom.double()];
             const dirichletDistributionSum = dirichletDistribution.reduce((acc, v) => acc + v, 0);
             dirichletDistribution[0] /= dirichletDistributionSum;
             dirichletDistribution[1] /= dirichletDistributionSum;
@@ -426,7 +426,7 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
             // generate random points within a voronoi cell.
             let randomPointsWithinVoronoiCell: Array<[number, number, number]> = [];
             for (let i = 0; i < numRandomPoints; i++) {
-                randomPointsWithinVoronoiCell.push(VoronoiTreeNode.createRandomPoint(forNode));
+                randomPointsWithinVoronoiCell.push(forNode.createRandomPoint(forNode));
             }
 
             // compute random nodes within voronoi cell, hierarchical voronoi tree.
@@ -439,7 +439,7 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
                 const delaunay = new DelaunayGraph<T>(forNode.app);
                 // this line is needed because inserting vertices could remove old vertices.
                 while (randomPointsWithinVoronoiCell.length < numRandomPoints) {
-                    randomPointsWithinVoronoiCell.push(VoronoiTreeNode.createRandomPoint(forNode));
+                    randomPointsWithinVoronoiCell.push(forNode.createRandomPoint(forNode));
                 }
 
                 // rotate random points to the bottom of the tetrahedron
@@ -453,7 +453,7 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
 
                 // this line is needed because inserting vertices could remove old vertices.
                 while (delaunay.numRealVertices() < numRandomPoints) {
-                    delaunay.incrementalInsert(VoronoiTreeNode.createRandomPoint(forNode));
+                    delaunay.incrementalInsert(forNode.createRandomPoint(forNode));
                 }
                 const outOfBoundsVoronoiCells = delaunay.getVoronoiGraph().cells;
 

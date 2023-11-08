@@ -528,9 +528,19 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
         return (Math.random() * 2) - 1;
     }
 
+    public seedRandomInt(): number {
+        return (this.app.seedRandom.double() * 2) - 1;
+    }
+
     public static randomPoint(): [number, number, number] {
         // generate random vertex
         const vertex: [number, number, number] = [DelaunayGraph.randomInt(), DelaunayGraph.randomInt(), DelaunayGraph.randomInt()];
+        return DelaunayGraph.normalize(vertex);
+    }
+
+    public seedRandomPoint(): [number, number, number] {
+        // generate random vertex
+        const vertex: [number, number, number] = [this.seedRandomInt(), this.seedRandomInt(), this.seedRandomInt()];
         return DelaunayGraph.normalize(vertex);
     }
 
@@ -749,7 +759,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
         if (point) {
             vertex = point;
         } else {
-            vertex = DelaunayGraph.randomPoint();
+            vertex = this.seedRandomPoint();
         }
         if (this.collinearWithSomething(vertex)) {
             return this.incrementalInsert(undefined, step + 1);
@@ -759,7 +769,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
         for (let i = 0; i < 100; i++) {
             triangleIndex = this.findTriangleIntersection(vertex);
             if (triangleIndex < 0) {
-                const randomTriangleIndex = Math.floor(this.triangles.length * Math.random());
+                const randomTriangleIndex = Math.floor(this.triangles.length * this.app.seedRandom.double());
                 const triangle = this.triangles[randomTriangleIndex];
                 if (!triangle) {
                     return this.incrementalInsert(point, step + 1);

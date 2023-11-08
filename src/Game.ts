@@ -91,6 +91,7 @@ import {EFaction, GameFactionData} from "./EFaction";
 import {Invasion, ISerializedInvasion} from "./Invasion";
 import {MoneyAccount} from "./MoneyAccount";
 import {Character, CharacterBattle, ISerializedCharacter, ISerializedCharacterBattle} from "./Character";
+import seedrandom from "seedrandom";
 
 /**
  * A list of player specific data for the server to store.
@@ -358,6 +359,7 @@ export class Game {
     public soundEvents: Array<ISoundEvent> = [];
     public scriptEvents: Array<IterableIterator<void>> = [];
     public formEmitters: Map<string, IFormEmitter[]> = new Map<string, IFormEmitter[]>();
+    public seedRandom = seedrandom("");
 
     /**
      * Velocity step size of ships.
@@ -415,6 +417,8 @@ export class Game {
      * THe number of seconds between each trade tick.
      */
     public static TRADE_TICK_COOL_DOWN: number = 10 * 60 * 10;
+
+    public static seedRandom =
 
     public addFormEmitter(playerId: string, formEmitter: IFormEmitter): void {
         if (!this.formEmitters.has(playerId)) {
@@ -3352,7 +3356,7 @@ export class Game {
                 ];
             }, [] as Array<[number, number, number]>);
         const jitteredTessellatedPoints = tessellatedPoints.map(t => {
-            const jitter = DelaunayGraph.randomPoint();
+            const jitter = delaunayGraph.seedRandomPoint();
             const jitterAmount = 0;
             return DelaunayGraph.normalize([
                 t[0] + jitter[0] * jitterAmount,
