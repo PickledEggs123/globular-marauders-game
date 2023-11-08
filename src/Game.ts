@@ -418,7 +418,7 @@ export class Game {
      */
     public static TRADE_TICK_COOL_DOWN: number = 10 * 60 * 10;
 
-    public static seedRandom =
+    public static seedRandom = seedrandom();
 
     public addFormEmitter(playerId: string, formEmitter: IFormEmitter): void {
         if (!this.formEmitters.has(playerId)) {
