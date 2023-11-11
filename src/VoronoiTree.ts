@@ -464,7 +464,7 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
                 const points2 = points1.map((polygon) => VoronoiTreeNode.polygonClip<T>(forNode, polygon));
                 goodPoints = points2.filter((polygon) => forNode.containsPoint(polygon.vertex));
                 randomPointsWithinVoronoiCell = goodPoints.reduce((acc, v) => {
-                    if (acc.every(p => VoronoiGraph.angularDistance(p, v.centroid, 1) > 0.001)) {
+                    if (acc.every(p => VoronoiGraph.angularDistance(p, v.centroid, 1) > 0.000001)) {
                         acc.push(v.centroid);
                     }
                     return acc;
