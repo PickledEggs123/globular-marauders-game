@@ -727,7 +727,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
                 DelaunayGraph.normalize(DelaunayGraph.subtract(triangleVertices[0], triangleVertices[1])),
                 DelaunayGraph.normalize(DelaunayGraph.subtract(triangleVertices[2], triangleVertices[1]))
             ), [0, 0, 0]) / 2;
-            return area < 0.1;
+            return area < 0.0001;
         } else {
             const triangle = this.triangles[triangleIndex];
             if (!triangle) {
@@ -738,7 +738,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
                 DelaunayGraph.normalize(DelaunayGraph.subtract(triangleVertices[0], triangleVertices[1])),
                 DelaunayGraph.normalize(DelaunayGraph.subtract(triangleVertices[2], triangleVertices[1]))
             ), [0, 0, 0]) / 2;
-            return area < 0.1;
+            return area < 0.0001;
         }
     }
 
