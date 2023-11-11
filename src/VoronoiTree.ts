@@ -178,7 +178,7 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
      * @return int between 0 and n - 1, which is a triangle slice from the centroid to the pair of vertices.
      * @private
      */
-    private static getRandomTriangleOfSphericalPolygon<T extends ICameraState>(forNode: VoronoiTreeNode<T>): number {
+    private getRandomTriangleOfSphericalPolygon<T extends ICameraState>(forNode: VoronoiTreeNode<T>): number {
         const triangleAreasInPolygon: number[] = [];
         // for each pair of vertices
         for (let i = 0; i < forNode.voronoiCell.vertices.length; i++) {
@@ -206,7 +206,7 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
         }, [] as number[]);
 
         // pick random triangle index of voronoi cell
-        const randomTriangleInPolygonRandValue = Math.random() * triangleAreasInPolygonSum;
+        const randomTriangleInPolygonRandValue = this.app.seedRandom.double() * triangleAreasInPolygonSum;
         let randomTriangleInPolygonIndex: number = 0;
         for (let i = 0; i < triangleAreasInPolygonCum.length; i++) {
             if (triangleAreasInPolygonCum[i] > randomTriangleInPolygonRandValue) {
@@ -364,7 +364,7 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
     public createRandomPoint<T extends ICameraState>(forNode: VoronoiTreeNode<T>): [number, number, number] {
         for (let tries = 0; tries < 10; tries++) {
             // pick a random triangle of a polygon
-            const randomTriangleIndex = VoronoiTreeNode.getRandomTriangleOfSphericalPolygon<T>(forNode);
+            const randomTriangleIndex = this.getRandomTriangleOfSphericalPolygon<T>(forNode);
 
             // create a random point between tree points by computing a weighted average
             // create dirichlet distribution

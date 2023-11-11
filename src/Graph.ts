@@ -717,7 +717,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
     private collinearWithSomething(vertex: [number, number, number]) {
         const triangleIndex = this.findTriangleIntersection(vertex);
         if (triangleIndex < 0) {
-            const randomTriangleIndex = Math.floor(this.triangles.length * Math.random());
+            const randomTriangleIndex = Math.floor(this.triangles.length * this.app.seedRandom.double());
             const triangle = this.triangles[randomTriangleIndex];
             if (!triangle) {
                 return true;
