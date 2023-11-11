@@ -724,10 +724,10 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             }
             const triangleVertices = triangle.map(edgeIndex => this.vertices[this.edges[edgeIndex][0]]);
             const area = DelaunayGraph.distanceFormula(DelaunayGraph.crossProduct(
-                DelaunayGraph.subtract(triangleVertices[0], triangleVertices[1]),
-                DelaunayGraph.subtract(triangleVertices[2], triangleVertices[1])
+                DelaunayGraph.normalize(DelaunayGraph.subtract(triangleVertices[0], triangleVertices[1])),
+                DelaunayGraph.normalize(DelaunayGraph.subtract(triangleVertices[2], triangleVertices[1]))
             ), [0, 0, 0]) / 2;
-            return area < 0.001;
+            return area < 0.1;
         } else {
             const triangle = this.triangles[triangleIndex];
             if (!triangle) {
@@ -735,10 +735,10 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             }
             const triangleVertices = triangle.map(edgeIndex => this.vertices[this.edges[edgeIndex][0]]);
             const area = DelaunayGraph.distanceFormula(DelaunayGraph.crossProduct(
-                DelaunayGraph.subtract(triangleVertices[0], triangleVertices[1]),
-                DelaunayGraph.subtract(triangleVertices[2], triangleVertices[1])
+                DelaunayGraph.normalize(DelaunayGraph.subtract(triangleVertices[0], triangleVertices[1])),
+                DelaunayGraph.normalize(DelaunayGraph.subtract(triangleVertices[2], triangleVertices[1]))
             ), [0, 0, 0]) / 2;
-            return area < 0.001;
+            return area < 0.1;
         }
     }
 
