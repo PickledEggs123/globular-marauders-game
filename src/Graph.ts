@@ -1178,7 +1178,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
 
                 // reduce duplicate points
                 points = points.reduce((acc, p) => {
-                    if (!acc.some(v => DelaunayGraph.distanceFormula(v, p) < 0.001)) {
+                    if (!acc.some(v => DelaunayGraph.distanceFormula(v, p) < 0.000001)) {
                         return [...acc, p];
                     } else {
                         return acc;
