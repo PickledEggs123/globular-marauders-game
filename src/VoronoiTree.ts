@@ -1229,7 +1229,7 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
     public serialize(): ISerializedVoronoiTerrain {
         return {
             voronoiCells: this.nodes.map(n => n.voronoiCell),
-            kingdoms: this.kingdoms.map(k => k.serialize())
+            kingdoms: this.kingdoms?.map(k => k.serialize())
         };
     }
 
