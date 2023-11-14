@@ -1,6 +1,6 @@
 {
   "name": "@pickledeggs123/globular-marauders-game",
-  "version": "0.2.177",
+  "version": "0.2.178",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "description": "The base library containing the base game for globular marauders",
