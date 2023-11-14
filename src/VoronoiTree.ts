@@ -505,6 +505,18 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
             node.generateTerrainPlanet(step + 1, maxStep);
         }
     }
+
+    public serializeTerrainPlanet() {
+        return {
+            voronoiCells: this.nodes.map(n => n.voronoiCell),
+            nodes: this.nodes.map(n => n.serializeTerrainPlanet()),
+        }
+    }
+
+    public deserializeTerrainPlanet(data: ISerializedTree) {
+        this.nodes = VoronoiTreeNode.createTreeNodes(this.parent.nodes, this, data ? data.voronoiCells : undefined);
+        this.nodes.forEach((x, index) => x.deserializeTerrainPlanet(data.nodes[index]));
+    }
 }
 
 /**
@@ -1194,6 +1206,11 @@ interface IVoronoiTerrainItem<T extends ICameraState> {
     voronoiCounty: VoronoiCounty;
 }
 
+export interface ISerializedTree {
+    voronoiCells: VoronoiCell[];
+    nodes: ISerializedTree[];
+}
+
 /**
  * A voronoi tree used to generate terrain. There are 20 kingdoms.
  */
@@ -1231,6 +1248,20 @@ export class VoronoiTerrain extends VoronoiTree<ICameraState> {
             voronoiCells: this.nodes.map(n => n.voronoiCell),
             kingdoms: this.kingdoms?.map(k => k.serialize())
         };
+    }
+
+    public serializeTerrainPlanet(): ISerializedTree {
+        return {
+            voronoiCells: this.nodes.map(n => n.voronoiCell),
+            nodes: this.nodes.map(n => n.serializeTerrainPlanet()),
+        }
+    }
+
+    public static deserializeTerrainPlanet(game: Game, data: ISerializedTree): VoronoiTerrain {
+        const item = new VoronoiTerrain(game);
+        item.nodes = item.createRootNodes(item, data ? data.voronoiCells : undefined);
+        item.nodes.forEach((x, index) => x.deserializeTerrainPlanet(data.nodes[index]));
+        return item;
     }
 
     public deserializeUpdate(data: ISerializedVoronoiTerrain) {
