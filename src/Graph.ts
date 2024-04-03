@@ -704,7 +704,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             const radius = VoronoiGraph.angularDistance(center, a, 1);
             const rb = VoronoiGraph.angularDistance(center, b, 1);
             const rc = VoronoiGraph.angularDistance(center, c, 1);
-            if (Math.abs(rb - radius) < 0.0001 && Math.abs(rc - radius) < 0.0001) {
+            if (Math.abs(rb - radius) < 0.000001 && Math.abs(rc - radius) < 0.000001) {
                 return {
                     center,
                     radius,
@@ -727,7 +727,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
                 DelaunayGraph.normalize(DelaunayGraph.subtract(triangleVertices[0], triangleVertices[1])),
                 DelaunayGraph.normalize(DelaunayGraph.subtract(triangleVertices[2], triangleVertices[1]))
             ), [0, 0, 0]) / 2;
-            return area < 0.0001;
+            return area < 0.000001;
         } else {
             const triangle = this.triangles[triangleIndex];
             if (!triangle) {
@@ -738,7 +738,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
                 DelaunayGraph.normalize(DelaunayGraph.subtract(triangleVertices[0], triangleVertices[1])),
                 DelaunayGraph.normalize(DelaunayGraph.subtract(triangleVertices[2], triangleVertices[1]))
             ), [0, 0, 0]) / 2;
-            return area < 0.0001;
+            return area < 0.000001;
         }
     }
 
