@@ -79,10 +79,10 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
             }
         }
         if (bestDistance !== null && bestNode !== null) {
-            bestNode.addItem(drawable);
-
             // quick index for performance
             drawable.voronoiIndices[this.level] = this.nodes.indexOf(bestNode);
+
+            bestNode.addItem(drawable);
         }
     }
 
@@ -585,10 +585,10 @@ export class VoronoiTree<T extends ICameraState> implements IVoronoiTreeNodePare
             }
         }
         if (bestDistance !== null && bestNode !== null) {
-            bestNode.addItem(drawable);
-
             // quick index
             drawable.voronoiIndices = [this.nodes.indexOf(bestNode)];
+
+            bestNode.addItem(drawable);
         }
     }
 
