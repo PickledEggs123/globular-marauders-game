@@ -526,9 +526,10 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
 export class VoronoiTree<T extends ICameraState> implements IVoronoiTreeNodeParent<T> {
     public nodes: Array<VoronoiTreeNode<T>> = [];
     public app: Game;
+    public defaultRecursionNodeLevels: number[] = [30, 5, 5];
 
     public recursionNodeLevels(): number[] {
-        return [30, 5, 5];
+        return this.defaultRecursionNodeLevels;
     }
 
     constructor(app: Game) {
