@@ -126,8 +126,9 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
     /**
      * Return a list of items within a visible area on the voronoi tree.
      * @param position A position to find near by objects with.
+     * @param additionalRadius
      */
-    public* listItems(position: [number, number, number]): Generator<T> {
+    public* listItems(position: [number, number, number], additionalRadius?: number): Generator<T> {
         // found items
         if (this.nodes.length === 0) {
             for (const item of this.items) {
@@ -139,8 +140,8 @@ export class VoronoiTreeNode<T extends ICameraState> implements IVoronoiTreeNode
         // recurse tree
         for (const node of this.nodes) {
             const distance = VoronoiGraph.angularDistance(node.point, position, this.app.worldScale);
-            if (distance < node.radius) {
-                const generator = node.listItems(position);
+            if (distance < node.radius + (additionalRadius ?? 0)) {
+                const generator = node.listItems(position, additionalRadius);
                 while (true) {
                     const res = generator.next();
                     if (res.done) {
@@ -623,13 +624,14 @@ export class VoronoiTree<T extends ICameraState> implements IVoronoiTreeNodePare
      * List items near a specific position within the Voronoi Tree. Useful for finding nearest neighbors, when doing
      * physics and collision detection.
      * @param position
+     * @param additionalRadius
      */
-    public* listItems(position: [number, number, number]): Generator<T> {
+    public* listItems(position: [number, number, number], additionalRadius?: number): Generator<T> {
         // recurse tree
         for (const node of this.nodes) {
             const distance = VoronoiGraph.angularDistance(node.point, position, this.app.worldScale);
-            if (distance < node.radius) {
-                const generator = node.listItems(position);
+            if (distance < node.radius + (additionalRadius ?? 0)) {
+                const generator = node.listItems(position, additionalRadius);
                 while (true) {
                     const res = generator.next();
                     if (res.done) {
