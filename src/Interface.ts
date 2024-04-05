@@ -77,6 +77,7 @@ export interface IGameMeshAttribute {
 export interface IGameMesh {
     attributes: IGameMeshAttribute[];
     index: number[];
+    collidable?: boolean;
 }
 
 /**
