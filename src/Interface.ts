@@ -78,6 +78,7 @@ export interface IGameMesh {
     attributes: IGameMeshAttribute[];
     index: number[];
     collidable?: boolean;
+    navmesh?: boolean;
 }
 
 /**
