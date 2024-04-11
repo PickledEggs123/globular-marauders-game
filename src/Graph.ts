@@ -337,6 +337,197 @@ export class PathingNode<T extends IPathingGraph> implements IPathingNode<T> {
     }
 }
 
+class OctreeTriangles<T> {
+    nodes: OctreeTriangles<T>[] = [];
+    maxDepth = 5;
+    depth = 0;
+    items: T[] = [];
+    indices: Map<T, number> = new Map<T, number>();
+    boundingBoxSmallFactor: number = 1;
+
+    constructor(boundingBox: [[number, number, number], [number, number, number]] | null = null, depth: number = 0, indices: Map<T, number> | null = null) {
+        if (boundingBox) {
+            this.boundingBox = boundingBox;
+        }
+        this.depth = depth;
+        if (indices) {
+            this.indices = indices;
+        }
+    }
+
+    boundingBox: [[number, number, number], [number, number, number]] = [
+        [-1.1, -1.1, -1.1],
+        [1.1, 1.1, 1.1],
+    ];
+
+    getBoundingBox = (points: [number, number, number][]) => {
+        const minX = points.map(x => x[0]).reduce((acc, x) => Math.min(x, acc), Infinity);
+        const minY = points.map(x => x[1]).reduce((acc, x) => Math.min(x, acc), Infinity);
+        const minZ = points.map(x => x[2]).reduce((acc, x) => Math.min(x, acc), Infinity);
+        const maxX = points.map(x => x[0]).reduce((acc, x) => Math.max(x, acc), -Infinity);
+        const maxY = points.map(x => x[1]).reduce((acc, x) => Math.max(x, acc), -Infinity);
+        const maxZ = points.map(x => x[2]).reduce((acc, x) => Math.max(x, acc), -Infinity);
+        return [
+            [minX, minY, minZ],
+            [maxX, maxY, maxZ],
+        ] as [[number, number, number], [number, number, number]];
+    }
+
+    isBoundingBoxSmall = (bb: [[number, number, number], [number, number, number]]) => {
+        const [
+            [minX, minY, minZ],
+            [maxX, maxY, maxZ],
+        ] = bb;
+
+        return (maxX - minX) + (maxY - minY) + (maxZ - minZ) < this.boundingBoxSmallFactor;
+    };
+
+    boundingBoxDivisions = () => {
+        const [
+            [minX, minY, minZ],
+            [maxX, maxY, maxZ],
+        ] = this.boundingBox;
+        const avgX = (this.boundingBox[0][0] + this.boundingBox[1][0]) / 2;
+        const avgY = (this.boundingBox[0][1] + this.boundingBox[1][1]) / 2;
+        const avgZ = (this.boundingBox[0][2] + this.boundingBox[1][2]) / 2;
+
+        return [
+            [
+                [minX, minY, minZ],
+                [avgX, avgY, avgZ],
+            ],
+            [
+                [avgX, minY, minZ],
+                [maxX, avgY, avgZ],
+            ],
+            [
+                [minX, avgY, minZ],
+                [avgX, maxY, avgZ],
+            ],
+            [
+                [avgX, avgY, minZ],
+                [maxX, maxY, avgZ],
+            ],
+            [
+                [minX, minY, avgZ],
+                [avgX, avgY, maxZ],
+            ],
+            [
+                [avgX, minY, avgZ],
+                [maxX, avgY, maxZ],
+            ],
+            [
+                [minX, avgY, avgZ],
+                [avgX, maxY, maxZ],
+            ],
+            [
+                [avgX, avgY, avgZ],
+                [maxX, maxY, maxZ],
+            ],
+        ] as [[number, number, number], [number, number, number]][];
+    }
+
+    containsBoundingBox = (bb: [[number, number, number], [number, number, number]]): boolean => {
+        const [
+            [minX1, minY1, minZ1],
+            [maxX1, maxY1, maxZ1],
+        ] = this.boundingBox;
+        const [
+            [minX2, minY2, minZ2],
+            [maxX2, maxY2, maxZ2],
+        ] = bb;
+
+        return maxX1 >= minX2 || maxY1 >= minY2 || maxZ1 >= minZ2 || minX1 <= maxX2 || minY1 <= maxY2 || minZ1 <= maxZ2;
+    }
+
+    insertTriangle = (a: [number, number, number], b: [number, number, number], c: [number, number, number], item: T, index: number) => {
+        const bb = this.getBoundingBox([a, b, c]);
+        if (!this.isBoundingBoxSmall(bb)) {
+            return;
+        }
+        if (this.containsBoundingBox(bb)) {
+            if (this.depth < this.maxDepth && this.nodes.length === 0) {
+                this.nodes.push.apply(this.nodes, this.boundingBoxDivisions().map(bb => new OctreeTriangles(bb, this.depth + 1)));
+            }
+
+            if (this.depth === this.maxDepth) {
+                this.items.push(item);
+                this.indices.set(item, index);
+            } else {
+                this.nodes.forEach((n) => n.insertTriangle(a, b, c, item, index));
+            }
+        }
+    }
+
+    insertEdge = (a: [number, number, number], b: [number, number, number], item: T, index: number) => {
+        const bb = this.getBoundingBox([a, b]);
+        if (!this.isBoundingBoxSmall(bb)) {
+            return;
+        }
+        if (this.containsBoundingBox(bb)) {
+            if (this.depth < this.maxDepth && this.nodes.length === 0) {
+                this.nodes.push.apply(this.nodes, this.boundingBoxDivisions().map(bb => new OctreeTriangles(bb, this.depth + 1)));
+            }
+
+            if (this.depth === this.maxDepth) {
+                this.items.push(item);
+                this.indices.set(item, index);
+            } else {
+                this.nodes.forEach((n) => n.insertEdge(a, b, item, index));
+            }
+        }
+    }
+
+    removeTriangle = (a: [number, number, number], b: [number, number, number], c: [number, number, number], item: T) => {
+        const bb = this.getBoundingBox([a, b, c]);
+        if (this.containsBoundingBox(bb)) {
+            this.items.splice(this.items.indexOf(item), 1);
+            this.nodes.forEach((n) => n.removeTriangle(a, b, c, item));
+            const index = this.indices.get(item);
+            Array.from(this.indices.entries()).forEach(([t, i]) => {
+                if (i > index) {
+                    this.indices.set(t, i - 1);
+                }
+                if (i === index) {
+                    this.indices.delete(t);
+                }
+            });
+        }
+    }
+
+    removeEdge = (a: [number, number, number], b: [number, number, number], item: T) => {
+        const bb = this.getBoundingBox([a, b]);
+        if (this.containsBoundingBox(bb)) {
+            this.items.splice(this.items.indexOf(item), 1);
+            this.nodes.forEach((n) => n.removeEdge(a, b, item));
+            const index = this.indices.get(item);
+            Array.from(this.indices.entries()).forEach(([t, i]) => {
+                if (i > index) {
+                    this.indices.set(t, i - 1);
+                }
+                if (i === index) {
+                    this.indices.delete(t);
+                }
+            });
+        }
+    }
+
+    getItemsAtPoint = (p: [number, number, number]): [T, number][] => {
+        if (this.depth >= this.maxDepth) {
+            return this.items.map(t => [t, this.indices.get(t)!]);
+        }
+
+        const bb = this.getBoundingBox([p]);
+        if (this.containsBoundingBox(bb)) {
+            const node = this.nodes.find(n => n.containsBoundingBox(bb));
+            if (node) {
+                return node.getItemsAtPoint(p);
+            }
+        }
+        return [];
+    }
+}
+
 /**
  * A delaunay graph for procedural generation, automatic random landscapes.
  */
@@ -357,6 +548,60 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
      * The triangles of the graph.
      */
     public triangles: number[][] = [];
+
+    /**
+     * Triangle Octree for speed performance.
+     */
+    public triangleOctree: OctreeTriangles<number[]> = new OctreeTriangles<number[]>();
+
+    /**
+     * Edge Octree for speed performance.
+     */
+    public edgeOctree: OctreeTriangles<[number, number]> = new OctreeTriangles<[number, number]>();
+
+    /**
+     * Insert triangle helper function.
+     * @param triangle
+     * @param index
+     */
+    private insertTriangleOctree = (triangle: number[], index: number) => {
+        const a = this.vertices[this.edges[triangle[0]][0]];
+        const b = this.vertices[this.edges[triangle[1]][0]];
+        const c = this.vertices[this.edges[triangle[2]][0]];
+        this.triangleOctree.insertTriangle(a, b, c, triangle, index);
+    }
+
+    /**
+     * Insert edge helper function.
+     * @param edge
+     * @param index
+     */
+    private insertEdgeOctree = (edge: [number, number], index: number) => {
+        const a = this.vertices[edge[0]];
+        const b = this.vertices[edge[1]];
+        this.triangleOctree.insertEdge(a, b, edge, index);
+    }
+
+    /**
+     * Remove triangle helper function.
+     * @param triangle
+     */
+    private removeTriangleOctree = (triangle: number[]) => {
+        const a = this.vertices[this.edges[triangle[0]][0]];
+        const b = this.vertices[this.edges[triangle[1]][0]];
+        const c = this.vertices[this.edges[triangle[2]][0]];
+        this.triangleOctree.removeTriangle(a, b, c, triangle);
+    }
+
+    /**
+     * Remove edge helper function.
+     * @param edge
+     */
+    private removeEdgeOctree = (edge: [number, number]) => {
+        const a = this.vertices[edge[0]];
+        const b = this.vertices[edge[1]];
+        this.triangleOctree.removeEdge(a, b, edge);
+    }
 
     /**
      * A list of nodes such as planet to help AI travel around the map.
@@ -462,6 +707,9 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
         this.triangles.push([3, 4, 5]);
         this.triangles.push([6, 7, 8]);
         this.triangles.push([9, 10, 11]);
+
+        this.edges.forEach(this.insertEdgeOctree);
+        this.triangles.forEach(this.insertTriangleOctree);
     }
 
     public initializeWithPoints(points: Array<[number, number, number]>) {
@@ -611,7 +859,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
      * @private
      */
     private findTriangleIntersection(vertex: [number, number, number]): number {
-        return this.triangles.findIndex((triangle) => {
+        const validateTriangleIntersection = (triangle: number[]) => {
             // for each edge of a spherical triangle
             for (const edgeIndex of triangle) {
                 // compute half plane of edge
@@ -635,7 +883,12 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             // return true, the point is inside the correct side of all edges of the triangle
             // safe to assume the point is inside the triangle
             return true;
-        });
+        };
+        const triangle = this.triangleOctree.getItemsAtPoint(vertex).find(([v, i]: [number[], number]) => validateTriangleIntersection(v));
+        if (triangle) {
+            return triangle[1];
+        }
+        return this.triangles.findIndex(validateTriangleIntersection);
     }
 
     /**
@@ -657,10 +910,13 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
         this.edges.push([this.vertices.length - 1, threeVertexIndices[0]], [threeVertexIndices[1], this.vertices.length - 1]);
         this.edges.push([this.vertices.length - 1, threeVertexIndices[1]], [threeVertexIndices[2], this.vertices.length - 1]);
         this.edges.push([this.vertices.length - 1, threeVertexIndices[2]], [threeVertexIndices[0], this.vertices.length - 1]);
+        this.edges.map((v, i) => [v, i]).slice(-3).forEach(([v, i]: [[number, number], number]) => this.insertEdgeOctree(v, i));
         this.triangles.splice(triangleIndex, 1);
+        this.removeTriangleOctree(this.triangles[triangleIndex]);
         this.triangles.push([threeEdgeIndices[0], this.edges.length - 7 + 2, this.edges.length - 7 + 1]);
         this.triangles.push([threeEdgeIndices[1], this.edges.length - 7 + 4, this.edges.length - 7 + 3]);
         this.triangles.push([threeEdgeIndices[2], this.edges.length - 7 + 6, this.edges.length - 7 + 5]);
+        this.triangles.map((v, i) => [v, i]).slice(-3).forEach(([v, i]: [number[], number]) => this.insertTriangleOctree(v, i));
     }
 
     /**
@@ -828,9 +1084,11 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             for (const edgeIndex of this.triangles[triangleIndex]) {
                 const edge = this.edges[edgeIndex];
                 // find opposite edge
-                const complementOfBadTriangleEdgeIndex = this.edges.findIndex((testEdge) => {
+                const validateEdgeComplement = (testEdge: [number, number]) => {
                     return testEdge[0] === edge[1] && testEdge[1] === edge[0];
-                });
+                };
+                const edgeComplement = this.edgeOctree.getItemsAtPoint(vertex).find(([v, i]: [[number, number], number]) => validateEdgeComplement(v));
+                const complementOfBadTriangleEdgeIndex = edgeComplement ? edgeComplement[1] : this.edges.findIndex(validateEdgeComplement);
                 if (complementOfBadTriangleEdgeIndex >= 0) {
                     // find if opposite edge is not in any bad triangles
                     const isInsideGoodTriangle = badTriangleIndices.every(badTriangleIndex => {
