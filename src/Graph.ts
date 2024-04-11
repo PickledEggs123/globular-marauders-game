@@ -450,10 +450,12 @@ class OctreeTriangles<T> {
                 this.nodes.push.apply(this.nodes, this.boundingBoxDivisions().map(bb => new OctreeTriangles(bb, this.depth + 1)));
             }
 
-            if (this.depth === this.maxDepth) {
+            const nodeInsects = this.nodes.reduce((acc, n) => n.containsBoundingBox(bb) ? acc + 1 : acc, 0);
+            if (nodeInsects > 1) {
                 this.items.push(item);
                 this.indices.set(item, index);
-            } else {
+            }
+            if (nodeInsects === 1) {
                 this.nodes.forEach((n) => n.insertTriangle(a, b, c, item, index));
             }
         }
@@ -465,17 +467,16 @@ class OctreeTriangles<T> {
             return;
         }
         if (this.containsBoundingBox(bb)) {
-            console.log("TRAVERSE");
             if (this.depth < this.maxDepth && this.nodes.length === 0) {
-                console.log("SPAWN");
                 this.nodes.push.apply(this.nodes, this.boundingBoxDivisions().map(bb => new OctreeTriangles(bb, this.depth + 1)));
             }
 
-            if (this.depth === this.maxDepth) {
+            const nodeInsects = this.nodes.reduce((acc, n) => n.containsBoundingBox(bb) ? acc + 1 : acc, 0);
+            if (nodeInsects > 1) {
                 this.items.push(item);
                 this.indices.set(item, index);
-                console.log("INSERT", index);
-            } else {
+            }
+            if (nodeInsects === 1) {
                 this.nodes.forEach((n) => n.insertEdge(a, b, item, index));
             }
         }
@@ -484,48 +485,53 @@ class OctreeTriangles<T> {
     removeTriangle = (a: [number, number, number], b: [number, number, number], c: [number, number, number], item: T) => {
         const bb = this.getBoundingBox([a, b, c]);
         if (this.containsBoundingBox(bb)) {
-            this.items.splice(this.items.indexOf(item), 1);
+            const itemIndex = this.items.indexOf(item);
+            if (itemIndex >= 0) {
+                this.items.splice(itemIndex, 1);
+                const index = this.indices.get(item);
+                Array.from(this.indices.entries()).forEach(([t, i]) => {
+                    if (i > index) {
+                        this.indices.set(t, i - 1);
+                    }
+                    if (i === index) {
+                        this.indices.delete(t);
+                    }
+                });
+                return;
+            }
             this.nodes.forEach((n) => n.removeTriangle(a, b, c, item));
-            const index = this.indices.get(item);
-            Array.from(this.indices.entries()).forEach(([t, i]) => {
-                if (i > index) {
-                    this.indices.set(t, i - 1);
-                }
-                if (i === index) {
-                    this.indices.delete(t);
-                }
-            });
         }
     }
 
     removeEdge = (a: [number, number, number], b: [number, number, number], item: T) => {
         const bb = this.getBoundingBox([a, b]);
         if (this.containsBoundingBox(bb)) {
-            this.items.splice(this.items.indexOf(item), 1);
+            const itemIndex = this.items.indexOf(item);
+            if (itemIndex >= 0) {
+                this.items.splice(itemIndex, 1);
+                const index = this.indices.get(item);
+                Array.from(this.indices.entries()).forEach(([t, i]) => {
+                    if (i > index) {
+                        this.indices.set(t, i - 1);
+                    }
+                    if (i === index) {
+                        this.indices.delete(t);
+                    }
+                });
+                return;
+            }
             this.nodes.forEach((n) => n.removeEdge(a, b, item));
-            const index = this.indices.get(item);
-            Array.from(this.indices.entries()).forEach(([t, i]) => {
-                if (i > index) {
-                    this.indices.set(t, i - 1);
-                }
-                if (i === index) {
-                    this.indices.delete(t);
-                }
-            });
         }
     }
 
-    getItemsAtPoint = (p: [number, number, number]): [T, number][] => {
-        if (this.depth >= this.maxDepth) {
-            return this.items.map(t => [t, this.indices.get(t)!]);
-        }
-
+    getItemsAtPoint = (p: [number, number, number], items: [T, number][] = []): [T, number][] => {
         const bb = this.getBoundingBox([p]);
         if (this.containsBoundingBox(bb)) {
             const node = this.nodes.find(n => n.containsBoundingBox(bb));
             if (node) {
-                return node.getItemsAtPoint(p);
+                return [...items, ...node.getItemsAtPoint(p, items)];
             }
+            return this.items.map(t => [t, this.indices.get(t)!]);
         }
         return [];
     }
