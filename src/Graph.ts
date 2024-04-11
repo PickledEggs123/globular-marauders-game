@@ -339,7 +339,7 @@ export class PathingNode<T extends IPathingGraph> implements IPathingNode<T> {
 
 class OctreeTriangles<T> {
     nodes: OctreeTriangles<T>[] = [];
-    maxDepth = 5;
+    maxDepth = 4;
     depth = 0;
     items: T[] = [];
     indices: Map<T, number> = new Map<T, number>();
@@ -465,13 +465,16 @@ class OctreeTriangles<T> {
             return;
         }
         if (this.containsBoundingBox(bb)) {
+            console.log("TRAVERSE");
             if (this.depth < this.maxDepth && this.nodes.length === 0) {
+                console.log("SPAWN");
                 this.nodes.push.apply(this.nodes, this.boundingBoxDivisions().map(bb => new OctreeTriangles(bb, this.depth + 1)));
             }
 
             if (this.depth === this.maxDepth) {
                 this.items.push(item);
                 this.indices.set(item, index);
+                console.log("INSERT", index);
             } else {
                 this.nodes.forEach((n) => n.insertEdge(a, b, item, index));
             }
@@ -1003,8 +1006,9 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
      * @param point An optional point to insert into the delaunay graph. If no point is supplied, a random point will
      * be generated.
      * @param step The number of steps executed so far.
+     * @param skipCollinear Should skip collinear check
      */
-    public incrementalInsert(point?: [number, number, number], step: number = 0) {
+    public incrementalInsert(point?: [number, number, number], step: number = 0, skipCollinear = false) {
         // the max step
         if (step >= 3) {
             return;
@@ -1017,7 +1021,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
         } else {
             vertex = this.seedRandomPoint();
         }
-        if (this.collinearWithSomething(vertex)) {
+        if (!skipCollinear && this.collinearWithSomething(vertex)) {
             return this.incrementalInsert(undefined, step + 1);
         }
 
@@ -1028,7 +1032,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
                 const randomTriangleIndex = Math.floor(this.triangles.length * this.app.seedRandom.double());
                 const triangle = this.triangles[randomTriangleIndex];
                 if (!triangle) {
-                    return this.incrementalInsert(point, step + 1);
+                    return this.incrementalInsert(undefined, step + 1);
                 }
                 const triangleVertices = triangle.map(edgeIndex => this.vertices[this.edges[edgeIndex][0]]);
                 vertex = DelaunayGraph.normalize(Game.getAveragePoint(triangleVertices));
@@ -1037,7 +1041,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             }
         }
         if (triangleIndex < 0) {
-            return this.incrementalInsert(point, step + 1);
+            return this.incrementalInsert(undefined, step + 1);
         }
 
         // add triangle incrementally
