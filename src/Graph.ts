@@ -337,7 +337,7 @@ export class PathingNode<T extends IPathingGraph> implements IPathingNode<T> {
     }
 }
 
-class OctreeTriangles<T> {
+export class OctreeTriangles<T> {
     nodes: OctreeTriangles<T>[] = [];
     maxDepth = 4;
     depth = 0;
@@ -437,7 +437,7 @@ class OctreeTriangles<T> {
             [maxX2, maxY2, maxZ2],
         ] = bb;
 
-        return maxX1 >= minX2 || maxY1 >= minY2 || maxZ1 >= minZ2 || minX1 <= maxX2 || minY1 <= maxY2 || minZ1 <= maxZ2;
+        return maxX1 >= minX2 && maxY1 >= minY2 && maxZ1 >= minZ2 && minX1 <= maxX2 && minY1 <= maxY2 && minZ1 <= maxZ2;
     }
 
     insertTriangle = (a: [number, number, number], b: [number, number, number], c: [number, number, number], item: T, index: number) => {
@@ -450,13 +450,14 @@ class OctreeTriangles<T> {
                 this.nodes.push.apply(this.nodes, this.boundingBoxDivisions().map(bb => new OctreeTriangles(bb, this.depth + 1)));
             }
 
-            const nodeInsects = this.nodes.reduce((acc, n) => n.containsBoundingBox(bb) ? acc + 1 : acc, 0);
-            if (nodeInsects > 1) {
+            const nodeIntersects = this.nodes.filter((n) => n.containsBoundingBox(bb));
+            if (nodeIntersects.length >= 8) {
                 this.items.push(item);
                 this.indices.set(item, index);
+                return;
             }
-            if (nodeInsects === 1) {
-                this.nodes.forEach((n) => n.insertTriangle(a, b, c, item, index));
+            for (const node of nodeIntersects) {
+                node.insertTriangle(a, b, c, item, index);
             }
         }
     }
@@ -471,13 +472,14 @@ class OctreeTriangles<T> {
                 this.nodes.push.apply(this.nodes, this.boundingBoxDivisions().map(bb => new OctreeTriangles(bb, this.depth + 1)));
             }
 
-            const nodeInsects = this.nodes.reduce((acc, n) => n.containsBoundingBox(bb) ? acc + 1 : acc, 0);
-            if (nodeInsects > 1) {
+            const nodeIntersects = this.nodes.filter((n) => n.containsBoundingBox(bb));
+            if (nodeIntersects.length >= 8) {
                 this.items.push(item);
                 this.indices.set(item, index);
+                return;
             }
-            if (nodeInsects === 1) {
-                this.nodes.forEach((n) => n.insertEdge(a, b, item, index));
+            for (const node of nodeIntersects) {
+                node.insertEdge(a, b, item, index);
             }
         }
     }
@@ -524,16 +526,16 @@ class OctreeTriangles<T> {
         }
     }
 
-    getItemsAtPoint = (p: [number, number, number], items: [T, number][] = []): [T, number][] => {
+    getItemsAtPoint = (p: [number, number, number], items: Map<T, number> = new Map<T, number>()): Map<T, number> => {
         const bb = this.getBoundingBox([p]);
         if (this.containsBoundingBox(bb)) {
-            const node = this.nodes.find(n => n.containsBoundingBox(bb));
-            if (node) {
-                return [...items, ...node.getItemsAtPoint(p, items)];
+            const nodes = this.nodes.filter(n => n.containsBoundingBox(bb));
+            if (nodes.length) {
+                return new Map<T, number>([...items.entries(), ...nodes.reduce((acc, n) => [...acc, ...n.getItemsAtPoint(p, items)], [])]);
             }
-            return this.items.map(t => [t, this.indices.get(t)!]);
+            return new Map<T, number>(this.items.map(t => [t, this.indices.get(t)!]));
         }
-        return [];
+        return new Map<T, number>();
     }
 }
 
@@ -893,7 +895,8 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
             // safe to assume the point is inside the triangle
             return true;
         };
-        const triangle = this.triangleOctree.getItemsAtPoint(vertex).find(([v, i]: [number[], number]) => validateTriangleIntersection(v));
+        const shortcutTriangleMap = this.triangleOctree.getItemsAtPoint(vertex);
+        const triangle = Array.from(shortcutTriangleMap.entries()).find(([v, i]) => validateTriangleIntersection(v));
         if (triangle) {
             return triangle[1];
         }
@@ -1097,7 +1100,8 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
                 const validateEdgeComplement = (testEdge: [number, number]) => {
                     return testEdge[0] === edge[1] && testEdge[1] === edge[0];
                 };
-                const edgeComplement = this.edgeOctree.getItemsAtPoint(vertex).find(([v, i]: [[number, number], number]) => validateEdgeComplement(v));
+                const shortcutEdgeMap = this.edgeOctree.getItemsAtPoint(vertex);
+                const edgeComplement = Array.from(shortcutEdgeMap.entries()).find(([v, i]: [[number, number], number]) => validateEdgeComplement(v));
                 const complementOfBadTriangleEdgeIndex = edgeComplement ? edgeComplement[1] : this.edges.findIndex(validateEdgeComplement);
                 if (complementOfBadTriangleEdgeIndex >= 0) {
                     // find if opposite edge is not in any bad triangles
