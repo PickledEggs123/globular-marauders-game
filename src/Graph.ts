@@ -1232,12 +1232,14 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
 
             // create edge and triangle
             this.edges.push([bIndex, newVertexIndex], [newVertexIndex, aIndex]);
+            this.edges.map((v, i) => [v, i]).slice(-2).forEach(([v, i]: [[number, number], number]) => this.insertEdgeOctree(v, i));
             const triangle = [
                 edgeIndex,
                 this.edges.length - 2,
                 this.edges.length - 1,
             ];
             this.triangles.push(triangle);
+            this.triangles.map((v, i) => [v, i]).slice(-1).forEach(([v, i]: [[number, number, number], number]) => this.insertTriangleOctree(v, i));
 
             // validate triangle
             let isOrientedCorrectly: boolean = true;
