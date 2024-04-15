@@ -79,6 +79,8 @@ export interface IGameMesh {
     index: number[];
     collidable?: boolean;
     navmesh?: boolean;
+    ocean?: boolean;
+    oceanNavmesh?: boolean;
 }
 
 /**
