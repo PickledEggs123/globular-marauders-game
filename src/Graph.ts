@@ -712,7 +712,7 @@ export class DelaunayGraph<T extends ICameraState> implements IPathingGraph {
         this.edges.push([0, 1], [1, 2], [2, 0]);
         this.edges.push([0, 2], [2, 3], [3, 0]);
         this.edges.push([0, 3], [3, 1], [1, 0]);
-        this.edges.push([1, 3], [3, 2], [2, 1]);
+        this.edges.push([1, 2], [2, 3], [3, 1]);
 
         this.triangles.push([0, 1, 2]);
         this.triangles.push([3, 4, 5]);
