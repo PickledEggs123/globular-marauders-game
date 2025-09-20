@@ -51,13 +51,13 @@ import {
 import {ISerializedPlanetaryCurrencySystem, PlanetaryCurrencySystem} from "./PlanetaryCurrencySystem";
 import {ISerializedPlanetaryMoneyAccount} from "./PlanetaryEconomyDemand";
 import {ISerializedPlanetaryEconomySystem, PlanetaryEconomySystem} from "./PlanetaryEconomySystem";
-import * as faker from "faker";
+// @ts-ignore
+import Faker from "@faker-js/faker";
 import {DEFAULT_FACTION_PROPERTIES} from "./FactionProperties";
 import {EShipType, GetShipData} from "./ShipType";
 import {EInvasionCaptureState, EInvasionPhase, Invasion} from "./Invasion";
-import {EFaction, ERaceData, GameFactionData, IClassData} from "./EFaction";
+import {EFaction, GameFactionData} from "./EFaction";
 import {ICurrency, MoneyAccount} from "./MoneyAccount";
-import {Character} from "./Character";
 
 export enum EPlanetFormActions {
     ENTER_PORT = "PlanetPortEnter",
@@ -662,7 +662,7 @@ export class Planet implements ICameraState {
         this.county = county;
 
         // initialize name
-        this.name = faker.address.cityName();
+        this.name = Faker.location.city();
 
         // initialize the natural resources
         this.naturalResources = [];

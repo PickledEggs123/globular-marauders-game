@@ -5,8 +5,8 @@
   "types": "lib/index.d.ts",
   "description": "The base library containing the base game for globular marauders",
   "dependencies": {
+    "@faker-js/faker": "^9.0.0",
     "@types/node": "^12.20.7",
-    "faker": "^5.5.3",
     "quaternion": "^1.1.0",
     "seedrandom": "^3.0.5"
   },
